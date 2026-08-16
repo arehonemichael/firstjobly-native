@@ -1,4 +1,4 @@
-﻿{
+{
   "expo": {
     "name": "FirstJobly",
     "slug": "firstjobly-native",
@@ -33,7 +33,14 @@
         }
       ],
       "expo-secure-store",
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-sharing",
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-1505001993402465~7846151022"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
