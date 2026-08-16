@@ -9,7 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 
@@ -45,6 +45,7 @@ function salary(job: Job) {
 
 export default function JobDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const insets = useSafeAreaInsets();
 
   const [job, setJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);
@@ -95,6 +96,8 @@ export default function JobDetailsScreen() {
     : job.province;
 
   const salaryLabel = salary(job);
+  const footerBottomPadding = Math.max(insets.bottom, 12);
+  const footerHeight = 56 + 16 + footerBottomPadding;
 
   const apply = async () => {
     if (!job.external_url) return;
@@ -138,7 +141,7 @@ export default function JobDetailsScreen() {
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingBottom: footerHeight + 24 }]}
         showsVerticalScrollIndicator={false}
       >
         {job.company_logo_url ? (
@@ -235,11 +238,9 @@ export default function JobDetailsScreen() {
         )}
 
         <NativeAdBlock />
-
-        <View style={{ height: 110 }} />
       </ScrollView>
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: footerBottomPadding }]}>
         <TouchableOpacity
           style={[
             styles.applyButton,
@@ -298,7 +299,6 @@ const styles = StyleSheet.create({
 
   content: {
     padding: 20,
-    paddingBottom: 120,
   },
 
   logo: {
@@ -393,7 +393,8 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    padding: 16,
+    paddingTop: 16,
+    paddingHorizontal: 16,
     backgroundColor: "#FFFFFF",
     borderTopWidth: 1,
     borderTopColor: "#EAECF0",
@@ -420,23 +421,23 @@ const styles = StyleSheet.create({
   },
 
   errorTitle: {
-    color: "#0B1F30",
+    marginTop: 15,
     fontSize: 19,
     fontWeight: "800",
-    marginTop: 15,
+    color: "#0B1F30",
     textAlign: "center",
   },
 
   backButton: {
-    backgroundColor: "#E31C5F",
-    borderRadius: 12,
-    paddingHorizontal: 24,
-    paddingVertical: 13,
-    marginTop: 20,
+    marginTop: 22,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    backgroundColor: "#0B1F30",
+    borderRadius: 10,
   },
 
   backButtonText: {
     color: "#FFFFFF",
-    fontWeight: "800",
+    fontWeight: "700",
   },
 });
