@@ -10,14 +10,21 @@ import {
 
 import { AD_UNITS } from "./config";
 
-export function NativeAdBlock() {
+type NativeAdBlockProps = {
+  variant?: "detail" | "feed";
+};
+
+export function NativeAdBlock({ variant = "detail" }: NativeAdBlockProps) {
   const [nativeAd, setNativeAd] = useState<NativeAd | null>(null);
+  const compact = variant === "feed";
 
   useEffect(() => {
     let alive = true;
     let loadedAd: NativeAd | null = null;
 
-    NativeAd.createForAdRequest(AD_UNITS.native)
+    NativeAd.createForAdRequest(AD_UNITS.native, {
+      requestNonPersonalizedAdsOnly: true,
+    })
       .then((ad) => {
         loadedAd = ad;
         if (alive) setNativeAd(ad);
@@ -36,30 +43,42 @@ export function NativeAdBlock() {
   if (!nativeAd) return null;
 
   return (
-    <View style={styles.outer}>
-      <NativeAdView nativeAd={nativeAd} style={styles.card}>
+    <View style={[styles.outer, compact && styles.feedOuter]}>
+      <NativeAdView
+        nativeAd={nativeAd}
+        style={[styles.card, compact && styles.feedCard]}
+      >
         <View style={styles.topRow}>
           {nativeAd.icon ? (
             <NativeAsset assetType={NativeAssetType.ICON}>
-              <Image source={{ uri: nativeAd.icon.url }} style={styles.icon} />
+              <Image
+                source={{ uri: nativeAd.icon.url }}
+                style={[styles.icon, compact && styles.feedIcon]}
+              />
             </NativeAsset>
           ) : null}
 
           <View style={styles.copy}>
             <Text style={styles.sponsored}>Sponsored</Text>
             <NativeAsset assetType={NativeAssetType.HEADLINE}>
-              <Text style={styles.headline} numberOfLines={2}>
+              <Text
+                style={[styles.headline, compact && styles.feedHeadline]}
+                numberOfLines={2}
+              >
                 {nativeAd.headline}
               </Text>
             </NativeAsset>
           </View>
         </View>
 
-        <NativeMediaView style={styles.media} />
+        <NativeMediaView style={[styles.media, compact && styles.feedMedia]} />
 
         {nativeAd.body ? (
           <NativeAsset assetType={NativeAssetType.BODY}>
-            <Text style={styles.body} numberOfLines={3}>
+            <Text
+              style={[styles.body, compact && styles.feedBody]}
+              numberOfLines={compact ? 2 : 3}
+            >
               {nativeAd.body}
             </Text>
           </NativeAsset>
@@ -67,7 +86,9 @@ export function NativeAdBlock() {
 
         {nativeAd.callToAction ? (
           <NativeAsset assetType={NativeAssetType.CALL_TO_ACTION}>
-            <Text style={styles.cta}>{nativeAd.callToAction}</Text>
+            <Text style={[styles.cta, compact && styles.feedCta]}>
+              {nativeAd.callToAction}
+            </Text>
           </NativeAsset>
         ) : null}
       </NativeAdView>
@@ -80,12 +101,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     marginTop: 20,
   },
+  feedOuter: {
+    paddingHorizontal: 0,
+    marginTop: 10,
+    marginBottom: 10,
+  },
   card: {
     borderWidth: 1,
     borderColor: "#E4E7EC",
     borderRadius: 16,
     padding: 14,
     backgroundColor: "#FAFAFA",
+  },
+  feedCard: {
+    borderRadius: 12,
+    padding: 12,
+    backgroundColor: "#FFFFFF",
   },
   topRow: {
     flexDirection: "row",
@@ -96,6 +127,11 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 10,
+  },
+  feedIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
   },
   copy: {
     flex: 1,
@@ -114,6 +150,10 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     color: "#0B1F30",
   },
+  feedHeadline: {
+    fontSize: 14,
+    lineHeight: 19,
+  },
   media: {
     width: "100%",
     height: 180,
@@ -121,11 +161,21 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: "hidden",
   },
+  feedMedia: {
+    height: 120,
+    marginTop: 10,
+    borderRadius: 10,
+  },
   body: {
     marginTop: 10,
     color: "#475467",
     fontSize: 14,
     lineHeight: 20,
+  },
+  feedBody: {
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 8,
   },
   cta: {
     marginTop: 12,
@@ -138,5 +188,12 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 10,
     overflow: "hidden",
+  },
+  feedCta: {
+    marginTop: 9,
+    fontSize: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
   },
 });
