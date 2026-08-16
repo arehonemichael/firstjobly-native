@@ -4,7 +4,6 @@ import { AppState, type AppStateStatus } from "react-native";
 import mobileAds, {
   AdEventType,
   AppOpenAd,
-  type AppOpenAd as AppOpenAdInstance,
 } from "react-native-google-mobile-ads";
 
 import { AD_LIMITS, AD_UNITS } from "./config";
@@ -27,15 +26,16 @@ export function AdMobLifecycle() {
   const launchCount = useRef(0);
   const loaded = useRef(false);
   const loadedAt = useRef(0);
-  const adRef = useRef<AppOpenAdInstance | null>(null);
+  const adRef = useRef<ReturnType<typeof AppOpenAd.createForAdRequest> | null>(null);
   const cleanupRef = useRef<(() => void)[]>([]);
 
   useEffect(() => {
     let mounted = true;
 
     const disposeAd = () => {
-      cleanupRef.current.forEach((remove) => remove());
+      cleanupRef.current.forEach((unsubscribe) => unsubscribe());
       cleanupRef.current = [];
+      adRef.current?.removeAllListeners();
       adRef.current = null;
       loaded.current = false;
       loadedAt.current = 0;
@@ -49,7 +49,6 @@ export function AdMobLifecycle() {
       });
 
       adRef.current = ad;
-
       cleanupRef.current = [
         ad.addAdEventListener(AdEventType.LOADED, () => {
           loaded.current = true;
@@ -64,7 +63,7 @@ export function AdMobLifecycle() {
           loaded.current = false;
           loadedAt.current = 0;
         }),
-      ].map((subscription) => () => subscription.remove());
+      ];
 
       ad.load();
     };
@@ -91,7 +90,7 @@ export function AdMobLifecycle() {
 
       loaded.current = false;
       await AsyncStorage.setItem(LAST_APP_OPEN_KEY, String(now));
-      adRef.current.show();
+      await adRef.current.show();
     };
 
     const bootstrap = async () => {
