@@ -23,11 +23,24 @@ function replaceOnce(find, replace, label) {
   text = text.replace(normalizedFind, normalizedReplace);
 }
 
-insertAfter(
-  'import { useScreenBottomPadding } from "../../hooks/use-screen-bottom-padding";\n',
-  'import { NativeAdBlock } from "../../ads/NativeAdBlock";\nimport { useJobInterstitial } from "../../ads/useJobInterstitial";\n',
-  'ad imports'
-);
+// Current working file may already have AdBanner imported from the previous visible-ad patch.
+if (!text.includes('import { NativeAdBlock } from "../../ads/NativeAdBlock";')) {
+  const importAnchor = text.includes('import { AdBanner } from "../../ads/AdBanner";')
+    ? 'import { AdBanner } from "../../ads/AdBanner";\n'
+    : 'import { useScreenBottomPadding } from "../../hooks/use-screen-bottom-padding";\n';
+
+  insertAfter(
+    importAnchor,
+    'import { NativeAdBlock } from "../../ads/NativeAdBlock";\nimport { useJobInterstitial } from "../../ads/useJobInterstitial";\n',
+    'ad imports'
+  );
+} else if (!text.includes('import { useJobInterstitial } from "../../ads/useJobInterstitial";')) {
+  insertAfter(
+    'import { NativeAdBlock } from "../../ads/NativeAdBlock";\n',
+    'import { useJobInterstitial } from "../../ads/useJobInterstitial";\n',
+    'interstitial import'
+  );
+}
 
 insertAfter(
   '  const { isSaved, toggleSave } = useSavedJobs();\n',
