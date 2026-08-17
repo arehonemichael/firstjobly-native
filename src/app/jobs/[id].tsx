@@ -24,6 +24,9 @@ import { supabase } from "../../lib/supabase";
 import type { Job } from "../../lib/jobs";
 
 import { useScreenBottomPadding } from "../../hooks/use-screen-bottom-padding";
+import { AdBanner } from "../../ads/AdBanner";
+import { useJobInterstitial } from "../../ads/useJobInterstitial";
+import { NativeAdBlock } from "../../ads/NativeAdBlock";
 
 const WEB_APP_URL = "https://firstjobly.co.za";
 
@@ -56,6 +59,7 @@ export default function JobDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { userId } = useAuth();
   const { isSaved, toggleSave } = useSavedJobs();
+  const { continueWithOptionalAd } = useJobInterstitial(id);
 
   const [job, setJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);
@@ -302,7 +306,10 @@ export default function JobDetailsScreen() {
   return (
     <SafeAreaView style={styles.page} edges={["top", "bottom"]}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.iconButton} onPress={() => router.back()}>
+        <TouchableOpacity
+          style={styles.iconButton}
+          onPress={() => void continueWithOptionalAd(() => router.back())}
+        >
           <Ionicons name="arrow-back" size={23} color="#061A30" />
         </TouchableOpacity>
 
@@ -399,6 +406,8 @@ export default function JobDetailsScreen() {
         <Text style={styles.heading}>About this opportunity</Text>
         <Text style={styles.body}>{job.description}</Text>
 
+        <AdBanner />
+
         {job.responsibilities?.length > 0 ? (
           <>
             <Text style={styles.heading}>Responsibilities</Text>
@@ -434,6 +443,8 @@ export default function JobDetailsScreen() {
             ))}
           </>
         ) : null}
+
+      <NativeAdBlock />
 
       <View style={styles.footer}>
         <TouchableOpacity

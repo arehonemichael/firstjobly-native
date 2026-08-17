@@ -40,11 +40,18 @@
         {
           "androidAppId": "ca-app-pub-1505001993402465~7846151022"
         }
-      ]
+      ],
+      "expo-image"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "a17295aa-763e-4ff5-a151-60d19b3fce12"
+      }
     }
   }
 }

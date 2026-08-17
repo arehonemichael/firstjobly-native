@@ -22,6 +22,7 @@ import { getSearchJobs } from "../../lib/job-api";
 import { useScreenBottomPadding } from "../../hooks/use-screen-bottom-padding";
 import { EmptyState, InlineErrorState } from "../../components/ui/app-ui";
 import { JobListSkeleton } from "../../components/ui/skeleton";
+import { NativeAdBlock } from "../../ads/NativeAdBlock";
 import type { Job } from "../../lib/jobs";
 import {
   CATEGORIES,
@@ -384,7 +385,18 @@ export default function JobsScreen() {
   const keyExtractor = useCallback((job: Job) => job.id, []);
 
   const renderJob = useCallback(
-    ({ item }: { item: Job }) => <JobCard job={item} />,
+    ({ item, index }: { item: Job; index: number }) => {
+      const jobNumber = index + 1;
+      const showNativeAd =
+        jobNumber === 6 || (jobNumber > 6 && (jobNumber - 6) % 8 === 0);
+
+      return (
+        <>
+          <JobCard job={item} />
+          {showNativeAd ? <NativeAdBlock variant="feed" /> : null}
+        </>
+      );
+    },
     []
   );
 
