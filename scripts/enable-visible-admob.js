@@ -4,11 +4,11 @@ function patchFile(path, transforms) {
   let text = fs.readFileSync(path, 'utf8');
   const original = text;
 
-  for (const { find, replace, label } of transforms) {
-    if (!text.includes(find)) {
+  for (const { pattern, replace, label } of transforms) {
+    if (!pattern.test(text)) {
       throw new Error(`Refusing to patch ${path}: anchor not found (${label})`);
     }
-    text = text.replace(find, replace);
+    text = text.replace(pattern, replace);
   }
 
   if (text === original) {
@@ -22,12 +22,12 @@ function patchFile(path, transforms) {
 patchFile('src/app/(tabs)/jobs.tsx', [
   {
     label: 'native ad import',
-    find: 'import { JobListSkeleton } from "../../components/ui/skeleton";\n',
+    pattern: /import \{ JobListSkeleton \} from "\.\.\/\.\.\/components\/ui\/skeleton";\r?\n/,
     replace: 'import { JobListSkeleton } from "../../components/ui/skeleton";\nimport { NativeAdBlock } from "../../ads/NativeAdBlock";\n',
   },
   {
     label: 'renderJob',
-    find: `  const renderJob = useCallback(\n    ({ item }: { item: Job }) => <JobCard job={item} />,\n    []\n  );`,
+    pattern: /  const renderJob = useCallback\(\r?\n\s*\(\{ item \}: \{ item: Job \}\) => <JobCard job=\{item\} \/>,\r?\n\s*\[\]\r?\n\s*\);/,
     replace: `  const renderJob = useCallback(\n    ({ item, index }: { item: Job; index: number }) => {\n      const jobNumber = index + 1;\n      const showNativeAd =\n        jobNumber === 6 || (jobNumber > 6 && (jobNumber - 6) % 8 === 0);\n\n      return (\n        <>\n          <JobCard job={item} />\n          {showNativeAd ? <NativeAdBlock variant="feed" /> : null}\n        </>\n      );\n    },\n    []\n  );`,
   },
 ]);
@@ -35,12 +35,12 @@ patchFile('src/app/(tabs)/jobs.tsx', [
 patchFile('src/app/jobs/[id].tsx', [
   {
     label: 'banner import',
-    find: 'import { useScreenBottomPadding } from "../../hooks/use-screen-bottom-padding";\n',
+    pattern: /import \{ useScreenBottomPadding \} from "\.\.\/\.\.\/hooks\/use-screen-bottom-padding";\r?\n/,
     replace: 'import { useScreenBottomPadding } from "../../hooks/use-screen-bottom-padding";\nimport { AdBanner } from "../../ads/AdBanner";\n',
   },
   {
     label: 'banner placement',
-    find: '        <Text style={styles.heading}>About this opportunity</Text>\n        <Text style={styles.body}>{job.description}</Text>\n',
+    pattern: /        <Text style=\{styles\.heading\}>About this opportunity<\/Text>\r?\n        <Text style=\{styles\.body\}>\{job\.description\}<\/Text>\r?\n/,
     replace: '        <Text style={styles.heading}>About this opportunity</Text>\n        <Text style={styles.body}>{job.description}</Text>\n\n        <AdBanner />\n',
   },
 ]);
