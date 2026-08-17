@@ -14,6 +14,14 @@ export const AD_UNITS = {
   native: __DEV__ ? TestIds.NATIVE : PROD.native,
 } as const;
 
+export const AD_FEATURES = {
+  banner: true,
+  nativeFeed: true,
+  nativeDetail: true,
+  interstitial: true,
+  appOpen: false,
+} as const;
+
 export const AD_LIMITS = {
   minJobDetailsBeforeInterstitial: 4,
   interstitialChance: 0.2,
