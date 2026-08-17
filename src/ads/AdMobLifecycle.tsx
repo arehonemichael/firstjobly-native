@@ -6,7 +6,7 @@ import mobileAds, {
   AppOpenAd,
 } from "react-native-google-mobile-ads";
 
-import { AD_LIMITS, AD_UNITS } from "./config";
+import { AD_FEATURES, AD_LIMITS, AD_UNITS } from "./config";
 
 const LAUNCH_COUNT_KEY = "fj_admob_launch_count";
 const LAST_APP_OPEN_KEY = "fj_admob_last_app_open";
@@ -30,6 +30,8 @@ export function AdMobLifecycle() {
   const cleanupRef = useRef<(() => void)[]>([]);
 
   useEffect(() => {
+    if (!AD_FEATURES.appOpen) return;
+
     let mounted = true;
 
     const disposeAd = () => {
@@ -101,8 +103,6 @@ export function AdMobLifecycle() {
       const nextCount = Number(currentRaw || 0) + 1;
       launchCount.current = nextCount;
       await AsyncStorage.setItem(LAUNCH_COUNT_KEY, String(nextCount));
-
-      // Preload only. Never show an app-open ad on this cold start.
       createAndLoad();
     };
 
