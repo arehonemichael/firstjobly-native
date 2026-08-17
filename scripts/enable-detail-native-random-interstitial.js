@@ -4,65 +4,79 @@ const path = 'src/app/jobs/[id].tsx';
 let text = fs.readFileSync(path, 'utf8');
 const eol = text.includes('\r\n') ? '\r\n' : '\n';
 
-function insertAfter(anchor, addition, label) {
+function ensureImport(line) {
+  if (text.includes(line)) return;
+
+  const candidates = [
+    'import { AdBanner } from "../../ads/AdBanner";',
+    'import { useScreenBottomPadding } from "../../hooks/use-screen-bottom-padding";',
+    'import type { Job } from "../../lib/jobs";',
+  ];
+
+  const anchor = candidates.find((candidate) => text.includes(candidate));
+  if (!anchor) {
+    throw new Error(`Refusing to patch ${path}: no safe import anchor found for ${line}`);
+  }
+
+  text = text.replace(anchor, `${anchor}${eol}${line}`);
+}
+
+function ensureAfter(anchor, addition, label) {
   if (text.includes(addition.trim())) return;
-  const normalizedAnchor = anchor.replace(/\n/g, eol);
-  if (!text.includes(normalizedAnchor)) {
+  if (!text.includes(anchor)) {
     throw new Error(`Refusing to patch ${path}: anchor not found (${label})`);
   }
-  text = text.replace(normalizedAnchor, normalizedAnchor + addition.replace(/\n/g, eol));
+  text = text.replace(anchor, `${anchor}${eol}${addition}`);
 }
 
-function replaceOnce(find, replace, label) {
-  const normalizedFind = find.replace(/\n/g, eol);
-  const normalizedReplace = replace.replace(/\n/g, eol);
-  if (text.includes(normalizedReplace)) return;
-  if (!text.includes(normalizedFind)) {
+function replaceOnceAny(candidates, replace, label) {
+  if (text.includes(replace)) return;
+  const found = candidates.find((candidate) => text.includes(candidate));
+  if (!found) {
     throw new Error(`Refusing to patch ${path}: anchor not found (${label})`);
   }
-  text = text.replace(normalizedFind, normalizedReplace);
+  text = text.replace(found, replace);
 }
 
-// Current working file may already have AdBanner imported from the previous visible-ad patch.
-if (!text.includes('import { NativeAdBlock } from "../../ads/NativeAdBlock";')) {
-  const importAnchor = text.includes('import { AdBanner } from "../../ads/AdBanner";')
-    ? 'import { AdBanner } from "../../ads/AdBanner";\n'
-    : 'import { useScreenBottomPadding } from "../../hooks/use-screen-bottom-padding";\n';
+ensureImport('import { NativeAdBlock } from "../../ads/NativeAdBlock";');
+ensureImport('import { useJobInterstitial } from "../../ads/useJobInterstitial";');
 
-  insertAfter(
-    importAnchor,
-    'import { NativeAdBlock } from "../../ads/NativeAdBlock";\nimport { useJobInterstitial } from "../../ads/useJobInterstitial";\n',
-    'ad imports'
-  );
-} else if (!text.includes('import { useJobInterstitial } from "../../ads/useJobInterstitial";')) {
-  insertAfter(
-    'import { NativeAdBlock } from "../../ads/NativeAdBlock";\n',
-    'import { useJobInterstitial } from "../../ads/useJobInterstitial";\n',
-    'interstitial import'
-  );
-}
-
-insertAfter(
-  '  const { isSaved, toggleSave } = useSavedJobs();\n',
-  '  const { continueWithOptionalAd } = useJobInterstitial(id);\n',
+ensureAfter(
+  '  const { isSaved, toggleSave } = useSavedJobs();',
+  '  const { continueWithOptionalAd } = useJobInterstitial(id);',
   'interstitial hook'
 );
 
-replaceOnce(
-  '        <TouchableOpacity style={styles.iconButton} onPress={() => router.back()}>',
-  '        <TouchableOpacity\n          style={styles.iconButton}\n          onPress={() => void continueWithOptionalAd(() => router.back())}\n        >',
+replaceOnceAny(
+  [
+    '        <TouchableOpacity style={styles.iconButton} onPress={() => router.back()}>',
+    '        <TouchableOpacity\r\n          style={styles.iconButton}\r\n          onPress={() => router.back()}\r\n        >',
+    '        <TouchableOpacity\n          style={styles.iconButton}\n          onPress={() => router.back()}\n        >',
+  ],
+  [
+    '        <TouchableOpacity',
+    '          style={styles.iconButton}',
+    '          onPress={() => void continueWithOptionalAd(() => router.back())}',
+    '        >',
+  ].join(eol),
   'back action'
 );
 
-const nativeMarker = '        <NativeAdBlock />';
-if (!text.includes(nativeMarker)) {
-  const footerAnchor = '      <View style={styles.footer}>';
-  if (!text.includes(footerAnchor)) {
+if (!text.includes('<NativeAdBlock />')) {
+  const footerCandidates = [
+    '      <View style={styles.footer}>',
+    '        <View style={styles.footer}>',
+  ];
+  const footerAnchor = footerCandidates.find((candidate) => text.includes(candidate));
+
+  if (!footerAnchor) {
     throw new Error(`Refusing to patch ${path}: anchor not found (detail native placement)`);
   }
+
+  const indent = footerAnchor.startsWith('        ') ? '        ' : '      ';
   text = text.replace(
     footerAnchor,
-    `        <NativeAdBlock />${eol}${eol}${footerAnchor}`
+    `${indent}<NativeAdBlock />${eol}${eol}${footerAnchor}`
   );
 }
 
