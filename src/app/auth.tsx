@@ -17,9 +17,12 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { supabase } from "./../lib/supabase";
 
+import { useScreenBottomPadding } from "../hooks/use-screen-bottom-padding";
+
 type Mode = "signin" | "signup" | "forgot";
 
 export default function AuthScreen() {
+  const bottomContentPadding = useScreenBottomPadding(false);
   const [mode, setMode] = useState<Mode>("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -164,14 +167,14 @@ export default function AuthScreen() {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <ScrollView
-          contentContainerStyle={styles.content}
+          contentContainerStyle={[styles.content, { paddingBottom: bottomContentPadding }]}
           keyboardShouldPersistTaps="handled"
         >
           <TouchableOpacity
             style={styles.back}
             onPress={() => router.back()}
           >
-            <Ionicons name="arrow-back" size={23} color="#0B1F30" />
+            <Ionicons name="arrow-back" size={23} color="#061A30" />
           </TouchableOpacity>
 
           <View style={styles.brand}>
@@ -199,7 +202,7 @@ export default function AuthScreen() {
               keyboardType="email-address"
               autoComplete="email"
               placeholder="you@example.com"
-              placeholderTextColor="#98A2B3"
+              placeholderTextColor="#94A3B8"
               style={styles.input}
             />
 
@@ -218,7 +221,7 @@ export default function AuthScreen() {
                         ? "At least 8 characters"
                         : "Your password"
                     }
-                    placeholderTextColor="#98A2B3"
+                    placeholderTextColor="#94A3B8"
                     style={styles.passwordInput}
                   />
 
@@ -229,7 +232,7 @@ export default function AuthScreen() {
                     <Ionicons
                       name={showPassword ? "eye-off-outline" : "eye-outline"}
                       size={21}
-                      color="#667085"
+                      color="#556274"
                     />
                   </TouchableOpacity>
                 </View>
@@ -246,7 +249,7 @@ export default function AuthScreen() {
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
                   placeholder="Repeat your password"
-                  placeholderTextColor="#98A2B3"
+                  placeholderTextColor="#94A3B8"
                   style={styles.input}
                 />
               </>
@@ -346,19 +349,19 @@ const styles = StyleSheet.create({
   },
 
   wordmark: {
-    color: "#0B1F30",
+    color: "#061A30",
     fontSize: 32,
     fontWeight: "800",
   },
 
   pink: {
-    color: "#E31C5F",
+    color: "#E1225F",
   },
 
   subtitle: {
     maxWidth: 330,
     marginTop: 12,
-    color: "#667085",
+    color: "#556274",
     textAlign: "center",
     fontSize: 14,
     lineHeight: 20,
@@ -369,7 +372,7 @@ const styles = StyleSheet.create({
   },
 
   label: {
-    color: "#344054",
+    color: "#556274",
     fontSize: 13,
     fontWeight: "700",
     marginBottom: 7,
@@ -379,10 +382,10 @@ const styles = StyleSheet.create({
   input: {
     height: 52,
     borderWidth: 1,
-    borderColor: "#D0D5DD",
+    borderColor: "#DFE4EC",
     borderRadius: 10,
     paddingHorizontal: 14,
-    color: "#101828",
+    color: "#061A30",
     fontSize: 15,
     backgroundColor: "#FFFFFF",
   },
@@ -390,7 +393,7 @@ const styles = StyleSheet.create({
   passwordWrap: {
     height: 52,
     borderWidth: 1,
-    borderColor: "#D0D5DD",
+    borderColor: "#DFE4EC",
     borderRadius: 10,
     flexDirection: "row",
     alignItems: "center",
@@ -399,7 +402,7 @@ const styles = StyleSheet.create({
   passwordInput: {
     flex: 1,
     paddingHorizontal: 14,
-    color: "#101828",
+    color: "#061A30",
     fontSize: 15,
   },
 
@@ -419,7 +422,7 @@ const styles = StyleSheet.create({
     height: 54,
     marginTop: 20,
     borderRadius: 10,
-    backgroundColor: "#E31C5F",
+    backgroundColor: "#E1225F",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -447,21 +450,23 @@ const styles = StyleSheet.create({
   },
 
   switchText: {
-    color: "#667085",
+    color: "#556274",
     fontSize: 13,
   },
 
   link: {
-    color: "#E31C5F",
+    color: "#E1225F",
     fontWeight: "700",
     fontSize: 13,
   },
 
   legal: {
     marginTop: 25,
-    color: "#98A2B3",
+    color: "#94A3B8",
     textAlign: "center",
     fontSize: 11,
     lineHeight: 17,
   },
 });
+
+

@@ -13,11 +13,14 @@ import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useAuth } from "../../hooks/use-auth";
+import { useScreenBottomPadding } from "../../hooks/use-screen-bottom-padding";
+import { EmptyState, SkeletonJobCard } from "../../components/ui/app-ui";
 import { useSavedJobs } from "../../hooks/use-saved-jobs";
 import { supabase } from "../../lib/supabase";
 import type { Job } from "../../lib/jobs";
 
 export default function SavedScreen() {
+  const bottomContentPadding = useScreenBottomPadding(true);
   const { isAuthenticated, loading: authLoading } = useAuth();
   const { savedIds, loading: savedLoading, refreshSaved } = useSavedJobs();
 
@@ -66,16 +69,16 @@ export default function SavedScreen() {
   if (authLoading || savedLoading) {
     return (
       <SafeAreaView style={styles.center}>
-        <ActivityIndicator color="#E31C5F" />
+        <ActivityIndicator color="#E1225F" />
       </SafeAreaView>
     );
   }
 
   if (!isAuthenticated) {
     return (
-      <SafeAreaView style={styles.page} edges={["top"]}>
+      <SafeAreaView style={styles.page} edges={["top", "bottom"]}>
         <View style={styles.empty}>
-          <Ionicons name="bookmark-outline" size={44} color="#E31C5F" />
+          <Ionicons name="bookmark-outline" size={44} color="#E1225F" />
 
           <Text style={styles.emptyTitle}>Save jobs for later</Text>
 
@@ -95,11 +98,11 @@ export default function SavedScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.page} edges={["top"]}>
+    <SafeAreaView style={styles.page} edges={["top", "bottom"]}>
       <FlatList
         data={jobs}
         keyExtractor={(job) => job.id}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, { paddingBottom: bottomContentPadding }]}
         refreshing={savedLoading || loadingJobs}
         onRefresh={() => void refreshSaved()}
         ListHeaderComponent={
@@ -112,24 +115,18 @@ export default function SavedScreen() {
         }
         ListEmptyComponent={
           loadingJobs ? (
-            <ActivityIndicator color="#E31C5F" style={{ marginTop: 60 }} />
-          ) : (
-            <View style={styles.emptyList}>
-              <Ionicons name="bookmark-outline" size={38} color="#98A2B3" />
-
-              <Text style={styles.emptyListTitle}>No saved jobs yet</Text>
-
-              <Text style={styles.emptyText}>
-                Open a job and tap the bookmark icon to save it.
-              </Text>
-
-              <TouchableOpacity
-                style={styles.secondary}
-                onPress={() => router.push("/jobs")}
-              >
-                <Text style={styles.secondaryText}>Search jobs</Text>
-              </TouchableOpacity>
+            <View>
+              <SkeletonJobCard />
+              <SkeletonJobCard />
+              <SkeletonJobCard />
             </View>
+          ) : (
+            <EmptyState
+              title="No saved jobs yet"
+              message="Open an opportunity and tap the bookmark icon to save it for later."
+              actionLabel="Search jobs"
+              onAction={() => router.push("/jobs")}
+            />
           )
         }
         renderItem={({ item }) => (
@@ -167,7 +164,7 @@ export default function SavedScreen() {
                 <Ionicons
                   name="location-outline"
                   size={14}
-                  color="#667085"
+                  color="#556274"
                 />
 
                 <Text style={styles.metaText}>
@@ -181,7 +178,7 @@ export default function SavedScreen() {
             <Ionicons
               name="chevron-forward"
               size={19}
-              color="#98A2B3"
+              color="#94A3B8"
             />
           </TouchableOpacity>
         )}
@@ -193,19 +190,19 @@ export default function SavedScreen() {
 const styles = StyleSheet.create({
   page: {
     flex: 1,
-    backgroundColor: "#FAFAFA",
+    backgroundColor: "#F6F7F9",
   },
 
   center: {
     flex: 1,
-    backgroundColor: "#FAFAFA",
+    backgroundColor: "#F6F7F9",
     alignItems: "center",
     justifyContent: "center",
   },
 
   list: {
     paddingHorizontal: 16,
-    paddingBottom: 40,
+    paddingBottom: 110,
   },
 
   header: {
@@ -214,14 +211,14 @@ const styles = StyleSheet.create({
   },
 
   title: {
-    color: "#0B1F30",
+    color: "#061A30",
     fontSize: 24,
-    fontWeight: "800",
+    fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800",
   },
 
   subtitle: {
     marginTop: 4,
-    color: "#667085",
+    color: "#556274",
     fontSize: 13,
   },
 
@@ -234,15 +231,15 @@ const styles = StyleSheet.create({
 
   emptyTitle: {
     marginTop: 18,
-    color: "#0B1F30",
+    color: "#061A30",
     fontSize: 21,
-    fontWeight: "800",
+    fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800",
   },
 
   emptyText: {
     maxWidth: 310,
     marginTop: 8,
-    color: "#667085",
+    color: "#556274",
     fontSize: 13,
     lineHeight: 20,
     textAlign: "center",
@@ -255,8 +252,8 @@ const styles = StyleSheet.create({
 
   emptyListTitle: {
     marginTop: 12,
-    color: "#0B1F30",
-    fontWeight: "800",
+    color: "#061A30",
+    fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800",
   },
 
   primary: {
@@ -264,14 +261,14 @@ const styles = StyleSheet.create({
     height: 52,
     marginTop: 24,
     borderRadius: 10,
-    backgroundColor: "#E31C5F",
+    backgroundColor: "#E1225F",
     alignItems: "center",
     justifyContent: "center",
   },
 
   primaryText: {
     color: "#FFFFFF",
-    fontWeight: "800",
+    fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800",
   },
 
   secondary: {
@@ -279,15 +276,15 @@ const styles = StyleSheet.create({
     height: 48,
     paddingHorizontal: 24,
     borderWidth: 1,
-    borderColor: "#D0D5DD",
+    borderColor: "#DFE4EC",
     borderRadius: 9,
     alignItems: "center",
     justifyContent: "center",
   },
 
   secondaryText: {
-    color: "#0B1F30",
-    fontWeight: "700",
+    color: "#061A30",
+    fontFamily: "PlusJakartaSans_700Bold", fontWeight: "700",
   },
 
   card: {
@@ -296,22 +293,22 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     borderBottomWidth: 1,
-    borderBottomColor: "#EAECF0",
+    borderBottomColor: "#E8EBF0",
   },
 
   logo: {
     width: 48,
     height: 48,
     borderRadius: 8,
-    backgroundColor: "#F2F4F7",
+    backgroundColor: "#F1F5F9",
     alignItems: "center",
     justifyContent: "center",
   },
 
   logoText: {
-    color: "#E31C5F",
+    color: "#E1225F",
     fontSize: 18,
-    fontWeight: "800",
+    fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800",
   },
 
   jobInfo: {
@@ -320,15 +317,15 @@ const styles = StyleSheet.create({
   },
 
   jobTitle: {
-    color: "#101828",
+    color: "#061A30",
     fontSize: 14,
     lineHeight: 19,
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold", fontWeight: "700",
   },
 
   company: {
     marginTop: 3,
-    color: "#475467",
+    color: "#556274",
     fontSize: 12,
   },
 
@@ -340,7 +337,15 @@ const styles = StyleSheet.create({
 
   metaText: {
     marginLeft: 4,
-    color: "#667085",
+    color: "#556274",
     fontSize: 11,
   },
 });
+
+
+
+
+
+
+
+
