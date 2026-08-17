@@ -15,8 +15,9 @@ export const AD_UNITS = {
 } as const;
 
 export const AD_LIMITS = {
-  minJobDetailsBeforeInterstitial: 8,
-  interstitialCooldownMs: 15 * 60 * 1000,
+  minJobDetailsBeforeInterstitial: 4,
+  interstitialChance: 0.2,
+  interstitialCooldownMs: 20 * 60 * 1000,
   minAppLaunchesBeforeAppOpen: 3,
   appOpenCooldownMs: 4 * 60 * 60 * 1000,
 } as const;
