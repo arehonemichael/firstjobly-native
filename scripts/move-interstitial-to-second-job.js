@@ -4,13 +4,9 @@ const path = 'src/app/(tabs)/jobs.tsx';
 let text = fs.readFileSync(path, 'utf8');
 const eol = text.includes('\r\n') ? '\r\n' : '\n';
 
-function normalize(value) {
-  return value.replace(/\r?\n/g, eol);
-}
-
-function ensureReplace(find, replace, label) {
-  const f = normalize(find);
-  const r = normalize(replace);
+function replaceOnce(find, replace, label) {
+  const f = find.replace(/\n/g, eol);
+  const r = replace.replace(/\n/g, eol);
   if (text.includes(r)) return;
   if (!text.includes(f)) {
     throw new Error(`Refusing to patch ${path}: anchor not found (${label})`);
@@ -18,62 +14,43 @@ function ensureReplace(find, replace, label) {
   text = text.replace(f, r);
 }
 
-function ensureImport(line) {
-  if (text.includes(line)) return;
-
-  const candidates = [
-    'import { NativeAdBlock } from "../../ads/NativeAdBlock";',
-    'import { JobListSkeleton } from "../../components/ui/skeleton";',
-    'import type { Job } from "../../lib/jobs";',
-  ];
-
-  const anchor = candidates.find((candidate) => text.includes(candidate));
-  if (!anchor) {
-    throw new Error(`Refusing to patch ${path}: no safe import anchor found`);
-  }
-
-  text = text.replace(anchor, `${anchor}${eol}${line}`);
+if (!text.includes('import { useEarlyJobInterstitial } from "../../ads/useJobInterstitial";')) {
+  replaceOnce(
+    'import { NativeAdBlock } from "../../ads/NativeAdBlock";\n',
+    'import { NativeAdBlock } from "../../ads/NativeAdBlock";\nimport { useEarlyJobInterstitial } from "../../ads/useJobInterstitial";\n',
+    'early interstitial import'
+  );
 }
 
-function ensureAfter(anchor, addition, label) {
-  const a = normalize(anchor);
-  const add = normalize(addition);
-  if (text.includes(add.trim())) return;
-  if (!text.includes(a)) {
-    throw new Error(`Refusing to patch ${path}: anchor not found (${label})`);
-  }
-  text = text.replace(a, a + add);
-}
-
-ensureImport('import { useEarlyJobInterstitial } from "../../ads/useJobInterstitial";');
-
-ensureReplace(
+replaceOnce(
   'const JobCard = memo(function JobCard({ job }: { job: Job }) {',
   'const JobCard = memo(function JobCard({\n  job,\n  onPress,\n}: {\n  job: Job;\n  onPress: () => void;\n}) {',
   'JobCard props'
 );
 
-ensureReplace(
-  `      onPress={() =>\n        router.push({\n          pathname: "/jobs/[id]",\n          params: { id: job.id },\n        })\n      }`,
+replaceOnce(
+  '      onPress={() =>\n        router.push({\n          pathname: "/jobs/[id]",\n          params: { id: job.id },\n        })\n      }',
   '      onPress={onPress}',
   'JobCard press handler'
 );
 
-ensureAfter(
-  '  const bottomContentPadding = useScreenBottomPadding(true);\n',
-  '  const { openJobWithEarlyInterstitial } = useEarlyJobInterstitial();\n',
-  'early interstitial hook'
-);
+if (!text.includes('  const { openJobWithEarlyInterstitial } = useEarlyJobInterstitial();')) {
+  replaceOnce(
+    '  const bottomContentPadding = useScreenBottomPadding(true);\n',
+    '  const bottomContentPadding = useScreenBottomPadding(true);\n  const { openJobWithEarlyInterstitial } = useEarlyJobInterstitial();\n',
+    'early interstitial hook'
+  );
+}
 
-ensureReplace(
+replaceOnce(
   '          <JobCard job={item} />',
-  `          <JobCard\n            job={item}\n            onPress={() =>\n              void openJobWithEarlyInterstitial(() =>\n                router.push({\n                  pathname: "/jobs/[id]",\n                  params: { id: item.id },\n                })\n              )\n            }\n          />`,
+  '          <JobCard\n            job={item}\n            onPress={() =>\n              void openJobWithEarlyInterstitial(() =>\n                router.push({\n                  pathname: "/jobs/[id]",\n                  params: { id: item.id },\n                })\n              )\n            }\n          />',
   'render job press'
 );
 
-ensureReplace(
-  `    },\n    []\n  );\n\n  const handleEndReached`,
-  `    },\n    [openJobWithEarlyInterstitial]\n  );\n\n  const handleEndReached`,
+replaceOnce(
+  '    },\n    []\n  );',
+  '    },\n    [openJobWithEarlyInterstitial]\n  );',
   'renderJob dependency'
 );
 
