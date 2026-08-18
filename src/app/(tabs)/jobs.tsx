@@ -23,6 +23,7 @@ import { useScreenBottomPadding } from "../../hooks/use-screen-bottom-padding";
 import { EmptyState, InlineErrorState } from "../../components/ui/app-ui";
 import { JobListSkeleton } from "../../components/ui/skeleton";
 import { NativeAdBlock } from "../../ads/NativeAdBlock";
+import { useEarlyJobInterstitial } from "../../ads/useJobInterstitial";
 import type { Job } from "../../lib/jobs";
 import {
   CATEGORIES,
@@ -100,7 +101,13 @@ function SelectBlock({
   );
 }
 
-const JobCard = memo(function JobCard({ job }: { job: Job }) {
+const JobCard = memo(function JobCard({
+  job,
+  onPress,
+}: {
+  job: Job;
+  onPress: () => void;
+}) {
   const location = job.city
     ? `${job.city}, ${job.province}`
     : job.province;
@@ -111,12 +118,7 @@ const JobCard = memo(function JobCard({ job }: { job: Job }) {
     <TouchableOpacity
       style={styles.card}
       activeOpacity={0.75}
-      onPress={() =>
-        router.push({
-          pathname: "/jobs/[id]",
-          params: { id: job.id },
-        })
-      }
+      onPress={onPress}
     >
       {job.company_logo_url ? (
         <ExpoImage
@@ -196,6 +198,7 @@ const JobCard = memo(function JobCard({ job }: { job: Job }) {
 
 export default function JobsScreen() {
   const bottomContentPadding = useScreenBottomPadding(true);
+  const { openJobWithEarlyInterstitial } = useEarlyJobInterstitial();
   const params = useLocalSearchParams<{
     q?: string;
     category?: string;
@@ -392,12 +395,22 @@ export default function JobsScreen() {
 
       return (
         <>
-          <JobCard job={item} />
+          <JobCard
+            job={item}
+            onPress={() =>
+              void openJobWithEarlyInterstitial(() =>
+                router.push({
+                  pathname: "/jobs/[id]",
+                  params: { id: item.id },
+                })
+              )
+            }
+          />
           {showNativeAd ? <NativeAdBlock variant="feed" /> : null}
         </>
       );
     },
-    []
+    [openJobWithEarlyInterstitial]
   );
 
   const handleEndReached = useCallback(() => {
@@ -725,39 +738,37 @@ export default function JobsScreen() {
                 </Text>
 
                 <View style={styles.salaryOptions}>
-  {[0, 5000, 10000, 15000, 20000, 30000, 40000].map((amount) => {
-    const selected = (draftFilters.minSalary ?? 0) === amount;
+                  {[0, 5000, 10000, 15000, 20000, 30000, 40000].map((amount) => {
+                    const selected = (draftFilters.minSalary ?? 0) === amount;
 
-    return (
-      <TouchableOpacity
-        key={amount}
-        style={[
-          styles.salaryOption,
-          selected && styles.salaryOptionSelected,
-        ]}
-        onPress={() =>
-          setDraftFilters((current) => ({
-            ...current,
-            minSalary: amount === 0 ? undefined : amount,
-          }))
-        }
-      >
-        <Text
-          style={[
-            styles.salaryOptionText,
-            selected && styles.salaryOptionTextSelected,
-          ]}
-        >
-          {amount === 0
-            ? "Any salary"
-            : `R${amount.toLocaleString("en-ZA")}+`}
-        </Text>
-      </TouchableOpacity>
-    );
-  })}
-</View>
-
-                
+                    return (
+                      <TouchableOpacity
+                        key={amount}
+                        style={[
+                          styles.salaryOption,
+                          selected && styles.salaryOptionSelected,
+                        ]}
+                        onPress={() =>
+                          setDraftFilters((current) => ({
+                            ...current,
+                            minSalary: amount === 0 ? undefined : amount,
+                          }))
+                        }
+                      >
+                        <Text
+                          style={[
+                            styles.salaryOptionText,
+                            selected && styles.salaryOptionTextSelected,
+                          ]}
+                        >
+                          {amount === 0
+                            ? "Any salary"
+                            : `R${amount.toLocaleString("en-ZA")}+`}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
               </View>
 
               <SelectBlock
@@ -1303,20 +1314,3 @@ const styles = StyleSheet.create({
     color: "#556274",
   },
 });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
