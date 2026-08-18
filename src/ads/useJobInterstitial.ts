@@ -4,14 +4,13 @@ import { useInterstitialAd } from "react-native-google-mobile-ads";
 
 import { AD_LIMITS, AD_UNITS } from "./config";
 
-const JOB_VIEW_COUNT_KEY = "fj_admob_job_detail_views";
 const LAST_INTERSTITIAL_KEY = "fj_admob_last_interstitial";
 
-let interstitialShownThisSession = false;
+let jobOpensThisSession = 0;
+let interstitialAttemptedThisSession = false;
 
-export function useJobInterstitial(jobId?: string) {
+export function useEarlyJobInterstitial() {
   const pendingAction = useRef<(() => void) | null>(null);
-  const countedJob = useRef<string | null>(null);
 
   const { isLoaded, isClosed, load, show } = useInterstitialAd(
     AD_UNITS.interstitial,
@@ -23,17 +22,6 @@ export function useJobInterstitial(jobId?: string) {
   }, [load]);
 
   useEffect(() => {
-    if (!jobId || countedJob.current === jobId) return;
-    countedJob.current = jobId;
-
-    void (async () => {
-      const raw = await AsyncStorage.getItem(JOB_VIEW_COUNT_KEY);
-      const next = Number(raw || 0) + 1;
-      await AsyncStorage.setItem(JOB_VIEW_COUNT_KEY, String(next));
-    })();
-  }, [jobId]);
-
-  useEffect(() => {
     if (!isClosed || !pendingAction.current) return;
 
     const action = pendingAction.current;
@@ -42,49 +30,35 @@ export function useJobInterstitial(jobId?: string) {
     load();
   }, [isClosed, load]);
 
-  const continueWithOptionalAd = useCallback(
+  const openJobWithEarlyInterstitial = useCallback(
     async (action: () => void) => {
-      if (interstitialShownThisSession) {
+      jobOpensThisSession += 1;
+
+      // First job always opens normally. Only the second job open is eligible.
+      if (jobOpensThisSession !== 2 || interstitialAttemptedThisSession) {
         action();
         return;
       }
 
-      const viewsRaw = await AsyncStorage.getItem(JOB_VIEW_COUNT_KEY);
-      const views = Number(viewsRaw || 0);
-
-      if (views < AD_LIMITS.minJobDetailsBeforeInterstitial) {
-        action();
-        return;
-      }
+      // This session gets one early opportunity only, even if the ad is not ready.
+      interstitialAttemptedThisSession = true;
 
       const lastRaw = await AsyncStorage.getItem(LAST_INTERSTITIAL_KEY);
       const lastShown = Number(lastRaw || 0);
       const now = Date.now();
 
-      if (now - lastShown < AD_LIMITS.interstitialCooldownMs) {
+      if (now - lastShown < AD_LIMITS.interstitialCooldownMs || !isLoaded) {
         action();
-        return;
-      }
-
-      if (Math.random() >= AD_LIMITS.interstitialChance) {
-        action();
-        return;
-      }
-
-      if (!isLoaded) {
-        action();
-        load();
+        if (!isLoaded) load();
         return;
       }
 
       pendingAction.current = action;
-      interstitialShownThisSession = true;
       await AsyncStorage.setItem(LAST_INTERSTITIAL_KEY, String(now));
 
       try {
         await show();
       } catch {
-        interstitialShownThisSession = false;
         pendingAction.current = null;
         action();
         load();
@@ -93,5 +67,5 @@ export function useJobInterstitial(jobId?: string) {
     [isLoaded, load, show]
   );
 
-  return { continueWithOptionalAd };
+  return { openJobWithEarlyInterstitial };
 }
