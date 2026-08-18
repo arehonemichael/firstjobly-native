@@ -40,7 +40,7 @@ export function useEarlyJobInterstitial() {
         return;
       }
 
-      // This session gets one early opportunity only, even if the ad is not ready.
+      // One early opportunity per app session. If the ad is not ready, never block.
       interstitialAttemptedThisSession = true;
 
       const lastRaw = await AsyncStorage.getItem(LAST_INTERSTITIAL_KEY);
@@ -68,4 +68,13 @@ export function useEarlyJobInterstitial() {
   );
 
   return { openJobWithEarlyInterstitial };
+}
+
+// Backward-compatible no-ad wrapper for Job Details while the trigger lives in Jobs.
+export function useJobInterstitial(_jobId?: string) {
+  const continueWithOptionalAd = useCallback((action: () => void) => {
+    action();
+  }, []);
+
+  return { continueWithOptionalAd };
 }
