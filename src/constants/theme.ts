@@ -1,4 +1,4 @@
-﻿export const Colors = {
+export const Colors = {
   background: "#F6F7F9",
   foreground: "#061A30",
   navy: "#061A30",
@@ -31,10 +31,11 @@
 } as const;
 
 export const Radius = {
-  xs: 4,
-  sm: 6,
-  md: 8,
-  lg: 10,
+  xs: 8,
+  sm: 12,
+  md: 16,
+  lg: 24,
+  pill: 999,
 } as const;
 
 export const Fonts = {
