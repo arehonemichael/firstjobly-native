@@ -1,4 +1,4 @@
-﻿import {
+import {
   Animated,
   Pressable,
   StyleSheet,
@@ -10,6 +10,8 @@
 import { useEffect, useRef } from "react";
 import { AlertCircle, Inbox } from "lucide-react-native";
 
+import { Colors, Fonts, Radius, theme } from "../../constants/theme";
+
 type ScreenHeaderProps = {
   title: string;
   subtitle?: string;
@@ -20,11 +22,7 @@ export function ScreenHeader({ title, subtitle, right }: ScreenHeaderProps) {
   return (
     <View style={styles.header}>
       <View style={styles.headerCopy}>
-        <Text
-          style={styles.title}
-          accessibilityRole="header"
-          maxFontSizeMultiplier={1.35}
-        >
+        <Text style={styles.title} accessibilityRole="header" maxFontSizeMultiplier={1.35}>
           {title}
         </Text>
         {!!subtitle && (
@@ -45,69 +43,38 @@ type EmptyStateProps = {
   onAction?: () => void;
 };
 
-export function EmptyState({
-  title,
-  message,
-  actionLabel,
-  onAction,
-}: EmptyStateProps) {
+export function EmptyState({ title, message, actionLabel, onAction }: EmptyStateProps) {
   return (
-    <View
-      style={styles.empty}
-      accessible
-      accessibilityLabel={`${title}. ${message}`}
-    >
+    <View style={styles.empty} accessible accessibilityLabel={`${title}. ${message}`}>
       <View style={styles.emptyIcon}>
-        <Inbox size={22} color="#E1225F" strokeWidth={2} />
+        <Inbox size={28} color={Colors.primary} strokeWidth={2} />
       </View>
-
-      <Text style={styles.emptyTitle} maxFontSizeMultiplier={1.35}>
-        {title}
-      </Text>
-
-      <Text style={styles.emptyMessage} maxFontSizeMultiplier={1.35}>
-        {message}
-      </Text>
-
+      <Text style={styles.emptyTitle} maxFontSizeMultiplier={1.35}>{title}</Text>
+      <Text style={styles.emptyMessage} maxFontSizeMultiplier={1.35}>{message}</Text>
       {!!actionLabel && !!onAction && (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={actionLabel}
           onPress={onAction}
-          style={({ pressed }) => [
-            styles.secondaryButton,
-            pressed && styles.pressed,
-          ]}
+          style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}
         >
-          <Text style={styles.secondaryButtonText}>{actionLabel}</Text>
+          <Text style={styles.primaryButtonText}>{actionLabel}</Text>
         </Pressable>
       )}
     </View>
   );
 }
 
-type InlineErrorStateProps = {
-  message: string;
-  onRetry?: () => void;
-};
+type InlineErrorStateProps = { message: string; onRetry?: () => void };
 
 export function InlineErrorState({ message, onRetry }: InlineErrorStateProps) {
   return (
     <View style={styles.error} accessible accessibilityRole="alert">
-      <AlertCircle size={18} color="#DC2626" />
+      <AlertCircle size={20} color={theme.colors.danger} />
       <View style={styles.errorCopy}>
         <Text style={styles.errorText}>{message}</Text>
         {!!onRetry && (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Retry"
-            onPress={onRetry}
-            hitSlop={8}
-            style={({ pressed }) => [
-              styles.retry,
-              pressed && styles.pressed,
-            ]}
-          >
+          <Pressable accessibilityRole="button" accessibilityLabel="Retry" onPress={onRetry} hitSlop={8} style={({ pressed }) => [styles.retry, pressed && styles.pressed]}>
             <Text style={styles.retryText}>Retry</Text>
           </Pressable>
         )}
@@ -116,22 +83,11 @@ export function InlineErrorState({ message, onRetry }: InlineErrorStateProps) {
   );
 }
 
-export function SectionCard({
-  children,
-  style,
-}: {
-  children: React.ReactNode;
-  style?: ViewStyle;
-}) {
+export function SectionCard({ children, style }: { children: React.ReactNode; style?: ViewStyle }) {
   return <View style={[styles.card, style]}>{children}</View>;
 }
 
-export function PressableRow({
-  children,
-  onPress,
-  accessibilityLabel,
-  accessibilityRole = "button",
-}: {
+export function PressableRow({ children, onPress, accessibilityLabel, accessibilityRole = "button" }: {
   children: React.ReactNode;
   onPress: () => void;
   accessibilityLabel: string;
@@ -142,10 +98,7 @@ export function PressableRow({
       onPress={onPress}
       accessibilityRole={accessibilityRole}
       accessibilityLabel={accessibilityLabel}
-      style={({ pressed }) => [
-        styles.row,
-        pressed && styles.rowPressed,
-      ]}
+      style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
     >
       {children}
     </Pressable>
@@ -156,30 +109,16 @@ export function SkeletonJobCard() {
   const opacity = useRef(new Animated.Value(0.55)).current;
 
   useEffect(() => {
-    const animation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(opacity, {
-          toValue: 1,
-          duration: 650,
-          useNativeDriver: true,
-        }),
-        Animated.timing(opacity, {
-          toValue: 0.55,
-          duration: 650,
-          useNativeDriver: true,
-        }),
-      ])
-    );
-
+    const animation = Animated.loop(Animated.sequence([
+      Animated.timing(opacity, { toValue: 1, duration: 650, useNativeDriver: true }),
+      Animated.timing(opacity, { toValue: 0.55, duration: 650, useNativeDriver: true }),
+    ]));
     animation.start();
     return () => animation.stop();
   }, [opacity]);
 
   return (
-    <Animated.View
-      style={[styles.skeletonCard, { opacity }]}
-      accessibilityLabel="Loading opportunity"
-    >
+    <Animated.View style={[styles.skeletonCard, { opacity }]} accessibilityLabel="Loading opportunity">
       <View style={styles.skeletonLogo} />
       <View style={styles.skeletonBody}>
         <View style={[styles.skeletonLine, { width: "80%" }]} />
@@ -195,146 +134,145 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingTop: 18,
-    paddingBottom: 14,
+    paddingHorizontal: theme.space.md,
+    paddingTop: theme.space.md,
+    paddingBottom: theme.space.sm,
   },
-  headerCopy: { flex: 1, paddingRight: 12 },
+  headerCopy: { flex: 1, paddingRight: theme.space.sm },
   title: {
-    color: "#061A30",
-    fontFamily: "PlusJakartaSans_800ExtraBold",
-    fontWeight: "800",
-    fontSize: 26,
-    lineHeight: 32,
+    color: theme.colors.ink,
+    fontFamily: Fonts.bold,
+    fontWeight: "700",
+    fontSize: 28,
+    lineHeight: 34,
   },
   subtitle: {
-    color: "#556274",
-    fontFamily: "PlusJakartaSans_500Medium",
-    fontWeight: "500",
-    fontSize: 13,
-    lineHeight: 19,
-    marginTop: 4,
+    color: theme.colors.textMuted,
+    fontFamily: Fonts.regular,
+    fontWeight: "400",
+    fontSize: 15,
+    lineHeight: 22,
+    marginTop: theme.space.xxs,
   },
   empty: {
-    paddingHorizontal: 24,
-    paddingVertical: 40,
+    paddingHorizontal: theme.space.lg,
+    paddingVertical: theme.space.xl,
     alignItems: "center",
   },
   emptyIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 8,
-    backgroundColor: "#FDEEF3",
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: theme.colors.brandSoft,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 14,
+    marginBottom: theme.space.md,
   },
   emptyTitle: {
-    color: "#061A30",
-    fontFamily: "PlusJakartaSans_700Bold",
+    color: theme.colors.ink,
+    fontFamily: Fonts.bold,
     fontWeight: "700",
-    fontSize: 17,
+    fontSize: 22,
+    lineHeight: 28,
     textAlign: "center",
   },
   emptyMessage: {
-    color: "#556274",
-    fontFamily: "PlusJakartaSans_500Medium",
-    fontWeight: "500",
-    fontSize: 13,
-    lineHeight: 19,
+    color: theme.colors.textMuted,
+    fontFamily: Fonts.regular,
+    fontWeight: "400",
+    fontSize: 15,
+    lineHeight: 22,
     textAlign: "center",
     maxWidth: 320,
-    marginTop: 6,
+    marginTop: theme.space.xs,
   },
-  secondaryButton: {
-    minHeight: 44,
-    marginTop: 18,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#DFE4EC",
-    backgroundColor: "#FFFFFF",
+  primaryButton: {
+    width: "100%",
+    minHeight: 52,
+    marginTop: theme.space.sm,
+    paddingHorizontal: theme.space.md,
+    borderRadius: Radius.md,
+    backgroundColor: theme.colors.brand,
     alignItems: "center",
     justifyContent: "center",
   },
-  secondaryButtonText: {
-    color: "#061A30",
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontWeight: "700",
-    fontSize: 13,
+  primaryButtonText: {
+    color: theme.colors.primaryForeground,
+    fontFamily: Fonts.semibold,
+    fontWeight: "600",
+    fontSize: 15,
+    lineHeight: 22,
   },
-  pressed: { opacity: 0.72 },
+  pressed: { opacity: 0.78, transform: [{ scale: 0.985 }] },
   error: {
     flexDirection: "row",
     alignItems: "flex-start",
-    marginHorizontal: 16,
+    marginHorizontal: theme.space.md,
     padding: 13,
-    borderRadius: 8,
+    borderRadius: Radius.sm,
     borderWidth: 1,
-    borderColor: "#FECACA",
-    backgroundColor: "#FFFFFF",
+    borderColor: theme.colors.line,
+    backgroundColor: theme.colors.surface,
   },
-  errorCopy: { flex: 1, marginLeft: 9 },
+  errorCopy: { flex: 1, marginLeft: theme.space.xs },
   errorText: {
-    color: "#061A30",
-    fontFamily: "PlusJakartaSans_500Medium",
-    fontWeight: "500",
-    fontSize: 13,
-    lineHeight: 18,
+    color: theme.colors.ink,
+    fontFamily: Fonts.regular,
+    fontWeight: "400",
+    fontSize: 14,
+    lineHeight: 20,
   },
-  retry: {
-    alignSelf: "flex-start",
-    minHeight: 44,
-    justifyContent: "center",
-  },
+  retry: { alignSelf: "flex-start", minHeight: 44, justifyContent: "center" },
   retryText: {
-    color: "#E1225F",
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontWeight: "700",
-    fontSize: 13,
+    color: theme.colors.brand,
+    fontFamily: Fonts.semibold,
+    fontWeight: "600",
+    fontSize: 14,
   },
   card: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: theme.colors.surface,
     borderWidth: 1,
-    borderColor: "#E8EBF0",
-    borderRadius: 8,
-    padding: 16,
+    borderColor: theme.colors.line,
+    borderRadius: Radius.md,
+    padding: theme.space.md,
+    ...theme.shadow.card,
   },
   row: {
     minHeight: 52,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: theme.colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: "#E8EBF0",
+    borderBottomColor: theme.colors.line,
     justifyContent: "center",
   },
-  rowPressed: { backgroundColor: "#F1F5F9" },
+  rowPressed: { backgroundColor: theme.colors.surfaceMuted },
   skeletonCard: {
-    minHeight: 104,
+    minHeight: 124,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: theme.colors.surface,
     borderWidth: 1,
-    borderColor: "#E8EBF0",
-    borderRadius: 8,
-    padding: 14,
-    marginBottom: 10,
+    borderColor: theme.colors.line,
+    borderRadius: Radius.md,
+    padding: theme.space.sm,
+    marginBottom: theme.space.sm,
+    ...theme.shadow.card,
   },
   skeletonLogo: {
     width: 48,
     height: 48,
-    borderRadius: 8,
-    backgroundColor: "#E8EBF0",
+    borderRadius: Radius.sm,
+    backgroundColor: theme.colors.surfaceMuted,
   },
-  skeletonBody: { flex: 1, marginLeft: 12 },
+  skeletonBody: { flex: 1, marginLeft: theme.space.sm },
   skeletonLine: {
     height: 11,
     borderRadius: 4,
-    backgroundColor: "#E8EBF0",
-    marginBottom: 8,
+    backgroundColor: theme.colors.line,
+    marginBottom: theme.space.xs,
   },
   skeletonLineSmall: {
     height: 9,
     borderRadius: 4,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: theme.colors.surfaceMuted,
   },
 });
