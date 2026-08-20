@@ -549,9 +549,7 @@ export default function JobDetailsScreen() {
     </SafeAreaView>
   );
 }
-function Info({ icon, label, value }: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string }) { return <View style={styles.info}><Ionicons name={icon} size={18} color={theme.colors.brand}/><Text style={styles.infoLabel}>{label}</Text><Text style={styles.infoValue} numberOfLines={2}>{value}</Text></View>; }
-function Section({ title, children }: { title: string; children: ReactNode }) { return <View style={styles.section}><Text style={styles.sectionTitle}>{title}</Text>{children}</View>; }
-function Bullets({ title, values }: { title: string; values: string[] }) { if (!values?.length) return null; return <Section title={title}><View style={styles.bullets}>{values.map((value) => <View key={value} style={styles.bullet}><View style={styles.dot}/><Text style={styles.bulletText}>{value}</Text></View>)}</View></Section>; }
+
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: "#FFFFFF" },
   center: {

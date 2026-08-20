@@ -22,22 +22,45 @@ import type { Job } from "../../lib/jobs";
 export default function SavedScreen() {
   const bottomContentPadding = useScreenBottomPadding(true);
   const { isAuthenticated, loading: authLoading } = useAuth();
-  const { savedIds, isSaved, toggleSave, loading: savingLoading, refreshSaved } = useSavedJobs();
+  const { savedIds, loading: savedLoading, refreshSaved } = useSavedJobs();
+
   const [jobs, setJobs] = useState<Job[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loadingJobs, setLoadingJobs] = useState(false);
 
   const loadJobs = useCallback(async () => {
-    if (!isAuthenticated || !supabase || savedIds.length === 0) { setJobs([]); setLoading(false); return; }
+    if (savedIds.length === 0) {
+      setJobs([]);
+      return;
+    }
+
     try {
-      setLoading(true);
-      const { data, error } = await supabase.from('jobs').select('*').in('id', savedIds).eq('approval_status', 'approved').eq('is_active', true);
+      setLoadingJobs(true);
+
+      const { data, error } = await supabase
+        .from("jobs")
+        .select("*")
+        .in("id", savedIds)
+        .eq("approval_status", "approved");
+
       if (error) throw error;
-      const byId = new Map((data ?? []).map((job) => [job.id, job as Job]));
-      setJobs(savedIds.map((id) => byId.get(id)).filter((job): job is Job => Boolean(job)));
+
+      const rows = (data ?? []) as Job[];
+
+      const order = new Map(savedIds.map((id, index) => [id, index]));
+
+      rows.sort(
+        (a, b) =>
+          (order.get(a.id) ?? 9999) -
+          (order.get(b.id) ?? 9999)
+      );
+
+      setJobs(rows);
     } catch (error) {
-      console.error('Could not load saved jobs:', error);
-    } finally { setLoading(false); }
-  }, [isAuthenticated, savedIds]);
+      console.error("Could not load saved jobs:", error);
+    } finally {
+      setLoadingJobs(false);
+    }
+  }, [savedIds]);
 
   useEffect(() => {
     void loadJobs();
@@ -163,6 +186,7 @@ export default function SavedScreen() {
     </SafeAreaView>
   );
 }
+
 const styles = StyleSheet.create({
   page: {
     flex: 1,

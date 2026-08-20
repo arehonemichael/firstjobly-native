@@ -21,7 +21,6 @@ import { useScreenBottomPadding } from "../hooks/use-screen-bottom-padding";
 
 type Mode = "signin" | "signup" | "forgot";
 
-type Mode = 'signin' | 'signup' | 'forgot';
 export default function AuthScreen() {
   const bottomContentPadding = useScreenBottomPadding(false);
   const [mode, setMode] = useState<Mode>("signin");
@@ -30,31 +29,35 @@ export default function AuthScreen() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
+
   const cleanEmail = email.trim().toLowerCase();
-  const validEmail = () => /^\S+@\S+\.\S+$/.test(cleanEmail);
-  const unavailable = () => !supabase;
-  const submit = async () => {
-    if (unavailable()) { Alert.alert('Account service unavailable', 'FirstJobly needs Supabase public environment variables before sign in is available.'); return; }
-    if (!validEmail()) { Alert.alert('Check your email', 'Enter a valid email address.'); return; }
-    if (mode !== 'forgot' && !password) { Alert.alert('Password required', 'Enter your password.'); return; }
-    if (mode === 'signup' && password.length < 8) { Alert.alert('Password too short', 'Your password must contain at least 8 characters.'); return; }
-    if (mode === 'signup' && password !== confirmPassword) { Alert.alert('Passwords do not match', 'Check both passwords.'); return; }
+
+  function validateEmail() {
+    return /^\S+@\S+\.\S+$/.test(cleanEmail);
+  }
+
+  async function signIn() {
+    if (!validateEmail()) {
+      Alert.alert("Check your email", "Enter a valid email address.");
+      return;
+    }
+
+    if (!password) {
+      Alert.alert("Password required", "Enter your password.");
+      return;
+    }
+
     try {
       setBusy(true);
-      if (mode === 'signin') {
-        const { error } = await supabase!.auth.signInWithPassword({ email: cleanEmail, password });
-        if (error) return Alert.alert('Could not sign in', error.message);
-        router.replace('/profile');
-      } else if (mode === 'signup') {
-        const { data, error } = await supabase!.auth.signUp({ email: cleanEmail, password });
-        if (error) return Alert.alert('Could not create account', error.message);
-        if (data.session) { router.replace('/profile'); return; }
-        Alert.alert('Check your email', `We sent a confirmation link to ${cleanEmail}.`, [{ text: 'OK', onPress: () => { setMode('signin'); setPassword(''); setConfirmPassword(''); } }]);
-      } else {
-        const { error } = await supabase!.auth.resetPasswordForEmail(cleanEmail, { redirectTo: 'https://firstjobly.co.za/reset-password' });
-        if (error) return Alert.alert('Could not send reset link', error.message);
-        Alert.alert('Reset link sent', `Check ${cleanEmail} for the password reset link.`);
-        setMode('signin');
+
+      const { error } = await supabase.auth.signInWithPassword({
+        email: cleanEmail,
+        password,
+      });
+
+      if (error) {
+        Alert.alert("Could not sign in", error.message);
+        return;
       }
 
       router.replace("/profile");
@@ -318,7 +321,7 @@ export default function AuthScreen() {
     </SafeAreaView>
   );
 }
-function Field({ label, children }: { label: string; children: React.ReactNode }) { return <View style={styles.field}><Text style={styles.label}>{label}</Text>{children}</View>; }
+
 const styles = StyleSheet.create({
   flex: { flex: 1 },
 

@@ -57,21 +57,13 @@ export default function HomeScreen() {
   const bottomContentPadding = useScreenBottomPadding(true);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  const loadJobs = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      setJobs((await getJobs(0)).slice(0, 8));
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'We could not load fresh opportunities.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { void loadJobs(); }, []);
+  useEffect(() => {
+    getJobs(0)
+      .then((data) => setJobs(data.slice(0, 8)))
+      .catch((error) => console.error("Home jobs failed:", error))
+      .finally(() => setLoading(false));
+  }, []);
 
   return (
     <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>

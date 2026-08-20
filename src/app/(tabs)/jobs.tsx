@@ -231,14 +231,9 @@ export default function JobsScreen() {
   );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { isSaved, toggleSave } = useSavedJobs();
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
-  const fetchJobs = async () => {
-    try { setLoading(true); setError(null); setJobs(await getSearchJobs()); }
-    catch (reason) { setError(reason instanceof Error ? reason.message : 'We could not load opportunities.'); }
-    finally { setLoading(false); }
-  };
-  useEffect(() => { void fetchJobs(); }, []);
   useEffect(() => {
     getSearchJobs()
       .then(setJobs)
