@@ -1,4 +1,4 @@
-﻿import { Tabs } from "expo-router";
+import { Tabs } from "expo-router";
 import {
   Bookmark,
   BriefcaseBusiness,
@@ -27,8 +27,8 @@ export default function TabsLayout() {
         tabBarActiveTintColor: Colors.primary,
         tabBarInactiveTintColor: Colors.muted,
         tabBarStyle: {
-          height: 60 + bottomInset,
-          paddingTop: 7,
+          height: 68 + bottomInset,
+          paddingTop: 8,
           paddingBottom: bottomInset,
           borderTopWidth: 1,
           borderTopColor: Colors.border,
@@ -37,11 +37,11 @@ export default function TabsLayout() {
           shadowOpacity: 0,
         },
         tabBarItemStyle: {
-          minHeight: 44,
+          minHeight: 50,
           paddingVertical: 2,
         },
         tabBarLabelStyle: {
-          fontSize: 9,
+          fontSize: 11,
           lineHeight: 14,
           fontFamily: Fonts.semibold,
         },
@@ -52,7 +52,7 @@ export default function TabsLayout() {
         options={{
           title: "Home",
           tabBarIcon: ({ color }) => (
-            <Home size={19} strokeWidth={2} color={color} />
+            <Home size={22} strokeWidth={2} color={color} />
           ),
         }}
       />
@@ -62,7 +62,7 @@ export default function TabsLayout() {
         options={{
           title: "Jobs",
           tabBarIcon: ({ color }) => (
-            <BriefcaseBusiness size={19} strokeWidth={2} color={color} />
+            <BriefcaseBusiness size={22} strokeWidth={2} color={color} />
           ),
         }}
       />
@@ -72,7 +72,7 @@ export default function TabsLayout() {
         options={{
           title: "Saved",
           tabBarIcon: ({ color }) => (
-            <Bookmark size={19} strokeWidth={2} color={color} />
+            <Bookmark size={22} strokeWidth={2} color={color} />
           ),
         }}
       />
@@ -82,17 +82,7 @@ export default function TabsLayout() {
         options={{
           title: "Applied",
           tabBarIcon: ({ color }) => (
-            <ClipboardList size={19} strokeWidth={2} color={color} />
-          ),
-        }}
-      />
-
-      <Tabs.Screen
-        name="graduateroom"
-        options={{
-          title: "Graduate",
-          tabBarIcon: ({ color }) => (
-            <GraduationCap size={19} strokeWidth={2} color={color} />
+            <ClipboardList size={22} strokeWidth={2} color={color} />
           ),
         }}
       />
@@ -102,7 +92,17 @@ export default function TabsLayout() {
         options={{
           title: "Tools",
           tabBarIcon: ({ color }) => (
-            <Wrench size={19} strokeWidth={2} color={color} />
+            <Wrench size={22} strokeWidth={2} color={color} />
+          ),
+        }}
+      />
+
+      <Tabs.Screen
+        name="graduateroom"
+        options={{
+          title: "Room",
+          tabBarIcon: ({ color }) => (
+            <GraduationCap size={22} strokeWidth={2} color={color} />
           ),
         }}
       />
@@ -112,7 +112,7 @@ export default function TabsLayout() {
         options={{
           title: "Profile",
           tabBarIcon: ({ color }) => (
-            <User size={19} strokeWidth={2} color={color} />
+            <User size={22} strokeWidth={2} color={color} />
           ),
         }}
       />
