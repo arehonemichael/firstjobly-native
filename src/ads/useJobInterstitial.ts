@@ -1,10 +1,7 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useCallback, useEffect, useRef } from "react";
 import { useInterstitialAd } from "react-native-google-mobile-ads";
 
-import { AD_LIMITS, AD_UNITS } from "./config";
-
-const LAST_INTERSTITIAL_KEY = "fj_admob_last_interstitial";
+import { AD_UNITS } from "./config";
 
 let jobOpensThisSession = 0;
 let interstitialAttemptedThisSession = false;
@@ -34,27 +31,22 @@ export function useEarlyJobInterstitial() {
     async (action: () => void) => {
       jobOpensThisSession += 1;
 
-      // First job always opens normally. Only the second job open is eligible.
-      if (jobOpensThisSession !== 2 || interstitialAttemptedThisSession) {
+      // Only the first job tap in this app session is eligible.
+      if (jobOpensThisSession !== 1 || interstitialAttemptedThisSession) {
         action();
         return;
       }
 
-      // One early opportunity per app session. If the ad is not ready, never block.
+      // Attempt only once per app session. Never block job navigation if the ad is not ready.
       interstitialAttemptedThisSession = true;
 
-      const lastRaw = await AsyncStorage.getItem(LAST_INTERSTITIAL_KEY);
-      const lastShown = Number(lastRaw || 0);
-      const now = Date.now();
-
-      if (now - lastShown < AD_LIMITS.interstitialCooldownMs || !isLoaded) {
+      if (!isLoaded) {
         action();
-        if (!isLoaded) load();
+        load();
         return;
       }
 
       pendingAction.current = action;
-      await AsyncStorage.setItem(LAST_INTERSTITIAL_KEY, String(now));
 
       try {
         await show();
