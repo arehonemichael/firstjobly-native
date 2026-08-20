@@ -1,9 +1,9 @@
-﻿import { memo, useCallback, useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  Image,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -14,16 +14,10 @@ import {
 } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
-import { Image as ExpoImage } from "expo-image";
-import { router, useLocalSearchParams } from "expo-router";
+import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { getSearchJobs } from "../../lib/job-api";
-import { useScreenBottomPadding } from "../../hooks/use-screen-bottom-padding";
-import { EmptyState, InlineErrorState } from "../../components/ui/app-ui";
-import { JobListSkeleton } from "../../components/ui/skeleton";
-import { NativeAdBlock } from "../../ads/NativeAdBlock";
-import { useEarlyJobInterstitial } from "../../ads/useJobInterstitial";
 import type { Job } from "../../lib/jobs";
 import {
   CATEGORIES,
@@ -101,13 +95,7 @@ function SelectBlock({
   );
 }
 
-const JobCard = memo(function JobCard({
-  job,
-  onPress,
-}: {
-  job: Job;
-  onPress: () => void;
-}) {
+function JobCard({ job }: { job: Job }) {
   const location = job.city
     ? `${job.city}, ${job.province}`
     : job.province;
@@ -118,15 +106,18 @@ const JobCard = memo(function JobCard({
     <TouchableOpacity
       style={styles.card}
       activeOpacity={0.75}
-      onPress={onPress}
+      onPress={() =>
+        router.push({
+          pathname: "/jobs/[id]",
+          params: { id: job.id },
+        })
+      }
     >
       {job.company_logo_url ? (
-        <ExpoImage
+        <Image
           source={{ uri: job.company_logo_url }}
           style={styles.logo}
-          contentFit="contain"
-          cachePolicy="memory-disk"
-          transition={100}
+          resizeMode="contain"
         />
       ) : (
         <View style={styles.logo}>
@@ -157,7 +148,7 @@ const JobCard = memo(function JobCard({
           <Ionicons
             name="location-outline"
             size={14}
-            color="#556274"
+            color="#667085"
           />
 
           <Text style={styles.metaText} numberOfLines={1}>
@@ -190,55 +181,26 @@ const JobCard = memo(function JobCard({
       <Ionicons
         name="chevron-forward"
         size={19}
-        color="#94A3B8"
+        color="#98A2B3"
       />
     </TouchableOpacity>
   );
-});
+}
 
 export default function JobsScreen() {
-  const bottomContentPadding = useScreenBottomPadding(true);
-  const { openJobWithEarlyInterstitial } = useEarlyJobInterstitial();
-  const params = useLocalSearchParams<{
-    q?: string;
-    category?: string;
-    experience?: string;
-    province?: string;
-  }>();
   const [jobs, setJobs] = useState<Job[]>([]);
-  const [filters, setFilters] = useState<JobFilters>(() => ({
-    ...EMPTY_FILTERS,
-    q: typeof params.q === "string" ? params.q : "",
-    category:
-      typeof params.category === "string"
-        ? params.category
-        : undefined,
-    experience:
-      typeof params.experience === "string"
-        ? params.experience
-        : undefined,
-    province:
-      typeof params.province === "string"
-        ? params.province
-        : undefined,
-  }));
+  const [filters, setFilters] =
+    useState<JobFilters>(EMPTY_FILTERS);
 
   const [draftFilters, setDraftFilters] =
-    useState<JobFilters>(filters);
+    useState<JobFilters>(EMPTY_FILTERS);
 
-  const [keyword, setKeyword] = useState(
-    typeof params.q === "string" ? params.q : ""
-  );
+  const [keyword, setKeyword] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { isSaved, toggleSave } = useSavedJobs();
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
-  const fetchJobs = async () => {
-    try { setLoading(true); setError(null); setJobs(await getSearchJobs()); }
-    catch (reason) { setError(reason instanceof Error ? reason.message : 'We could not load opportunities.'); }
-    finally { setLoading(false); }
-  };
-  useEffect(() => { void fetchJobs(); }, []);
   useEffect(() => {
     getSearchJobs()
       .then(setJobs)
@@ -253,44 +215,12 @@ export default function JobsScreen() {
       .finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => {
-    const next: JobFilters = {
-      ...EMPTY_FILTERS,
-      q: typeof params.q === "string" ? params.q : "",
-      category:
-        typeof params.category === "string"
-          ? params.category
-          : undefined,
-      experience:
-        typeof params.experience === "string"
-          ? params.experience
-          : undefined,
-      province:
-        typeof params.province === "string"
-          ? params.province
-          : undefined,
-    };
-
-    setKeyword(next.q);
-    setFilters(next);
-    setDraftFilters(next);
-    setVisibleCount(PAGE_SIZE);
-  }, [
-    params.q,
-    params.category,
-    params.experience,
-    params.province,
-  ]);
-
   const results = useMemo(
     () => filterJobs(jobs, filters),
     [jobs, filters]
   );
 
-  const visibleJobs = useMemo(
-    () => results.slice(0, visibleCount),
-    [results, visibleCount]
-  );
+  const visibleJobs = results.slice(0, visibleCount);
 
   const activeFilters = useMemo(() => {
     const list: { key: keyof JobFilters; label: string }[] = [];
@@ -390,47 +320,16 @@ export default function JobsScreen() {
     }));
   }
 
-  const keyExtractor = useCallback((job: Job) => job.id, []);
-
-  const renderJob = useCallback(
-    ({ item, index }: { item: Job; index: number }) => {
-      const jobNumber = index + 1;
-      const showNativeAd =
-        jobNumber === 6 || (jobNumber > 6 && (jobNumber - 6) % 8 === 0);
-
-      return (
-        <>
-          <JobCard
-            job={item}
-            onPress={() =>
-              void openJobWithEarlyInterstitial(() =>
-                router.push({
-                  pathname: "/jobs/[id]",
-                  params: { id: item.id },
-                })
-              )
-            }
-          />
-          {showNativeAd ? <NativeAdBlock variant="feed" /> : null}
-        </>
-      );
-    },
-    [openJobWithEarlyInterstitial]
-  );
-
-  const handleEndReached = useCallback(() => {
-    if (visibleCount < results.length) {
-      setVisibleCount((count) =>
-        Math.min(count + PAGE_SIZE, results.length)
-      );
-    }
-  }, [results.length, visibleCount]);
   if (loading) {
     return (
-      <SafeAreaView style={styles.page} edges={["top", "bottom"]}>
-        <View style={{ paddingHorizontal: 16, paddingTop: 18 }}>
-          <JobListSkeleton count={6} />
-        </View>
+      <SafeAreaView style={styles.center}>
+        <ActivityIndicator
+          size="large"
+          color="#E31C5F"
+        />
+        <Text style={styles.loadingText}>
+          Loading opportunities...
+        </Text>
       </SafeAreaView>
     );
   }
@@ -441,7 +340,7 @@ export default function JobsScreen() {
         <Ionicons
           name="cloud-offline-outline"
           size={44}
-          color="#E1225F"
+          color="#E31C5F"
         />
 
         <Text style={styles.errorTitle}>
@@ -456,21 +355,24 @@ export default function JobsScreen() {
   return (
     <SafeAreaView
       style={styles.page}
-      edges={["top", "bottom"]}
+      edges={["top"]}
     >
       <FlatList
         data={visibleJobs}
-        keyExtractor={keyExtractor}
-        renderItem={renderJob}
-        contentContainerStyle={[styles.list, { paddingBottom: bottomContentPadding }]}
+        keyExtractor={(job) => job.id}
+        renderItem={({ item }) => (
+          <JobCard job={item} />
+        )}
+        contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
-        onEndReached={handleEndReached}
+        onEndReached={() => {
+          if (visibleCount < results.length) {
+            setVisibleCount((count) =>
+              Math.min(count + PAGE_SIZE, results.length)
+            );
+          }
+        }}
         onEndReachedThreshold={0.4}
-        initialNumToRender={8}
-        maxToRenderPerBatch={8}
-        updateCellsBatchingPeriod={50}
-        windowSize={7}
-        removeClippedSubviews={Platform.OS === "android"}
         ListHeaderComponent={
           <>
             <Text style={styles.title}>
@@ -486,7 +388,7 @@ export default function JobsScreen() {
                 <Ionicons
                   name="search-outline"
                   size={19}
-                  color="#556274"
+                  color="#667085"
                 />
 
                 <TextInput
@@ -495,7 +397,7 @@ export default function JobsScreen() {
                   onSubmitEditing={runSearch}
                   returnKeyType="search"
                   placeholder="Job title, company or town"
-                  placeholderTextColor="#94A3B8"
+                  placeholderTextColor="#98A2B3"
                   style={styles.searchInput}
                 />
               </View>
@@ -518,7 +420,7 @@ export default function JobsScreen() {
                 <Ionicons
                   name="options-outline"
                   size={21}
-                  color="#061A30"
+                  color="#0B1F30"
                 />
 
                 {activeFilters.length > 0 && (
@@ -550,7 +452,7 @@ export default function JobsScreen() {
                     <Ionicons
                       name="close"
                       size={14}
-                      color="#556274"
+                      color="#344054"
                     />
                   </TouchableOpacity>
                 ))}
@@ -591,15 +493,26 @@ export default function JobsScreen() {
           </>
         }
         ListEmptyComponent={
-          <EmptyState
-            title="No opportunities match your filters"
-            message="Try changing your search or removing one or more filters."
-          />
+          <View style={styles.empty}>
+            <Ionicons
+              name="search-outline"
+              size={34}
+              color="#98A2B3"
+            />
+
+            <Text style={styles.emptyTitle}>
+              No jobs match those filters
+            </Text>
+
+            <Text style={styles.emptyText}>
+              Try a wider province or remove one of your filters.
+            </Text>
+          </View>
         }
         ListFooterComponent={
           visibleJobs.length < results.length ? (
             <View style={styles.loadMore}>
-              <ActivityIndicator color="#E1225F" />
+              <ActivityIndicator color="#E31C5F" />
               <Text style={styles.loadMoreText}>
                 Loading more opportunities...
               </Text>
@@ -645,7 +558,7 @@ export default function JobsScreen() {
                 <Ionicons
                   name="close"
                   size={23}
-                  color="#061A30"
+                  color="#0B1F30"
                 />
               </TouchableOpacity>
             </View>
@@ -698,7 +611,7 @@ export default function JobsScreen() {
                     }))
                   }
                   placeholder="e.g. Polokwane"
-                  placeholderTextColor="#94A3B8"
+                  placeholderTextColor="#98A2B3"
                   style={styles.filterInput}
                 />
               </View>
@@ -743,37 +656,39 @@ export default function JobsScreen() {
                 </Text>
 
                 <View style={styles.salaryOptions}>
-                  {[0, 5000, 10000, 15000, 20000, 30000, 40000].map((amount) => {
-                    const selected = (draftFilters.minSalary ?? 0) === amount;
+  {[0, 5000, 10000, 15000, 20000, 30000, 40000].map((amount) => {
+    const selected = (draftFilters.minSalary ?? 0) === amount;
 
-                    return (
-                      <TouchableOpacity
-                        key={amount}
-                        style={[
-                          styles.salaryOption,
-                          selected && styles.salaryOptionSelected,
-                        ]}
-                        onPress={() =>
-                          setDraftFilters((current) => ({
-                            ...current,
-                            minSalary: amount === 0 ? undefined : amount,
-                          }))
-                        }
-                      >
-                        <Text
-                          style={[
-                            styles.salaryOptionText,
-                            selected && styles.salaryOptionTextSelected,
-                          ]}
-                        >
-                          {amount === 0
-                            ? "Any salary"
-                            : `R${amount.toLocaleString("en-ZA")}+`}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
+    return (
+      <TouchableOpacity
+        key={amount}
+        style={[
+          styles.salaryOption,
+          selected && styles.salaryOptionSelected,
+        ]}
+        onPress={() =>
+          setDraftFilters((current) => ({
+            ...current,
+            minSalary: amount === 0 ? undefined : amount,
+          }))
+        }
+      >
+        <Text
+          style={[
+            styles.salaryOptionText,
+            selected && styles.salaryOptionTextSelected,
+          ]}
+        >
+          {amount === 0
+            ? "Any salary"
+            : `R${amount.toLocaleString("en-ZA")}+`}
+        </Text>
+      </TouchableOpacity>
+    );
+  })}
+</View>
+
+                
               </View>
 
               <SelectBlock
@@ -837,7 +752,7 @@ export default function JobsScreen() {
 const styles = StyleSheet.create({
   page: {
     flex: 1,
-    backgroundColor: "#F6F7F9",
+    backgroundColor: "#FAFAFA",
   },
 
   center: {
@@ -845,24 +760,24 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     padding: 24,
-    backgroundColor: "#F6F7F9",
+    backgroundColor: "#FAFAFA",
   },
 
   list: {
     paddingHorizontal: 16,
     paddingTop: 18,
-    paddingBottom: 110,
+    paddingBottom: 40,
   },
 
   title: {
     fontSize: 22,
-    fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800",
-    color: "#061A30",
+    fontWeight: "800",
+    color: "#0B1F30",
   },
 
   subtitle: {
     marginTop: 3,
-    color: "#556274",
+    color: "#667085",
     fontSize: 13,
   },
 
@@ -876,7 +791,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 48,
     borderWidth: 1,
-    borderColor: "#DFE4EC",
+    borderColor: "#D0D5DD",
     backgroundColor: "#FFFFFF",
     borderRadius: 8,
     paddingHorizontal: 13,
@@ -888,14 +803,14 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 8,
     fontSize: 14,
-    color: "#061A30",
+    color: "#101828",
   },
 
   searchButton: {
     width: 48,
     height: 48,
     borderRadius: 8,
-    backgroundColor: "#E1225F",
+    backgroundColor: "#E31C5F",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -905,7 +820,7 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#DFE4EC",
+    borderColor: "#D0D5DD",
     backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
@@ -919,7 +834,7 @@ const styles = StyleSheet.create({
     height: 19,
     paddingHorizontal: 4,
     borderRadius: 10,
-    backgroundColor: "#E1225F",
+    backgroundColor: "#E31C5F",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -927,7 +842,7 @@ const styles = StyleSheet.create({
   filterCountText: {
     color: "#FFFFFF",
     fontSize: 10,
-    fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800",
+    fontWeight: "800",
   },
 
   activeFilters: {
@@ -939,16 +854,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: "#F2F4F7",
     paddingHorizontal: 10,
     paddingVertical: 7,
     borderRadius: 6,
   },
 
   activeChipText: {
-    color: "#556274",
+    color: "#344054",
     fontSize: 11,
-    fontFamily: "PlusJakartaSans_600SemiBold", fontWeight: "600",
+    fontWeight: "600",
   },
 
   sortRow: {
@@ -961,17 +876,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 13,
     paddingVertical: 8,
     borderRadius: 7,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: "#F2F4F7",
   },
 
   sortButtonActive: {
-    backgroundColor: "#061A30",
+    backgroundColor: "#0B1F30",
   },
 
   sortText: {
     fontSize: 12,
-    fontFamily: "PlusJakartaSans_700Bold", fontWeight: "700",
-    color: "#556274",
+    fontWeight: "700",
+    color: "#667085",
   },
 
   sortTextActive: {
@@ -980,7 +895,7 @@ const styles = StyleSheet.create({
 
   divider: {
     height: 1,
-    backgroundColor: "#E8EBF0",
+    backgroundColor: "#EAECF0",
     marginTop: 16,
     marginBottom: 10,
   },
@@ -990,21 +905,21 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     paddingVertical: 15,
     borderBottomWidth: 1,
-    borderBottomColor: "#E8EBF0",
+    borderBottomColor: "#EAECF0",
   },
 
   logo: {
     width: 48,
     height: 48,
     borderRadius: 8,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: "#F2F4F7",
     alignItems: "center",
     justifyContent: "center",
   },
 
   logoText: {
-    color: "#E1225F",
-    fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800",
+    color: "#E31C5F",
+    fontWeight: "800",
     fontSize: 19,
   },
 
@@ -1021,15 +936,15 @@ const styles = StyleSheet.create({
 
   jobTitle: {
     flex: 1,
-    color: "#061A30",
+    color: "#101828",
     fontSize: 14,
-    fontFamily: "PlusJakartaSans_700Bold", fontWeight: "700",
+    fontWeight: "700",
     lineHeight: 19,
   },
 
   company: {
     marginTop: 3,
-    color: "#556274",
+    color: "#475467",
     fontSize: 12,
   },
 
@@ -1040,7 +955,7 @@ const styles = StyleSheet.create({
   },
 
   metaText: {
-    color: "#556274",
+    color: "#667085",
     fontSize: 11,
     marginLeft: 4,
     flex: 1,
@@ -1054,7 +969,7 @@ const styles = StyleSheet.create({
   },
 
   categoryBadge: {
-    backgroundColor: "#F1F5F9",
+    backgroundColor: "#F2F4F7",
     borderRadius: 5,
     paddingHorizontal: 7,
     paddingVertical: 4,
@@ -1062,31 +977,31 @@ const styles = StyleSheet.create({
 
   categoryText: {
     fontSize: 9,
-    fontFamily: "PlusJakartaSans_700Bold", fontWeight: "700",
-    color: "#556274",
+    fontWeight: "700",
+    color: "#344054",
   },
 
   urgent: {
-    backgroundColor: "#FDEEF3",
+    backgroundColor: "#FFF0F5",
     borderRadius: 5,
     paddingHorizontal: 6,
     paddingVertical: 3,
   },
 
   urgentText: {
-    color: "#E1225F",
+    color: "#E31C5F",
     fontSize: 9,
-    fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800",
+    fontWeight: "800",
   },
 
   closing: {
-    color: "#556274",
+    color: "#667085",
     fontSize: 10,
   },
 
   closingSoon: {
-    color: "#E1225F",
-    fontFamily: "PlusJakartaSans_700Bold", fontWeight: "700",
+    color: "#E31C5F",
+    fontWeight: "700",
   },
 
   modalRoot: {
@@ -1109,7 +1024,7 @@ const styles = StyleSheet.create({
   sheetHeader: {
     padding: 18,
     borderBottomWidth: 1,
-    borderBottomColor: "#E8EBF0",
+    borderBottomColor: "#EAECF0",
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
@@ -1117,12 +1032,12 @@ const styles = StyleSheet.create({
 
   sheetTitle: {
     fontSize: 20,
-    fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800",
-    color: "#061A30",
+    fontWeight: "800",
+    color: "#0B1F30",
   },
 
   sheetSubtitle: {
-    color: "#556274",
+    color: "#667085",
     fontSize: 12,
     marginTop: 2,
   },
@@ -1145,9 +1060,9 @@ const styles = StyleSheet.create({
 
   filterLabel: {
     marginBottom: 10,
-    color: "#556274",
+    color: "#344054",
     fontSize: 13,
-    fontFamily: "PlusJakartaSans_700Bold", fontWeight: "700",
+    fontWeight: "700",
   },
 
   optionWrap: {
@@ -1158,7 +1073,7 @@ const styles = StyleSheet.create({
 
   option: {
     borderWidth: 1,
-    borderColor: "#DFE4EC",
+    borderColor: "#D0D5DD",
     borderRadius: 7,
     paddingHorizontal: 10,
     paddingVertical: 8,
@@ -1166,27 +1081,27 @@ const styles = StyleSheet.create({
   },
 
   optionSelected: {
-    borderColor: "#E1225F",
-    backgroundColor: "#FDEEF3",
+    borderColor: "#E31C5F",
+    backgroundColor: "#FFF0F5",
   },
 
   optionText: {
-    color: "#556274",
+    color: "#475467",
     fontSize: 11,
-    fontFamily: "PlusJakartaSans_600SemiBold", fontWeight: "600",
+    fontWeight: "600",
   },
 
   optionSelectedText: {
-    color: "#E1225F",
+    color: "#E31C5F",
   },
 
   filterInput: {
     height: 48,
     borderWidth: 1,
-    borderColor: "#DFE4EC",
+    borderColor: "#D0D5DD",
     borderRadius: 8,
     paddingHorizontal: 13,
-    color: "#061A30",
+    color: "#101828",
   },
 
   salaryOptions: {
@@ -1197,7 +1112,7 @@ const styles = StyleSheet.create({
 
   salaryOption: {
     borderWidth: 1,
-    borderColor: "#DFE4EC",
+    borderColor: "#D0D5DD",
     backgroundColor: "#FFFFFF",
     paddingHorizontal: 11,
     paddingVertical: 9,
@@ -1205,19 +1120,19 @@ const styles = StyleSheet.create({
   },
 
   salaryOptionSelected: {
-    borderColor: "#E1225F",
-    backgroundColor: "#FDEEF3",
+    borderColor: "#E31C5F",
+    backgroundColor: "#FFF0F5",
   },
 
   salaryOptionText: {
-    color: "#556274",
+    color: "#475467",
     fontSize: 11,
-    fontFamily: "PlusJakartaSans_600SemiBold", fontWeight: "600",
+    fontWeight: "600",
   },
 
   salaryOptionTextSelected: {
-    color: "#E1225F",
-    fontFamily: "PlusJakartaSans_700Bold", fontWeight: "700",
+    color: "#E31C5F",
+    fontWeight: "700",
   },
 
   salaryEnds: {
@@ -1226,41 +1141,41 @@ const styles = StyleSheet.create({
   },
 
   salaryLabel: {
-    color: "#94A3B8",
+    color: "#98A2B3",
     fontSize: 10,
   },
 
   clearButton: {
     height: 48,
     borderWidth: 1,
-    borderColor: "#DFE4EC",
+    borderColor: "#D0D5DD",
     borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
   },
 
   clearText: {
-    color: "#556274",
-    fontFamily: "PlusJakartaSans_700Bold", fontWeight: "700",
+    color: "#344054",
+    fontWeight: "700",
   },
 
   sheetFooter: {
     padding: 16,
     borderTopWidth: 1,
-    borderTopColor: "#E8EBF0",
+    borderTopColor: "#EAECF0",
   },
 
   applyFiltersButton: {
     height: 54,
     borderRadius: 10,
-    backgroundColor: "#E1225F",
+    backgroundColor: "#E31C5F",
     alignItems: "center",
     justifyContent: "center",
   },
 
   applyFiltersText: {
     color: "#FFFFFF",
-    fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800",
+    fontWeight: "800",
     fontSize: 15,
   },
 
@@ -1272,13 +1187,13 @@ const styles = StyleSheet.create({
 
   emptyTitle: {
     marginTop: 12,
-    color: "#061A30",
-    fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800",
+    color: "#0B1F30",
+    fontWeight: "800",
   },
 
   emptyText: {
     marginTop: 5,
-    color: "#556274",
+    color: "#667085",
     fontSize: 12,
     textAlign: "center",
   },
@@ -1290,32 +1205,39 @@ const styles = StyleSheet.create({
 
   loadMoreText: {
     marginTop: 7,
-    color: "#556274",
+    color: "#667085",
     fontSize: 11,
   },
 
   endText: {
     textAlign: "center",
-    color: "#94A3B8",
+    color: "#98A2B3",
     fontSize: 11,
     paddingVertical: 28,
   },
 
   loadingText: {
     marginTop: 12,
-    color: "#556274",
+    color: "#667085",
   },
 
   errorTitle: {
     marginTop: 12,
-    color: "#061A30",
+    color: "#0B1F30",
     fontSize: 19,
-    fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800",
+    fontWeight: "800",
   },
 
   errorText: {
     marginTop: 5,
     textAlign: "center",
-    color: "#556274",
+    color: "#667085",
   },
 });
+
+
+
+
+
+
+

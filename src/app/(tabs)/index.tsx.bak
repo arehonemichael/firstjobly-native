@@ -16,68 +16,31 @@ import { router } from "expo-router";
 import { getJobs } from "../../lib/job-api";
 import type { Job } from "../../lib/jobs";
 
-import { useScreenBottomPadding } from "../../hooks/use-screen-bottom-padding";
-import { useAuth } from "../../hooks/use-auth";
-import { InlineErrorState, SkeletonJobCard } from "../../components/ui/app-ui";
-import { SponsoredSlot } from "../../components/ads/sponsored-slot";
-
 const categories = [
-  { name: "Learnerships", icon: "school-outline", params: { category: "learnership" } },
-  { name: "Internships", icon: "business-outline", params: { category: "internship" } },
-  { name: "Graduate", icon: "ribbon-outline", params: { category: "graduate_programme" } },
-  { name: "Government", icon: "flag-outline", params: { category: "government" } },
-  { name: "Entry Level", icon: "briefcase-outline", params: { experience: "Entry level" } },
-  { name: "Bursaries", icon: "book-outline", params: { category: "bursary" } },
+  { name: "Learnerships", icon: "school-outline" },
+  { name: "Internships", icon: "business-outline" },
+  { name: "Graduate", icon: "ribbon-outline" },
+  { name: "Government", icon: "flag-outline" },
+  { name: "Entry Level", icon: "briefcase-outline" },
+  { name: "Bursaries", icon: "book-outline" },
 ];
 
 export default function HomeScreen() {
-  const auth = useAuth();
-  const authAny = auth as any;
-
-  const firstName = String(
-    authAny?.user?.user_metadata?.full_name ??
-    authAny?.user?.user_metadata?.name ??
-    ""
-  )
-    .trim()
-    .split(/\s+/)[0];
-
-  const hour = new Date().getHours();
-
-  const dayGreeting =
-    hour < 12
-      ? "Good morning"
-      : hour < 18
-        ? "Good afternoon"
-        : "Good evening";
-
-  const greetingLabel = firstName
-    ? `${dayGreeting}, ${firstName}`
-    : "Find your opportunity";
-  const bottomContentPadding = useScreenBottomPadding(true);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  const loadJobs = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      setJobs((await getJobs(0)).slice(0, 8));
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'We could not load fresh opportunities.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { void loadJobs(); }, []);
+  useEffect(() => {
+    getJobs(0)
+      .then((data) => setJobs(data.slice(0, 8)))
+      .catch((error) => console.error("Home jobs failed:", error))
+      .finally(() => setLoading(false));
+  }, []);
 
   return (
-    <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
+    <SafeAreaView style={styles.safe} edges={["top"]}>
       <ScrollView
         style={styles.container}
-        contentContainerStyle={[styles.content, { paddingBottom: bottomContentPadding }]}
+        contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
@@ -89,13 +52,18 @@ export default function HomeScreen() {
           </View>
 
           <TouchableOpacity style={styles.notification}>
-            <Ionicons name="notifications-outline" size={23} color="#061A30" />
+            <Ionicons name="notifications-outline" size={23} color="#0B1F30" />
           </TouchableOpacity>
         </View>
 
         <View style={styles.hero}>
           <Text style={styles.heroTitle}>
-            {greetingLabel}
+            Find your next{"\n"}opportunity.
+          </Text>
+
+          <Text style={styles.heroText}>
+            Jobs, learnerships, internships and graduate programmes across
+            South Africa.
           </Text>
 
           <TouchableOpacity
@@ -103,12 +71,12 @@ export default function HomeScreen() {
             activeOpacity={0.9}
             onPress={() => router.push("/jobs")}
           >
-            <Ionicons name="search" size={20} color="#556274" />
+            <Ionicons name="search" size={20} color="#667085" />
             <TextInput
               editable={false}
               pointerEvents="none"
               placeholder="Search jobs or companies"
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor="#98A2B3"
               style={styles.searchInput}
             />
           </TouchableOpacity>
@@ -123,18 +91,13 @@ export default function HomeScreen() {
             <TouchableOpacity
               key={category.name}
               style={styles.category}
-              onPress={() =>
-                router.push({
-                  pathname: "/jobs",
-                  params: category.params,
-                })
-              }
+              onPress={() => router.push("/jobs")}
             >
               <View style={styles.categoryIcon}>
                 <Ionicons
                   name={category.icon as any}
                   size={22}
-                  color="#E1225F"
+                  color="#E31C5F"
                 />
               </View>
 
@@ -152,11 +115,10 @@ export default function HomeScreen() {
         </View>
 
         {loading ? (
-          <View>
-            <SkeletonJobCard />
-            <SkeletonJobCard />
-            <SkeletonJobCard />
-          </View>
+          <ActivityIndicator
+            color="#E31C5F"
+            style={{ marginVertical: 35 }}
+          />
         ) : (
           jobs.map((job) => (
             <TouchableOpacity
@@ -195,7 +157,7 @@ export default function HomeScreen() {
                   <Ionicons
                     name="location-outline"
                     size={14}
-                    color="#556274"
+                    color="#667085"
                   />
 
                   <Text style={styles.metaText} numberOfLines={1}>
@@ -218,7 +180,7 @@ export default function HomeScreen() {
                 </View>
               </View>
 
-              <Ionicons name="chevron-forward" size={20} color="#94A3B8" />
+              <Ionicons name="chevron-forward" size={20} color="#98A2B3" />
             </TouchableOpacity>
           ))
         )}
@@ -228,7 +190,7 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe:{flex:1,backgroundColor:"#F6F7F9"},
+  safe:{flex:1,backgroundColor:"#FAFAFA"},
   container:{flex:1},
   content:{paddingBottom:30},
 
@@ -241,9 +203,9 @@ const styles = StyleSheet.create({
     justifyContent:"space-between",
   },
 
-  logo:{color:"#E1225F",fontSize:26,fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800"},
-  logoPink:{color:"#061A30"},
-  tagline:{marginTop:2,color:"#556274",fontSize:12},
+  logo:{color:"#0B1F30",fontSize:26,fontWeight:"800"},
+  logoPink:{color:"#E31C5F"},
+  tagline:{marginTop:2,color:"#667085",fontSize:12},
 
   notification:{
     width:44,
@@ -253,13 +215,13 @@ const styles = StyleSheet.create({
     alignItems:"center",
     justifyContent:"center",
     borderWidth:1,
-    borderColor:"#E8EBF0",
+    borderColor:"#EAECF0",
   },
 
   hero:{
     marginHorizontal:16,
-    backgroundColor:"#061A30",
-    borderRadius: 10,
+    backgroundColor:"#0B1F30",
+    borderRadius:24,
     padding:22,
   },
 
@@ -267,11 +229,11 @@ const styles = StyleSheet.create({
     color:"#FFFFFF",
     fontSize:31,
     lineHeight:36,
-    fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800",
+    fontWeight:"800",
   },
 
   heroText:{
-    color:"#DFE4EC",
+    color:"#D0D5DD",
     marginTop:10,
     lineHeight:20,
     fontSize:14,
@@ -280,7 +242,7 @@ const styles = StyleSheet.create({
   search:{
     marginTop:20,
     height:54,
-    borderRadius: 8,
+    borderRadius:15,
     backgroundColor:"#FFFFFF",
     paddingHorizontal:16,
     flexDirection:"row",
@@ -291,7 +253,7 @@ const styles = StyleSheet.create({
     flex:1,
     marginLeft:10,
     fontSize:15,
-    color:"#061A30",
+    color:"#111827",
   },
 
   sectionHeader:{
@@ -305,11 +267,11 @@ const styles = StyleSheet.create({
 
   sectionTitle:{
     fontSize:19,
-    fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800",
-    color:"#061A30",
+    fontWeight:"800",
+    color:"#0B1F30",
   },
 
-  viewAll:{color:"#E1225F",fontFamily: "PlusJakartaSans_700Bold", fontWeight: "700"},
+  viewAll:{color:"#E31C5F",fontWeight:"700"},
 
   categoryGrid:{
     paddingHorizontal:16,
@@ -323,24 +285,24 @@ const styles = StyleSheet.create({
     minHeight:105,
     padding:12,
     backgroundColor:"#FFFFFF",
-    borderRadius: 8,
+    borderRadius:16,
     borderWidth:1,
-    borderColor:"#E8EBF0",
+    borderColor:"#EAECF0",
   },
 
   categoryIcon:{
     width:39,
     height:39,
-    borderRadius: 8,
-    backgroundColor:"#FDEEF3",
+    borderRadius:12,
+    backgroundColor:"#FFF0F5",
     alignItems:"center",
     justifyContent:"center",
     marginBottom:10,
   },
 
   categoryText:{
-    color:"#061A30",
-    fontFamily: "PlusJakartaSans_700Bold", fontWeight: "700",
+    color:"#0B1F30",
+    fontWeight:"700",
     fontSize:12,
   },
 
@@ -348,27 +310,27 @@ const styles = StyleSheet.create({
     marginHorizontal:16,
     marginBottom:10,
     backgroundColor:"#FFFFFF",
-    borderRadius: 8,
+    borderRadius:18,
     padding:15,
     flexDirection:"row",
     alignItems:"flex-start",
     borderWidth:1,
-    borderColor:"#E8EBF0",
+    borderColor:"#EAECF0",
   },
 
   companyLogo:{
     width:50,
     height:50,
-    borderRadius: 8,
-    backgroundColor:"#F1F5F9",
+    borderRadius:13,
+    backgroundColor:"#F2F4F7",
     alignItems:"center",
     justifyContent:"center",
   },
 
   companyLetter:{
-    fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800",
+    fontWeight:"800",
     fontSize:20,
-    color:"#061A30",
+    color:"#0B1F30",
   },
 
   jobContent:{
@@ -377,14 +339,14 @@ const styles = StyleSheet.create({
   },
 
   jobTitle:{
-    color:"#061A30",
+    color:"#0B1F30",
     fontSize:15,
     lineHeight:20,
-    fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800",
+    fontWeight:"800",
   },
 
   company:{
-    color:"#556274",
+    color:"#667085",
     marginTop:4,
     fontSize:13,
   },
@@ -397,7 +359,7 @@ const styles = StyleSheet.create({
 
   metaText:{
     flex:1,
-    color:"#556274",
+    color:"#667085",
     fontSize:11,
     marginLeft:3,
   },
@@ -409,40 +371,28 @@ const styles = StyleSheet.create({
   },
 
   badge:{
-    backgroundColor:"#F1F5F9",
+    backgroundColor:"#F2F4F7",
     paddingHorizontal:8,
     paddingVertical:4,
     borderRadius:7,
   },
 
   badgeText:{
-    color:"#556274",
+    color:"#344054",
     fontSize:10,
-    fontFamily: "PlusJakartaSans_700Bold", fontWeight: "700",
+    fontWeight:"700",
   },
 
   urgentBadge:{
-    backgroundColor:"#FDEEF3",
+    backgroundColor:"#FFF0F5",
     paddingHorizontal:8,
     paddingVertical:4,
     borderRadius:7,
   },
 
   urgentText:{
-    color:"#E1225F",
+    color:"#E31C5F",
     fontSize:10,
-    fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800",
+    fontWeight:"800",
   },
 });
-
-
-
-
-
-
-
-
-
-
-
-

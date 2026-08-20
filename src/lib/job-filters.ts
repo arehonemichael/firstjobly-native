@@ -83,7 +83,14 @@ export function filterJobs(
   jobs: Job[],
   filters: JobFilters
 ): Job[] {
-  let list = [...jobs];
+  let list = jobs.filter((job) => {
+    const days = daysUntil(job.closing_date);
+
+    // No closing date = keep visible.
+    // Today = still open.
+    // Anything before today = closed/expired.
+    return days === null || days >= 0;
+  });
 
   const q = filters.q.trim().toLowerCase();
 
@@ -184,3 +191,4 @@ export function filterJobs(
 
   return list;
 }
+

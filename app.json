@@ -1,4 +1,4 @@
-﻿{
+{
   "expo": {
     "name": "FirstJobly",
     "slug": "firstjobly-native",
@@ -16,9 +16,7 @@
       "versionCode": 32,
       "adaptiveIcon": {
         "backgroundColor": "#061A30",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "foregroundImage": "./assets/images/icon.png"
       },
       "predictiveBackGestureEnabled": false
     },
@@ -33,11 +31,25 @@
         }
       ],
       "expo-secure-store",
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-sharing",
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-1505001993402465~7846151022"
+        }
+      ],
+      "expo-image"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "a17295aa-763e-4ff5-a151-60d19b3fce12"
+      }
     }
   }
 }

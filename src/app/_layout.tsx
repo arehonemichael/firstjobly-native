@@ -1,61 +1,63 @@
-import React, { useEffect } from 'react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { KeyboardProvider } from 'react-native-keyboard-controller';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { ErrorBoundary } from '@/components/ErrorBoundary';
-import {
-  Inter_400Regular,
-  Inter_500Medium,
-  Inter_600SemiBold,
-  Inter_700Bold,
+﻿import {
+  PlusJakartaSans_400Regular,
+  PlusJakartaSans_500Medium,
+  PlusJakartaSans_600SemiBold,
+  PlusJakartaSans_700Bold,
+  PlusJakartaSans_800ExtraBold,
   useFonts,
-} from '@expo-google-fonts/inter';
-import { Stack } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-
-// Prevent the splash screen from auto-hiding before asset loading is complete.
-SplashScreen.preventAutoHideAsync();
-
-const queryClient = new QueryClient();
-
-function RootLayoutNav() {
-  return (
-    <Stack screenOptions={{ headerBackTitle: 'Back', headerShown: false }}>
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen name="jobs/[id]" options={{ headerShown: false }} />
-      <Stack.Screen name="auth" options={{ presentation: 'modal', headerShown: false }} />
-    </Stack>
-  );
-}
+} from "@expo-google-fonts/plus-jakarta-sans";
+import { useCallback, useState } from "react";
+import { Stack } from "expo-router";
+import { StatusBar } from "expo-status-bar";
+import { LaunchSplash } from "../components/launch-splash";
+import { useAuth } from "../hooks/use-auth";
 
 export default function RootLayout() {
-  const [fontsLoaded, fontError] = useFonts({
-    Inter_400Regular,
-    Inter_500Medium,
-    Inter_600SemiBold,
-    Inter_700Bold,
+  const auth = useAuth();
+  const authAny = auth as any;
+  const [showLaunchSplash, setShowLaunchSplash] = useState(true);
+  const firstName = String(authAny?.user?.user_metadata?.full_name ?? authAny?.user?.user_metadata?.name ?? "").trim().split(/\s+/)[0] || null;
+  const authReady = !authAny?.loading;
+  const finishLaunchSplash = useCallback(() => setShowLaunchSplash(false), []);
+  const [fontsLoaded] = useFonts({
+    PlusJakartaSans_400Regular,
+    PlusJakartaSans_500Medium,
+    PlusJakartaSans_600SemiBold,
+    PlusJakartaSans_700Bold,
+    PlusJakartaSans_800ExtraBold,
   });
 
-  useEffect(() => {
-    if (fontsLoaded || fontError) {
-      SplashScreen.hideAsync();
-    }
-  }, [fontsLoaded, fontError]);
+  if (!fontsLoaded) return null;
 
-  if (!fontsLoaded && !fontError) return null;
+  if (showLaunchSplash) {
+    return (
+      <>
+        <StatusBar style="light" />
+        <LaunchSplash
+          firstName={firstName}
+          ready={authReady}
+          onDone={finishLaunchSplash}
+        />
+      </>
+    );
+  }
+return (
+    <>
+      <StatusBar style="dark" />
 
-  return (
-    <SafeAreaProvider>
-      <ErrorBoundary>
-        <QueryClientProvider client={queryClient}>
-          <GestureHandlerRootView>
-            <KeyboardProvider>
-              <RootLayoutNav />
-            </KeyboardProvider>
-          </GestureHandlerRootView>
-        </QueryClientProvider>
-      </ErrorBoundary>
-    </SafeAreaProvider>
+      <Stack screenOptions={{ headerShown: false, animation: "slide_from_right" }}>
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="jobs/[id]" />
+        <Stack.Screen
+          name="auth"
+          options={{ presentation: "modal" }}
+        />
+      </Stack>
+    </>
   );
 }
+
+
+
+
+

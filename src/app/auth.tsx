@@ -1,18 +1,33 @@
-import { useState } from 'react';
-import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { PrimaryButton, Wordmark } from '@/components/ui';
-import { theme } from '@/constants/theme';
-import { supabase } from '@/lib/supabase';
+﻿import { useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
+import { SafeAreaView } from "react-native-safe-area-context";
+
+import { supabase } from "./../lib/supabase";
+
+import { useScreenBottomPadding } from "../hooks/use-screen-bottom-padding";
+
+type Mode = "signin" | "signup" | "forgot";
 
 type Mode = 'signin' | 'signup' | 'forgot';
 export default function AuthScreen() {
-  const [mode, setMode] = useState<Mode>('signin');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const bottomContentPadding = useScreenBottomPadding(false);
+  const [mode, setMode] = useState<Mode>("signin");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const cleanEmail = email.trim().toLowerCase();
@@ -41,27 +56,414 @@ export default function AuthScreen() {
         Alert.alert('Reset link sent', `Check ${cleanEmail} for the password reset link.`);
         setMode('signin');
       }
-    } finally { setBusy(false); }
-  };
-  const heading = mode === 'signup' ? 'Build your career home.' : mode === 'forgot' ? 'Reset with ease.' : 'Welcome back.';
-  const body = mode === 'signup' ? 'Create a free account to save roles and keep your application journey organised.' : mode === 'forgot' ? 'Enter your email and we will send a secure reset link.' : 'Sign in to find your next step and keep your opportunities close.';
-  return <SafeAreaView style={styles.page} edges={['top', 'bottom']}><KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}><ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-    <Pressable onPress={() => router.back()} style={styles.back}><Ionicons name="arrow-back" size={22} color={theme.colors.ink} /></Pressable>
-    <View style={styles.brand}><Wordmark /><Text style={styles.kicker}>YOUR CAREER, WITH MOMENTUM</Text><Text style={styles.heading}>{heading}</Text><Text style={styles.body}>{body}</Text></View>
-    <View style={styles.form}><Field label="Email address"><TextInput value={email} onChangeText={setEmail} autoCapitalize="none" autoCorrect={false} keyboardType="email-address" autoComplete="email" placeholder="you@example.com" placeholderTextColor={theme.colors.textMuted} style={styles.input}/></Field>
-      {mode !== 'forgot' ? <><Field label="Password"><View style={styles.passwordWrap}><TextInput value={password} onChangeText={setPassword} secureTextEntry={!showPassword} autoCapitalize="none" autoComplete={mode === 'signin' ? 'password' : 'new-password'} placeholder={mode === 'signup' ? 'At least 8 characters' : 'Your password'} placeholderTextColor={theme.colors.textMuted} style={styles.password}/><Pressable onPress={() => setShowPassword((value) => !value)} style={styles.eye}><Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color={theme.colors.textMuted}/></Pressable></View></Field>
-      {mode === 'signup' ? <Field label="Confirm password"><TextInput value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry={!showPassword} autoCapitalize="none" placeholder="Repeat your password" placeholderTextColor={theme.colors.textMuted} style={styles.input}/></Field> : <Pressable onPress={() => setMode('forgot')} style={styles.forgot}><Text style={styles.link}>Forgot password?</Text></Pressable>}</> : null}
-      <View style={styles.buttonWrap}>{busy ? <View style={styles.busy}><ActivityIndicator color="#FFFFFF" /></View> : <PrimaryButton label={mode === 'signup' ? 'Create free account' : mode === 'forgot' ? 'Send reset link' : 'Sign in'} onPress={() => void submit()} />}</View>
-      {mode === 'forgot' ? <Pressable onPress={() => setMode('signin')} style={styles.switch}><Text style={styles.link}>Back to sign in</Text></Pressable> : <View style={styles.switchRow}><Text style={styles.switchText}>{mode === 'signup' ? 'Already have an account?' : 'New to FirstJobly?'}</Text><Pressable onPress={() => setMode(mode === 'signup' ? 'signin' : 'signup')}><Text style={styles.link}>{mode === 'signup' ? 'Sign in' : 'Create account'}</Text></Pressable></View>}
-    </View>
-  </ScrollView></KeyboardAvoidingView></SafeAreaView>;
+
+      router.replace("/profile");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function signUp() {
+    if (!validateEmail()) {
+      Alert.alert("Check your email", "Enter a valid email address.");
+      return;
+    }
+
+    if (password.length < 8) {
+      Alert.alert(
+        "Password too short",
+        "Your password must contain at least 8 characters."
+      );
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      Alert.alert("Passwords do not match", "Check both passwords.");
+      return;
+    }
+
+    try {
+      setBusy(true);
+
+      const { data, error } = await supabase.auth.signUp({
+        email: cleanEmail,
+        password,
+      });
+
+      if (error) {
+        Alert.alert("Could not create account", error.message);
+        return;
+      }
+
+      if (data.session) {
+        router.replace("/profile");
+        return;
+      }
+
+      Alert.alert(
+        "Check your email",
+        `We sent a confirmation link to ${cleanEmail}. Confirm your account, then return to FirstJobly and sign in.`,
+        [
+          {
+            text: "OK",
+            onPress: () => {
+              setMode("signin");
+              setPassword("");
+              setConfirmPassword("");
+            },
+          },
+        ]
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function forgotPassword() {
+    if (!validateEmail()) {
+      Alert.alert("Check your email", "Enter a valid email address.");
+      return;
+    }
+
+    try {
+      setBusy(true);
+
+      const { error } = await supabase.auth.resetPasswordForEmail(
+        cleanEmail,
+        {
+          redirectTo: "https://firstjobly.co.za/reset-password",
+        }
+      );
+
+      if (error) {
+        Alert.alert("Could not send reset link", error.message);
+        return;
+      }
+
+      Alert.alert(
+        "Reset link sent",
+        `Check ${cleanEmail} for the password reset link.`
+      );
+
+      setMode("signin");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function submit() {
+    if (mode === "signin") return signIn();
+    if (mode === "signup") return signUp();
+    return forgotPassword();
+  }
+
+  return (
+    <SafeAreaView style={styles.page}>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <ScrollView
+          contentContainerStyle={[styles.content, { paddingBottom: bottomContentPadding }]}
+          keyboardShouldPersistTaps="handled"
+        >
+          <TouchableOpacity
+            style={styles.back}
+            onPress={() => router.back()}
+          >
+            <Ionicons name="arrow-back" size={23} color="#061A30" />
+          </TouchableOpacity>
+
+          <View style={styles.brand}>
+            <Text style={styles.wordmark}>
+              First<Text style={styles.pink}>Jobly</Text>
+            </Text>
+
+            <Text style={styles.subtitle}>
+              {mode === "signup"
+                ? "Create a free account to save jobs and track applications."
+                : mode === "forgot"
+                  ? "Enter your email and we'll send you a reset link."
+                  : "Welcome back. Sign in to keep applying."}
+            </Text>
+          </View>
+
+          <View style={styles.form}>
+            <Text style={styles.label}>Email</Text>
+
+            <TextInput
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="email-address"
+              autoComplete="email"
+              placeholder="you@example.com"
+              placeholderTextColor="#94A3B8"
+              style={styles.input}
+            />
+
+            {mode !== "forgot" && (
+              <>
+                <Text style={styles.label}>Password</Text>
+
+                <View style={styles.passwordWrap}>
+                  <TextInput
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry={!showPassword}
+                    autoCapitalize="none"
+                    placeholder={
+                      mode === "signup"
+                        ? "At least 8 characters"
+                        : "Your password"
+                    }
+                    placeholderTextColor="#94A3B8"
+                    style={styles.passwordInput}
+                  />
+
+                  <TouchableOpacity
+                    style={styles.eye}
+                    onPress={() => setShowPassword((v) => !v)}
+                  >
+                    <Ionicons
+                      name={showPassword ? "eye-off-outline" : "eye-outline"}
+                      size={21}
+                      color="#556274"
+                    />
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+
+            {mode === "signup" && (
+              <>
+                <Text style={styles.label}>Confirm password</Text>
+
+                <TextInput
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                  placeholder="Repeat your password"
+                  placeholderTextColor="#94A3B8"
+                  style={styles.input}
+                />
+              </>
+            )}
+
+            {mode === "signin" && (
+              <TouchableOpacity
+                style={styles.forgot}
+                onPress={() => setMode("forgot")}
+              >
+                <Text style={styles.link}>Forgot password?</Text>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity
+              style={[styles.primary, busy && styles.disabled]}
+              disabled={busy}
+              onPress={() => void submit()}
+            >
+              {busy ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={styles.primaryText}>
+                  {mode === "signup"
+                    ? "Create free account"
+                    : mode === "forgot"
+                      ? "Send reset link"
+                      : "Sign in"}
+                </Text>
+              )}
+            </TouchableOpacity>
+
+            {mode === "forgot" ? (
+              <TouchableOpacity
+                style={styles.switchButton}
+                onPress={() => setMode("signin")}
+              >
+                <Text style={styles.link}>Back to sign in</Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.switchRow}>
+                <Text style={styles.switchText}>
+                  {mode === "signup"
+                    ? "Already have an account?"
+                    : "New to FirstJobly?"}
+                </Text>
+
+                <TouchableOpacity
+                  onPress={() =>
+                    setMode(mode === "signup" ? "signin" : "signup")
+                  }
+                >
+                  <Text style={styles.link}>
+                    {mode === "signup" ? "Sign in" : "Create account"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {mode === "signup" && (
+              <Text style={styles.legal}>
+                By creating an account you agree to FirstJobly's Terms &
+                Conditions and Privacy Policy.
+              </Text>
+            )}
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
 }
 function Field({ label, children }: { label: string; children: React.ReactNode }) { return <View style={styles.field}><Text style={styles.label}>{label}</Text>{children}</View>; }
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: theme.colors.background }, content: { flexGrow: 1, paddingHorizontal: theme.space.md, paddingBottom: theme.space.xl }, back: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center', borderRadius: 22, backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.line },
-  brand: { marginTop: theme.space.xl }, kicker: { ...theme.type.eyebrow, color: theme.colors.brand, letterSpacing: 0.8, marginTop: theme.space.lg }, heading: { ...theme.type.display, color: theme.colors.ink, marginTop: theme.space.xs, letterSpacing: -0.7 }, body: { ...theme.type.body, color: theme.colors.textMuted, marginTop: theme.space.sm, maxWidth: 330 },
-  form: { marginTop: theme.space.xl }, field: { marginBottom: theme.space.md }, label: { ...theme.type.label, color: theme.colors.ink, marginBottom: theme.space.xs }, input: { height: 54, borderRadius: theme.radius.md, paddingHorizontal: theme.space.md, ...theme.type.body, color: theme.colors.ink, backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.line },
-  passwordWrap: { height: 54, borderRadius: theme.radius.md, flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.line }, password: { flex: 1, height: '100%', paddingHorizontal: theme.space.md, ...theme.type.body, color: theme.colors.ink }, eye: { height: 52, width: 48, alignItems: 'center', justifyContent: 'center' },
-  forgot: { alignSelf: 'flex-end', marginTop: -theme.space.xs, marginBottom: theme.space.sm }, link: { ...theme.type.label, color: theme.colors.brand }, buttonWrap: { marginTop: theme.space.sm }, busy: { height: 52, backgroundColor: theme.colors.brand, borderRadius: theme.radius.md, justifyContent: 'center', alignItems: 'center' },
-  switch: { alignItems: 'center', marginTop: theme.space.lg }, switchRow: { marginTop: theme.space.lg, flexDirection: 'row', justifyContent: 'center', gap: theme.space.xxs }, switchText: { ...theme.type.body, color: theme.colors.textMuted },
+  flex: { flex: 1 },
+
+  page: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+  },
+
+  content: {
+    flexGrow: 1,
+    paddingHorizontal: 24,
+    paddingBottom: 40,
+  },
+
+  back: {
+    width: 44,
+    height: 44,
+    justifyContent: "center",
+    marginTop: 4,
+  },
+
+  brand: {
+    alignItems: "center",
+    marginTop: 35,
+  },
+
+  wordmark: {
+    color: "#061A30",
+    fontSize: 32,
+    fontWeight: "800",
+  },
+
+  pink: {
+    color: "#E1225F",
+  },
+
+  subtitle: {
+    maxWidth: 330,
+    marginTop: 12,
+    color: "#556274",
+    textAlign: "center",
+    fontSize: 14,
+    lineHeight: 20,
+  },
+
+  form: {
+    marginTop: 38,
+  },
+
+  label: {
+    color: "#556274",
+    fontSize: 13,
+    fontWeight: "700",
+    marginBottom: 7,
+    marginTop: 16,
+  },
+
+  input: {
+    height: 52,
+    borderWidth: 1,
+    borderColor: "#DFE4EC",
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    color: "#061A30",
+    fontSize: 15,
+    backgroundColor: "#FFFFFF",
+  },
+
+  passwordWrap: {
+    height: 52,
+    borderWidth: 1,
+    borderColor: "#DFE4EC",
+    borderRadius: 10,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  passwordInput: {
+    flex: 1,
+    paddingHorizontal: 14,
+    color: "#061A30",
+    fontSize: 15,
+  },
+
+  eye: {
+    width: 48,
+    height: 50,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  forgot: {
+    alignSelf: "flex-end",
+    paddingVertical: 14,
+  },
+
+  primary: {
+    height: 54,
+    marginTop: 20,
+    borderRadius: 10,
+    backgroundColor: "#E1225F",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  disabled: {
+    opacity: 0.65,
+  },
+
+  primaryText: {
+    color: "#FFFFFF",
+    fontWeight: "800",
+    fontSize: 15,
+  },
+
+  switchRow: {
+    marginTop: 26,
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 5,
+  },
+
+  switchButton: {
+    alignItems: "center",
+    paddingVertical: 20,
+  },
+
+  switchText: {
+    color: "#556274",
+    fontSize: 13,
+  },
+
+  link: {
+    color: "#E1225F",
+    fontWeight: "700",
+    fontSize: 13,
+  },
+
+  legal: {
+    marginTop: 25,
+    color: "#94A3B8",
+    textAlign: "center",
+    fontSize: 11,
+    lineHeight: 17,
+  },
 });
+
+
