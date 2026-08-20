@@ -1,11 +1,9 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
   Image,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -15,35 +13,52 @@ import { router } from "expo-router";
 
 import { getJobs } from "../../lib/job-api";
 import type { Job } from "../../lib/jobs";
-
 import { useScreenBottomPadding } from "../../hooks/use-screen-bottom-padding";
 import { useAuth } from "../../hooks/use-auth";
-import { InlineErrorState, SkeletonJobCard } from "../../components/ui/app-ui";
-import { SponsoredSlot } from "../../components/ads/sponsored-slot";
+import { SkeletonJobCard } from "../../components/ui/app-ui";
+import { useEarlyJobInterstitial } from "../../ads/useJobInterstitial";
 
 const categories = [
-  { name: "Learnerships", icon: "school-outline", params: { category: "learnership" } },
-  { name: "Internships", icon: "business-outline", params: { category: "internship" } },
-  { name: "Graduate", icon: "ribbon-outline", params: { category: "graduate_programme" } },
-  { name: "Government", icon: "flag-outline", params: { category: "government" } },
-  { name: "Entry Level", icon: "briefcase-outline", params: { experience: "Entry level" } },
-  { name: "Bursaries", icon: "book-outline", params: { category: "bursary" } },
+  {
+    name: "Learnerships",
+    subtitle: "Start learning while gaining work experience",
+    icon: "school-outline",
+    params: { category: "learnership" },
+  },
+  {
+    name: "Internships",
+    subtitle: "Build practical experience in your field",
+    icon: "business-outline",
+    params: { category: "internship" },
+  },
+  {
+    name: "Graduate roles",
+    subtitle: "Opportunities designed for new graduates",
+    icon: "ribbon-outline",
+    params: { category: "graduate_programme" },
+  },
+  {
+    name: "Government",
+    subtitle: "Explore public-sector opportunities",
+    icon: "flag-outline",
+    params: { category: "government" },
+  },
 ];
 
 export default function HomeScreen() {
   const auth = useAuth();
   const authAny = auth as any;
+  const { openJobWithEarlyInterstitial } = useEarlyJobInterstitial();
 
   const firstName = String(
     authAny?.user?.user_metadata?.full_name ??
-    authAny?.user?.user_metadata?.name ??
-    ""
+      authAny?.user?.user_metadata?.name ??
+      ""
   )
     .trim()
     .split(/\s+/)[0];
 
   const hour = new Date().getHours();
-
   const dayGreeting =
     hour < 12
       ? "Good morning"
@@ -53,14 +68,15 @@ export default function HomeScreen() {
 
   const greetingLabel = firstName
     ? `${dayGreeting}, ${firstName}`
-    : "Find your opportunity";
+    : "Find your next opportunity";
+
   const bottomContentPadding = useScreenBottomPadding(true);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     getJobs(0)
-      .then((data) => setJobs(data.slice(0, 8)))
+      .then((data) => setJobs(data.slice(0, 6)))
       .catch((error) => console.error("Home jobs failed:", error))
       .finally(() => setLoading(false));
   }, []);
@@ -69,52 +85,70 @@ export default function HomeScreen() {
     <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
       <ScrollView
         style={styles.container}
-        contentContainerStyle={[styles.content, { paddingBottom: bottomContentPadding }]}
+        contentContainerStyle={[
+          styles.content,
+          { paddingBottom: bottomContentPadding },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <View>
+          <View style={styles.brandBlock}>
             <Text style={styles.logo}>
-              First<Text style={styles.logoPink}>Jobly</Text>
+              First<Text style={styles.logoDark}>Jobly</Text>
             </Text>
-            <Text style={styles.tagline}>Your career starts here.</Text>
+            <Text style={styles.tagline}>Opportunity, made personal.</Text>
           </View>
 
-          <TouchableOpacity style={styles.notification}>
-            <Ionicons name="notifications-outline" size={23} color="#061A30" />
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.hero}>
-          <Text style={styles.heroTitle}>
-            {greetingLabel}
-          </Text>
-
-          <TouchableOpacity
-            style={styles.search}
-            activeOpacity={0.9}
-            onPress={() => router.push("/jobs")}
-          >
-            <Ionicons name="search" size={20} color="#556274" />
-            <TextInput
-              editable={false}
-              pointerEvents="none"
-              placeholder="Search jobs or companies"
-              placeholderTextColor="#94A3B8"
-              style={styles.searchInput}
+          <TouchableOpacity style={styles.notification} activeOpacity={0.78}>
+            <Ionicons
+              name="notifications-outline"
+              size={22}
+              color="#061A30"
             />
           </TouchableOpacity>
         </View>
 
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Explore opportunities</Text>
+        <View style={styles.hero}>
+          <Text style={styles.heroEyebrow}>YOUR NEXT MOVE</Text>
+          <Text style={styles.heroTitle}>{greetingLabel}</Text>
+          <Text style={styles.heroText}>
+            Discover opportunities that match where you are and where you want
+            to go.
+          </Text>
+
+          <TouchableOpacity
+            style={styles.search}
+            activeOpacity={0.82}
+            onPress={() => router.push("/jobs")}
+          >
+            <Ionicons name="search" size={20} color="#556274" />
+            <Text style={styles.searchText}>Search jobs or companies</Text>
+            <Ionicons name="arrow-forward" size={18} color="#061A30" />
+          </TouchableOpacity>
+
+          <View style={styles.trustRow}>
+            <Ionicons name="sparkles-outline" size={15} color="#F8C5D6" />
+            <Text style={styles.trustText}>
+              Fresh opportunities added regularly
+            </Text>
+          </View>
         </View>
 
-        <View style={styles.categoryGrid}>
+        <View style={styles.sectionHeader}>
+          <View>
+            <Text style={styles.sectionTitle}>Find your fit</Text>
+            <Text style={styles.sectionSubtitle}>
+              Browse the opportunity types people use most
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.categoryList}>
           {categories.map((category) => (
             <TouchableOpacity
               key={category.name}
               style={styles.category}
+              activeOpacity={0.78}
               onPress={() =>
                 router.push({
                   pathname: "/jobs",
@@ -125,94 +159,121 @@ export default function HomeScreen() {
               <View style={styles.categoryIcon}>
                 <Ionicons
                   name={category.icon as any}
-                  size={22}
+                  size={21}
                   color="#E1225F"
                 />
               </View>
 
-              <Text style={styles.categoryText}>{category.name}</Text>
+              <View style={styles.categoryCopy}>
+                <Text style={styles.categoryText}>{category.name}</Text>
+                <Text style={styles.categorySubtitle} numberOfLines={1}>
+                  {category.subtitle}
+                </Text>
+              </View>
+
+              <Ionicons
+                name="chevron-forward"
+                size={20}
+                color="#94A3B8"
+              />
             </TouchableOpacity>
           ))}
         </View>
 
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Latest opportunities</Text>
+        <View style={styles.sectionHeaderJobs}>
+          <View style={styles.sectionHeadingCopy}>
+            <Text style={styles.sectionTitle}>Recommended for you</Text>
+            <Text style={styles.sectionSubtitle}>
+              New opportunities worth a look
+            </Text>
+          </View>
 
-          <TouchableOpacity onPress={() => router.push("/jobs")}>
-            <Text style={styles.viewAll}>View all</Text>
+          <TouchableOpacity
+            style={styles.seeAllButton}
+            onPress={() => router.push("/jobs")}
+          >
+            <Text style={styles.viewAll}>See all</Text>
           </TouchableOpacity>
         </View>
 
         {loading ? (
-          <View>
+          <View style={styles.jobsList}>
             <SkeletonJobCard />
             <SkeletonJobCard />
             <SkeletonJobCard />
           </View>
         ) : (
-          jobs.map((job) => (
-            <TouchableOpacity
-              key={job.id}
-              style={styles.jobCard}
-              activeOpacity={0.75}
-              onPress={() =>
-                router.push({
-                  pathname: "/jobs/[id]",
-                  params: { id: job.id },
-                })
-              }
-            >
-              {job.company_logo_url ? (
-                <Image
-                  source={{ uri: job.company_logo_url }}
-                  style={styles.companyLogo}
-                  resizeMode="contain"
-                />
-              ) : (
-                <View style={styles.companyLogo}>
-                  <Text style={styles.companyLetter}>
-                    {job.company_name.charAt(0).toUpperCase()}
-                  </Text>
-                </View>
-              )}
-
-              <View style={styles.jobContent}>
-                <Text style={styles.jobTitle} numberOfLines={2}>
-                  {job.title}
-                </Text>
-
-                <Text style={styles.company}>{job.company_name}</Text>
-
-                <View style={styles.jobMeta}>
-                  <Ionicons
-                    name="location-outline"
-                    size={14}
-                    color="#556274"
+          <View style={styles.jobsList}>
+            {jobs.map((job) => (
+              <TouchableOpacity
+                key={job.id}
+                style={styles.jobCard}
+                activeOpacity={0.78}
+                onPress={() =>
+                  void openJobWithEarlyInterstitial(() =>
+                    router.push({
+                      pathname: "/jobs/[id]",
+                      params: { id: job.id },
+                    })
+                  )
+                }
+              >
+                {job.company_logo_url ? (
+                  <Image
+                    source={{ uri: job.company_logo_url }}
+                    style={styles.companyLogo}
+                    resizeMode="contain"
                   />
+                ) : (
+                  <View style={styles.companyLogo}>
+                    <Text style={styles.companyLetter}>
+                      {job.company_name.charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                )}
 
-                  <Text style={styles.metaText} numberOfLines={1}>
-                    {job.city
-                      ? `${job.city}, ${job.province}`
-                      : job.province}
+                <View style={styles.jobContent}>
+                  <Text style={styles.jobTitle} numberOfLines={2}>
+                    {job.title}
                   </Text>
-                </View>
 
-                <View style={styles.badges}>
-                  <View style={styles.badge}>
-                    <Text style={styles.badgeText}>{job.category}</Text>
+                  <Text style={styles.company}>{job.company_name}</Text>
+
+                  <View style={styles.jobMeta}>
+                    <Ionicons
+                      name="location-outline"
+                      size={14}
+                      color="#556274"
+                    />
+                    <Text style={styles.metaText} numberOfLines={1}>
+                      {job.city
+                        ? `${job.city}, ${job.province}`
+                        : job.province}
+                    </Text>
                   </View>
 
-                  {job.is_urgent && (
-                    <View style={styles.urgentBadge}>
-                      <Text style={styles.urgentText}>Urgent</Text>
+                  <View style={styles.badges}>
+                    <View style={styles.badge}>
+                      <Text style={styles.badgeText}>{job.category}</Text>
                     </View>
-                  )}
-                </View>
-              </View>
 
-              <Ionicons name="chevron-forward" size={20} color="#94A3B8" />
-            </TouchableOpacity>
-          ))
+                    {job.is_urgent && (
+                      <View style={styles.urgentBadge}>
+                        <Text style={styles.urgentText}>Urgent</Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+
+                <Ionicons
+                  name="chevron-forward"
+                  size={20}
+                  color="#94A3B8"
+                  style={styles.jobChevron}
+                />
+              </TouchableOpacity>
+            ))}
+          </View>
         )}
       </ScrollView>
     </SafeAreaView>
@@ -220,221 +281,292 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe:{flex:1,backgroundColor:"#F6F7F9"},
-  container:{flex:1},
-  content:{paddingBottom:30},
-
-  header:{
-    paddingHorizontal:20,
-    paddingTop:8,
-    paddingBottom:18,
-    flexDirection:"row",
-    alignItems:"center",
-    justifyContent:"space-between",
+  safe: {
+    flex: 1,
+    backgroundColor: "#F6F7F9",
   },
-
-  logo:{color:"#E1225F",fontSize:26,fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800"},
-  logoPink:{color:"#061A30"},
-  tagline:{marginTop:2,color:"#556274",fontSize:12},
-
-  notification:{
-    width:44,
-    height:44,
-    borderRadius:22,
-    backgroundColor:"#FFFFFF",
-    alignItems:"center",
-    justifyContent:"center",
-    borderWidth:1,
-    borderColor:"#E8EBF0",
+  container: {
+    flex: 1,
   },
-
-  hero:{
-    marginHorizontal:16,
-    backgroundColor:"#061A30",
-    borderRadius: 10,
-    padding:22,
+  content: {
+    paddingTop: 4,
   },
-
-  heroTitle:{
-    color:"#FFFFFF",
-    fontSize:31,
-    lineHeight:36,
-    fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800",
+  header: {
+    paddingHorizontal: 16,
+    paddingTop: 6,
+    paddingBottom: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
-
-  heroText:{
-    color:"#DFE4EC",
-    marginTop:10,
-    lineHeight:20,
-    fontSize:14,
+  brandBlock: {
+    flex: 1,
+    paddingRight: 12,
   },
-
-  search:{
-    marginTop:20,
-    height:54,
-    borderRadius: 8,
-    backgroundColor:"#FFFFFF",
-    paddingHorizontal:16,
-    flexDirection:"row",
-    alignItems:"center",
+  logo: {
+    color: "#E1225F",
+    fontSize: 27,
+    lineHeight: 32,
+    fontFamily: "PlusJakartaSans_800ExtraBold",
+    fontWeight: "800",
   },
-
-  searchInput:{
-    flex:1,
-    marginLeft:10,
-    fontSize:15,
-    color:"#061A30",
+  logoDark: {
+    color: "#061A30",
   },
-
-  sectionHeader:{
-    marginTop:27,
-    marginBottom:14,
-    paddingHorizontal:20,
-    flexDirection:"row",
-    alignItems:"center",
-    justifyContent:"space-between",
+  tagline: {
+    marginTop: 3,
+    color: "#556274",
+    fontSize: 12,
+    fontFamily: "PlusJakartaSans_500Medium",
   },
-
-  sectionTitle:{
-    fontSize:19,
-    fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800",
-    color:"#061A30",
+  notification: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#E8EBF0",
   },
-
-  viewAll:{color:"#E1225F",fontFamily: "PlusJakartaSans_700Bold", fontWeight: "700"},
-
-  categoryGrid:{
-    paddingHorizontal:16,
-    flexDirection:"row",
-    flexWrap:"wrap",
-    gap:10,
+  hero: {
+    marginHorizontal: 16,
+    backgroundColor: "#061A30",
+    borderRadius: 24,
+    padding: 24,
   },
-
-  category:{
-    width:"31%",
-    minHeight:105,
-    padding:12,
-    backgroundColor:"#FFFFFF",
-    borderRadius: 8,
-    borderWidth:1,
-    borderColor:"#E8EBF0",
+  heroEyebrow: {
+    color: "#E1225F",
+    fontSize: 12,
+    lineHeight: 16,
+    letterSpacing: 0.9,
+    fontFamily: "PlusJakartaSans_700Bold",
+    fontWeight: "700",
   },
-
-  categoryIcon:{
-    width:39,
-    height:39,
-    borderRadius: 8,
-    backgroundColor:"#FDEEF3",
-    alignItems:"center",
-    justifyContent:"center",
-    marginBottom:10,
+  heroTitle: {
+    color: "#FFFFFF",
+    fontSize: 31,
+    lineHeight: 38,
+    marginTop: 9,
+    letterSpacing: -0.5,
+    fontFamily: "PlusJakartaSans_800ExtraBold",
+    fontWeight: "800",
   },
-
-  categoryText:{
-    color:"#061A30",
-    fontFamily: "PlusJakartaSans_700Bold", fontWeight: "700",
-    fontSize:12,
+  heroText: {
+    color: "#DFE4EC",
+    marginTop: 10,
+    lineHeight: 21,
+    fontSize: 14,
+    maxWidth: 300,
+    fontFamily: "PlusJakartaSans_400Regular",
   },
-
-  jobCard:{
-    marginHorizontal:16,
-    marginBottom:10,
-    backgroundColor:"#FFFFFF",
-    borderRadius: 8,
-    padding:15,
-    flexDirection:"row",
-    alignItems:"flex-start",
-    borderWidth:1,
-    borderColor:"#E8EBF0",
+  search: {
+    marginTop: 24,
+    minHeight: 54,
+    borderRadius: 16,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
   },
-
-  companyLogo:{
-    width:50,
-    height:50,
-    borderRadius: 8,
-    backgroundColor:"#F1F5F9",
-    alignItems:"center",
-    justifyContent:"center",
+  searchText: {
+    flex: 1,
+    fontSize: 14,
+    color: "#556274",
+    fontFamily: "PlusJakartaSans_500Medium",
   },
-
-  companyLetter:{
-    fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800",
-    fontSize:20,
-    color:"#061A30",
+  trustRow: {
+    marginTop: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
   },
-
-  jobContent:{
-    flex:1,
-    marginHorizontal:13,
+  trustText: {
+    color: "#F8C5D6",
+    fontSize: 11,
+    fontFamily: "PlusJakartaSans_600SemiBold",
   },
-
-  jobTitle:{
-    color:"#061A30",
-    fontSize:15,
-    lineHeight:20,
-    fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800",
+  sectionHeader: {
+    marginTop: 30,
+    marginBottom: 12,
+    paddingHorizontal: 16,
   },
-
-  company:{
-    color:"#556274",
-    marginTop:4,
-    fontSize:13,
+  sectionHeaderJobs: {
+    marginTop: 30,
+    marginBottom: 12,
+    paddingHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
   },
-
-  jobMeta:{
-    marginTop:8,
-    flexDirection:"row",
-    alignItems:"center",
+  sectionHeadingCopy: {
+    flex: 1,
+    paddingRight: 12,
   },
-
-  metaText:{
-    flex:1,
-    color:"#556274",
-    fontSize:11,
-    marginLeft:3,
+  sectionTitle: {
+    fontSize: 21,
+    lineHeight: 27,
+    fontFamily: "PlusJakartaSans_800ExtraBold",
+    fontWeight: "800",
+    color: "#061A30",
   },
-
-  badges:{
-    flexDirection:"row",
-    gap:7,
-    marginTop:9,
+  sectionSubtitle: {
+    marginTop: 3,
+    color: "#556274",
+    fontSize: 12,
+    lineHeight: 17,
+    fontFamily: "PlusJakartaSans_400Regular",
   },
-
-  badge:{
-    backgroundColor:"#F1F5F9",
-    paddingHorizontal:8,
-    paddingVertical:4,
-    borderRadius:7,
+  seeAllButton: {
+    minHeight: 36,
+    justifyContent: "center",
+    paddingHorizontal: 4,
   },
-
-  badgeText:{
-    color:"#556274",
-    fontSize:10,
-    fontFamily: "PlusJakartaSans_700Bold", fontWeight: "700",
+  viewAll: {
+    color: "#E1225F",
+    fontFamily: "PlusJakartaSans_700Bold",
+    fontWeight: "700",
+    fontSize: 13,
   },
-
-  urgentBadge:{
-    backgroundColor:"#FDEEF3",
-    paddingHorizontal:8,
-    paddingVertical:4,
-    borderRadius:7,
+  categoryList: {
+    paddingHorizontal: 16,
+    gap: 10,
   },
-
-  urgentText:{
-    color:"#E1225F",
-    fontSize:10,
-    fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800",
+  category: {
+    minHeight: 70,
+    padding: 12,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#E8EBF0",
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  categoryIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: "#FDEEF3",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  categoryCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  categoryText: {
+    color: "#061A30",
+    fontFamily: "PlusJakartaSans_700Bold",
+    fontWeight: "700",
+    fontSize: 14,
+    lineHeight: 19,
+  },
+  categorySubtitle: {
+    marginTop: 2,
+    color: "#556274",
+    fontFamily: "PlusJakartaSans_400Regular",
+    fontSize: 11,
+    lineHeight: 16,
+  },
+  jobsList: {
+    gap: 12,
+  },
+  jobCard: {
+    marginHorizontal: 16,
+    minHeight: 124,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 12,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    borderWidth: 1,
+    borderColor: "#E8EBF0",
+    shadowColor: "#061A30",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 2,
+  },
+  companyLogo: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: "#F1F5F9",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  companyLetter: {
+    fontFamily: "PlusJakartaSans_800ExtraBold",
+    fontWeight: "800",
+    fontSize: 19,
+    color: "#061A30",
+  },
+  jobContent: {
+    flex: 1,
+    marginLeft: 12,
+    marginRight: 8,
+    minWidth: 0,
+  },
+  jobTitle: {
+    color: "#061A30",
+    fontSize: 15,
+    lineHeight: 21,
+    fontFamily: "PlusJakartaSans_700Bold",
+    fontWeight: "700",
+  },
+  company: {
+    color: "#556274",
+    marginTop: 3,
+    fontSize: 13,
+    lineHeight: 18,
+    fontFamily: "PlusJakartaSans_400Regular",
+  },
+  jobMeta: {
+    marginTop: 7,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  metaText: {
+    flex: 1,
+    color: "#556274",
+    fontSize: 11,
+    lineHeight: 16,
+    marginLeft: 4,
+    fontFamily: "PlusJakartaSans_400Regular",
+  },
+  badges: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 7,
+    marginTop: 8,
+  },
+  badge: {
+    backgroundColor: "#F1F5F9",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 7,
+  },
+  badgeText: {
+    color: "#556274",
+    fontSize: 10,
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontWeight: "600",
+  },
+  urgentBadge: {
+    backgroundColor: "#FDEEF3",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 7,
+  },
+  urgentText: {
+    color: "#E1225F",
+    fontSize: 10,
+    fontFamily: "PlusJakartaSans_700Bold",
+    fontWeight: "700",
+  },
+  jobChevron: {
+    marginTop: 14,
   },
 });
-
-
-
-
-
-
-
-
-
-
-
-
