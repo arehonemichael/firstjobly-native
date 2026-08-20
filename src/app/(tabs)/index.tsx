@@ -50,7 +50,7 @@ export default function HomeScreen() {
         <SectionHeading title="Find your fit" />
         <View style={styles.shortcuts}>
           {CATEGORY_SHORTCUTS.map((item) => (
-            <Pressable key={item.value} onPress={() => router.push('/jobs')} style={({ pressed }) => [styles.shortcut, pressed && styles.pressed]}>
+            <Pressable key={item.value} onPress={() => router.push({ pathname: '/jobs', params: { category: item.value } })} style={({ pressed }) => [styles.shortcut, pressed && styles.pressed]}>
               <View style={styles.shortcutIcon}><Ionicons name={item.icon as keyof typeof Ionicons.glyphMap} size={22} color={theme.colors.brand} /></View>
               <Text style={styles.shortcutLabel}>{item.label}</Text>
               <Ionicons name="arrow-forward" size={16} color={theme.colors.textMuted} />

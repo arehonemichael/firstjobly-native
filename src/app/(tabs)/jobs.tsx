@@ -11,11 +11,11 @@ import type { Job } from '@/lib/jobs';
 import { useSavedJobs } from '@/hooks/use-saved-jobs';
 
 export default function JobsScreen() {
-  const params = useLocalSearchParams<{ query?: string }>();
+  const params = useLocalSearchParams<{ query?: string; category?: string }>();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [query, setQuery] = useState(params.query ?? '');
-  const [filters, setFilters] = useState<JobFilters>({});
-  const [draft, setDraft] = useState<JobFilters>({});
+  const [filters, setFilters] = useState<JobFilters>({ category: params.category });
+  const [draft, setDraft] = useState<JobFilters>({ category: params.category });
   const [modalVisible, setModalVisible] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -27,6 +27,9 @@ export default function JobsScreen() {
     finally { setLoading(false); }
   };
   useEffect(() => { void fetchJobs(); }, []);
+  useEffect(() => {
+    if (params.category) setFilters((current) => ({ ...current, category: params.category }));
+  }, [params.category]);
   const visible = useMemo(() => filterJobs(jobs, query, filters), [jobs, query, filters]);
   const openFilter = () => { setDraft(filters); setModalVisible(true); };
 

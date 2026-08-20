@@ -19,7 +19,7 @@ export default function SavedScreen() {
     if (!isAuthenticated || !supabase || savedIds.length === 0) { setJobs([]); setLoading(false); return; }
     try {
       setLoading(true);
-      const { data, error } = await supabase.from('jobs').select('*').in('id', savedIds).eq('approval_status', 'approved');
+      const { data, error } = await supabase.from('jobs').select('*').in('id', savedIds).eq('approval_status', 'approved').eq('is_active', true);
       if (error) throw error;
       const byId = new Map((data ?? []).map((job) => [job.id, job as Job]));
       setJobs(savedIds.map((id) => byId.get(id)).filter((job): job is Job => Boolean(job)));
