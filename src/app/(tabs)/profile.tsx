@@ -1,348 +1,47 @@
-﻿import {
-  ActivityIndicator,
-  Alert,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { EmptyState, PrimaryButton, SecondaryButton, layout } from '@/components/ui';
+import { theme } from '@/constants/theme';
+import { useAuth } from '@/hooks/use-auth';
+import { supabase } from '@/lib/supabase';
 
-import { useAuth } from "../../hooks/use-auth";
-import { supabase } from "../../lib/supabase";
+const settings = [
+  { icon: 'person-outline', label: 'Personal details', detail: 'Keep your profile current' },
+  { icon: 'notifications-outline', label: 'Notifications', detail: 'Role alerts and reminders' },
+  { icon: 'settings-outline', label: 'Settings', detail: 'Preferences and privacy' },
+] as const;
 
 export default function ProfileScreen() {
-  const {
-    user,
-    loading,
-    isAuthenticated,
-  } = useAuth();
-
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.center}>
-        <ActivityIndicator color="#E31C5F" />
-      </SafeAreaView>
-    );
-  }
-
-  if (!isAuthenticated || !user) {
-    return (
-      <SafeAreaView style={styles.page} edges={["top"]}>
-        <View style={styles.loggedOut}>
-          <View style={styles.avatar}>
-            <Ionicons
-              name="person-outline"
-              size={34}
-              color="#E31C5F"
-            />
-          </View>
-
-          <Text style={styles.title}>Your FirstJobly account</Text>
-
-          <Text style={styles.description}>
-            Sign in to save jobs, track applications and manage your profile.
-          </Text>
-
-          <TouchableOpacity
-            style={styles.primary}
-            onPress={() => router.push("/auth")}
-          >
-            <Text style={styles.primaryText}>Sign in</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.secondary}
-            onPress={() => router.push("/auth")}
-          >
-            <Text style={styles.secondaryText}>
-              Create free account
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  async function signOut() {
-    Alert.alert(
-      "Sign out",
-      "Do you want to sign out of FirstJobly?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Sign out",
-          style: "destructive",
-          onPress: async () => {
-            await supabase.auth.signOut();
-          },
-        },
-      ]
-    );
-  }
-
-  return (
-    <SafeAreaView style={styles.page} edges={["top"]}>
-      <View style={styles.content}>
-        <Text style={styles.heading}>Profile</Text>
-
-        <View style={styles.accountCard}>
-          <View style={styles.avatarSmall}>
-            <Text style={styles.avatarLetter}>
-              {(user.email?.[0] ?? "U").toUpperCase()}
-            </Text>
-          </View>
-
-          <View style={styles.accountInfo}>
-            <Text style={styles.accountTitle}>
-              FirstJobly account
-            </Text>
-
-            <Text style={styles.email} numberOfLines={1}>
-              {user.email}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.menu}>
-          <TouchableOpacity style={styles.menuItem}>
-            <Ionicons
-              name="person-circle-outline"
-              size={22}
-              color="#0B1F30"
-            />
-
-            <Text style={styles.menuText}>Personal details</Text>
-
-            <Ionicons
-              name="chevron-forward"
-              size={18}
-              color="#98A2B3"
-            />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.menuItem}>
-            <Ionicons
-              name="notifications-outline"
-              size={22}
-              color="#0B1F30"
-            />
-
-            <Text style={styles.menuText}>Notifications</Text>
-
-            <Ionicons
-              name="chevron-forward"
-              size={18}
-              color="#98A2B3"
-            />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.menuItem}>
-            <Ionicons
-              name="settings-outline"
-              size={22}
-              color="#0B1F30"
-            />
-
-            <Text style={styles.menuText}>Settings</Text>
-
-            <Ionicons
-              name="chevron-forward"
-              size={18}
-              color="#98A2B3"
-            />
-          </TouchableOpacity>
-        </View>
-
-        <TouchableOpacity
-          style={styles.signOut}
-          onPress={() => void signOut()}
-        >
-          <Ionicons
-            name="log-out-outline"
-            size={20}
-            color="#E31C5F"
-          />
-
-          <Text style={styles.signOutText}>Sign out</Text>
-        </TouchableOpacity>
-      </View>
-    </SafeAreaView>
-  );
+  const { user, loading, isAuthenticated } = useAuth();
+  const signOut = () => Alert.alert('Sign out?', 'You can come back whenever you are ready.', [{ text: 'Cancel', style: 'cancel' }, { text: 'Sign out', style: 'destructive', onPress: () => { void supabase?.auth.signOut(); } }]);
+  return <SafeAreaView style={layout.page} edges={['top']}><ScrollView contentContainerStyle={[layout.scroll, layout.pageTop]}>
+    {loading ? <View style={styles.loading}><Text style={styles.loadingText}>Getting your profile ready…</Text></View> : !isAuthenticated ? <EmptyState icon="person-outline" title="Make this your career home" body="Sign in to build your profile, save roles and make every opportunity count." action={<View style={styles.ctas}><PrimaryButton label="Sign in" onPress={() => router.push('/auth')} /><SecondaryButton label="Create an account" onPress={() => router.push('/auth')} /></View>} /> : <>
+      <Text style={styles.screenTitle}>Profile</Text>
+      <View style={styles.identity}><View style={styles.initial}><Text style={styles.initialText}>{user?.email?.charAt(0).toUpperCase() ?? 'F'}</Text></View><View style={{ flex: 1 }}><Text style={styles.name}>Your FirstJobly</Text><Text style={styles.email}>{user?.email}</Text></View><Pressable style={styles.edit}><Ionicons name="pencil-outline" size={18} color={theme.colors.ink} /></Pressable></View>
+      <View style={styles.cvCard}><View style={styles.cvIcon}><Ionicons name="document-text-outline" size={23} color={theme.colors.brand} /></View><View style={{ flex: 1 }}><Text style={styles.cvTitle}>Your CV</Text><Text style={styles.cvBody}>Complete your profile to present your best story when applying.</Text></View><Ionicons name="chevron-forward" size={19} color={theme.colors.textMuted} /></View>
+      <Text style={styles.heading}>Account</Text><View style={styles.settings}>{settings.map((item) => <Pressable key={item.label} style={({ pressed }) => [styles.setting, pressed && styles.pressed]}><View style={styles.settingIcon}><Ionicons name={item.icon} size={20} color={theme.colors.ink} /></View><View style={{ flex: 1 }}><Text style={styles.settingLabel}>{item.label}</Text><Text style={styles.settingDetail}>{item.detail}</Text></View><Ionicons name="chevron-forward" size={19} color={theme.colors.textMuted} /></Pressable>)}</View>
+      <Pressable onPress={signOut} style={styles.signOut}><Ionicons name="log-out-outline" size={19} color={theme.colors.danger} /><Text style={styles.signOutText}>Sign out</Text></Pressable>
+    </>}
+  </ScrollView></SafeAreaView>;
 }
-
 const styles = StyleSheet.create({
-  page: {
-    flex: 1,
-    backgroundColor: "#FAFAFA",
-  },
-
-  center: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-
-  loggedOut: {
-    flex: 1,
-    padding: 28,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-
-  avatar: {
-    width: 78,
-    height: 78,
-    borderRadius: 39,
-    backgroundColor: "#FFF0F5",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-
-  title: {
-    marginTop: 22,
-    color: "#0B1F30",
-    fontSize: 23,
-    fontWeight: "800",
-  },
-
-  description: {
-    maxWidth: 310,
-    marginTop: 8,
-    color: "#667085",
-    fontSize: 14,
-    lineHeight: 20,
-    textAlign: "center",
-  },
-
-  primary: {
-    width: "100%",
-    height: 53,
-    marginTop: 28,
-    borderRadius: 10,
-    backgroundColor: "#E31C5F",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  primaryText: {
-    color: "#FFFFFF",
-    fontSize: 15,
-    fontWeight: "800",
-  },
-
-  secondary: {
-    width: "100%",
-    height: 53,
-    marginTop: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#D0D5DD",
-    backgroundColor: "#FFFFFF",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  secondaryText: {
-    color: "#0B1F30",
-    fontWeight: "700",
-  },
-
-  content: {
-    padding: 20,
-  },
-
-  heading: {
-    color: "#0B1F30",
-    fontSize: 24,
-    fontWeight: "800",
-  },
-
-  accountCard: {
-    marginTop: 18,
-    padding: 16,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#EAECF0",
-    borderRadius: 12,
-    flexDirection: "row",
-    alignItems: "center",
-  },
-
-  avatarSmall: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "#FFF0F5",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  avatarLetter: {
-    color: "#E31C5F",
-    fontSize: 19,
-    fontWeight: "800",
-  },
-
-  accountInfo: {
-    flex: 1,
-    marginLeft: 12,
-  },
-
-  accountTitle: {
-    color: "#101828",
-    fontWeight: "700",
-  },
-
-  email: {
-    color: "#667085",
-    fontSize: 12,
-    marginTop: 3,
-  },
-
-  menu: {
-    marginTop: 18,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#EAECF0",
-    borderRadius: 12,
-    overflow: "hidden",
-  },
-
-  menuItem: {
-    minHeight: 58,
-    paddingHorizontal: 15,
-    flexDirection: "row",
-    alignItems: "center",
-    borderBottomWidth: 1,
-    borderBottomColor: "#EAECF0",
-  },
-
-  menuText: {
-    flex: 1,
-    marginLeft: 12,
-    color: "#344054",
-    fontWeight: "600",
-  },
-
-  signOut: {
-    marginTop: 20,
-    height: 52,
-    paddingHorizontal: 15,
-    borderRadius: 10,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#EAECF0",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 7,
-  },
-
-  signOutText: {
-    color: "#E31C5F",
-    fontWeight: "700",
-  },
+  loading: { alignItems: 'center', paddingTop: theme.space.xl }, loadingText: { ...theme.type.body, color: theme.colors.textMuted },
+  screenTitle: { ...theme.type.display, fontSize: 28, lineHeight: 34, color: theme.colors.ink, marginBottom: theme.space.lg },
+  ctas: { gap: theme.space.sm, width: '100%' },
+  identity: { flexDirection: 'row', alignItems: 'center', gap: theme.space.sm, backgroundColor: theme.colors.surface, borderRadius: theme.radius.md, padding: theme.space.md, borderWidth: 1, borderColor: theme.colors.line, ...theme.shadow.card },
+  initial: { height: 56, width: 56, borderRadius: 28, backgroundColor: theme.colors.ink, justifyContent: 'center', alignItems: 'center' }, initialText: { ...theme.type.title, color: '#FFFFFF' },
+  name: { ...theme.type.bodyStrong, color: theme.colors.ink }, email: { ...theme.type.eyebrow, color: theme.colors.textMuted, marginTop: theme.space.xxs },
+  edit: { height: 36, width: 36, justifyContent: 'center', alignItems: 'center', borderRadius: 18, backgroundColor: theme.colors.surfaceMuted },
+  cvCard: { flexDirection: 'row', alignItems: 'center', gap: theme.space.sm, backgroundColor: theme.colors.brandSoft, borderRadius: theme.radius.md, borderWidth: 1, borderColor: '#F7B1C9', padding: theme.space.md, marginTop: theme.space.md },
+  cvIcon: { height: 44, width: 44, justifyContent: 'center', alignItems: 'center', borderRadius: theme.radius.sm, backgroundColor: theme.colors.surface },
+  cvTitle: { ...theme.type.bodyStrong, color: theme.colors.ink }, cvBody: { ...theme.type.eyebrow, color: theme.colors.inkSoft, marginTop: theme.space.xxs },
+  heading: { ...theme.type.title, color: theme.colors.ink, marginTop: theme.space.xl, marginBottom: theme.space.sm },
+  settings: { backgroundColor: theme.colors.surface, borderRadius: theme.radius.md, overflow: 'hidden', borderWidth: 1, borderColor: theme.colors.line },
+  setting: { flexDirection: 'row', alignItems: 'center', padding: theme.space.md, gap: theme.space.sm, borderBottomWidth: 1, borderBottomColor: theme.colors.line },
+  settingIcon: { height: 40, width: 40, borderRadius: theme.radius.sm, backgroundColor: theme.colors.surfaceMuted, alignItems: 'center', justifyContent: 'center' },
+  settingLabel: { ...theme.type.bodyStrong, color: theme.colors.ink }, settingDetail: { ...theme.type.eyebrow, color: theme.colors.textMuted, marginTop: theme.space.xxs },
+  signOut: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: theme.space.xs, marginTop: theme.space.lg, minHeight: 52, borderRadius: theme.radius.md, borderWidth: 1, borderColor: '#F4C5C7', backgroundColor: '#FFF5F5' }, signOutText: { ...theme.type.bodyStrong, color: theme.colors.danger },
+  pressed: { opacity: 0.76 },
 });

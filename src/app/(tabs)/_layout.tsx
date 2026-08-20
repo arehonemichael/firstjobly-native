@@ -1,76 +1,24 @@
-﻿import { Tabs } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
-import { Colors } from "../../constants/theme";
+import React from 'react';
+import { Platform, StyleSheet, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { Tabs } from 'expo-router';
+import { theme } from '@/constants/theme';
 
-export default function TabsLayout() {
-  return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: Colors.primary,
-        tabBarInactiveTintColor: "#667085",
-        tabBarStyle: {
-          height: 68,
-          paddingTop: 7,
-          paddingBottom: 8,
-          borderTopColor: "#EAECF0",
-          backgroundColor: "#FFFFFF",
-        },
-        tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: "600",
-        },
-      }}
-    >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: "Home",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home-outline" size={size} color={color} />
-          ),
-        }}
-      />
-
-      <Tabs.Screen
-        name="jobs"
-        options={{
-          title: "Jobs",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="briefcase-outline" size={size} color={color} />
-          ),
-        }}
-      />
-
-      <Tabs.Screen
-        name="saved"
-        options={{
-          title: "Saved",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="bookmark-outline" size={size} color={color} />
-          ),
-        }}
-      />
-
-      <Tabs.Screen
-        name="graduateroom"
-        options={{
-          title: "GraduateRoom",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="people-outline" size={size} color={color} />
-          ),
-        }}
-      />
-
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: "Profile",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person-outline" size={size} color={color} />
-          ),
-        }}
-      />
-    </Tabs>
-  );
+export default function TabLayout() {
+  const web = Platform.OS === 'web';
+  const tab = (name: keyof typeof Ionicons.glyphMap) => ({ color }: { color: string }) => <Ionicons name={name} size={22} color={color} />;
+  return <Tabs screenOptions={{
+    headerShown: false,
+    tabBarActiveTintColor: theme.colors.brand,
+    tabBarInactiveTintColor: theme.colors.textMuted,
+    tabBarStyle: { position: 'absolute', height: web ? 84 : 72, backgroundColor: web ? theme.colors.surface : 'transparent', borderTopColor: theme.colors.line, elevation: 0, paddingTop: 8 },
+    tabBarBackground: () => <View style={[StyleSheet.absoluteFill, { backgroundColor: theme.colors.surface }]} />,
+    tabBarLabelStyle: { fontSize: 11, fontWeight: '600', paddingBottom: web ? 10 : 0 },
+  }}>
+    <Tabs.Screen name="index" options={{ title: 'Home', tabBarIcon: tab('home-outline') }} />
+    <Tabs.Screen name="jobs" options={{ title: 'Jobs', tabBarIcon: tab('briefcase-outline') }} />
+    <Tabs.Screen name="saved" options={{ title: 'Saved', tabBarIcon: tab('bookmark-outline') }} />
+    <Tabs.Screen name="graduateroom" options={{ title: 'Room', tabBarIcon: tab('people-outline') }} />
+    <Tabs.Screen name="profile" options={{ title: 'Profile', tabBarIcon: tab('person-outline') }} />
+  </Tabs>;
 }

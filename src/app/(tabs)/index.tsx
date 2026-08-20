@@ -1,398 +1,92 @@
-﻿import { useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  Image,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
-
-import { getJobs } from "../../lib/job-api";
-import type { Job } from "../../lib/jobs";
-
-const categories = [
-  { name: "Learnerships", icon: "school-outline" },
-  { name: "Internships", icon: "business-outline" },
-  { name: "Graduate", icon: "ribbon-outline" },
-  { name: "Government", icon: "flag-outline" },
-  { name: "Entry Level", icon: "briefcase-outline" },
-  { name: "Bursaries", icon: "book-outline" },
-];
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { CATEGORY_SHORTCUTS, theme } from '@/constants/theme';
+import { EmptyState, IconButton, JobCard, SearchField, SectionHeading, Wordmark, layout } from '@/components/ui';
+import { getJobs } from '@/lib/job-api';
+import type { Job } from '@/lib/jobs';
 
 export default function HomeScreen() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    getJobs(0)
-      .then((data) => setJobs(data.slice(0, 8)))
-      .catch((error) => console.error("Home jobs failed:", error))
-      .finally(() => setLoading(false));
-  }, []);
+  const loadJobs = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      setJobs((await getJobs(0)).slice(0, 8));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'We could not load fresh opportunities.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { void loadJobs(); }, []);
 
   return (
-    <SafeAreaView style={styles.safe} edges={["top"]}>
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
+    <SafeAreaView style={layout.page} edges={['top']}>
+      <ScrollView contentContainerStyle={[layout.scroll, layout.pageTop]} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <View>
-            <Text style={styles.logo}>
-              First<Text style={styles.logoPink}>Jobly</Text>
-            </Text>
-            <Text style={styles.tagline}>Your career starts here.</Text>
-          </View>
-
-          <TouchableOpacity style={styles.notification}>
-            <Ionicons name="notifications-outline" size={23} color="#0B1F30" />
-          </TouchableOpacity>
+          <View><Wordmark /><Text style={styles.greeting}>Opportunity, made personal.</Text></View>
+          <IconButton icon="notifications-outline" accessibilityLabel="Notifications" />
         </View>
 
         <View style={styles.hero}>
-          <Text style={styles.heroTitle}>
-            Find your next{"\n"}opportunity.
-          </Text>
-
-          <Text style={styles.heroText}>
-            Jobs, learnerships, internships and graduate programmes across
-            South Africa.
-          </Text>
-
-          <TouchableOpacity
-            style={styles.search}
-            activeOpacity={0.9}
-            onPress={() => router.push("/jobs")}
-          >
-            <Ionicons name="search" size={20} color="#667085" />
-            <TextInput
-              editable={false}
-              pointerEvents="none"
-              placeholder="Search jobs or companies"
-              placeholderTextColor="#98A2B3"
-              style={styles.searchInput}
-            />
-          </TouchableOpacity>
+          <View style={styles.heroCopy}>
+            <Text style={styles.eyebrow}>START YOUR NEXT CHAPTER</Text>
+            <Text style={styles.display}>Work that moves{'\n'}you forward.</Text>
+            <Text style={styles.heroBody}>Find graduate roles, learnerships and internships worth applying for.</Text>
+          </View>
+          <Pressable onPress={() => router.push('/jobs')} style={styles.searchPress}>
+            <SearchField editable={false} pointerEvents="none" placeholder="Search roles or companies" />
+          </Pressable>
+          <View style={styles.trust}><Ionicons name="sparkles" size={15} color="#FFFFFF" /><Text style={styles.trustText}>Fresh opportunities, updated daily</Text></View>
         </View>
 
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Explore opportunities</Text>
-        </View>
-
-        <View style={styles.categoryGrid}>
-          {categories.map((category) => (
-            <TouchableOpacity
-              key={category.name}
-              style={styles.category}
-              onPress={() => router.push("/jobs")}
-            >
-              <View style={styles.categoryIcon}>
-                <Ionicons
-                  name={category.icon as any}
-                  size={22}
-                  color="#E31C5F"
-                />
-              </View>
-
-              <Text style={styles.categoryText}>{category.name}</Text>
-            </TouchableOpacity>
+        <SectionHeading title="Find your fit" />
+        <View style={styles.shortcuts}>
+          {CATEGORY_SHORTCUTS.map((item) => (
+            <Pressable key={item.value} onPress={() => router.push('/jobs')} style={({ pressed }) => [styles.shortcut, pressed && styles.pressed]}>
+              <View style={styles.shortcutIcon}><Ionicons name={item.icon as keyof typeof Ionicons.glyphMap} size={22} color={theme.colors.brand} /></View>
+              <Text style={styles.shortcutLabel}>{item.label}</Text>
+              <Ionicons name="arrow-forward" size={16} color={theme.colors.textMuted} />
+            </Pressable>
           ))}
         </View>
 
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Latest opportunities</Text>
-
-          <TouchableOpacity onPress={() => router.push("/jobs")}>
-            <Text style={styles.viewAll}>View all</Text>
-          </TouchableOpacity>
-        </View>
-
-        {loading ? (
-          <ActivityIndicator
-            color="#E31C5F"
-            style={{ marginVertical: 35 }}
-          />
-        ) : (
-          jobs.map((job) => (
-            <TouchableOpacity
-              key={job.id}
-              style={styles.jobCard}
-              activeOpacity={0.75}
-              onPress={() =>
-                router.push({
-                  pathname: "/jobs/[id]",
-                  params: { id: job.id },
-                })
-              }
-            >
-              {job.company_logo_url ? (
-                <Image
-                  source={{ uri: job.company_logo_url }}
-                  style={styles.companyLogo}
-                  resizeMode="contain"
-                />
-              ) : (
-                <View style={styles.companyLogo}>
-                  <Text style={styles.companyLetter}>
-                    {job.company_name.charAt(0).toUpperCase()}
-                  </Text>
-                </View>
-              )}
-
-              <View style={styles.jobContent}>
-                <Text style={styles.jobTitle} numberOfLines={2}>
-                  {job.title}
-                </Text>
-
-                <Text style={styles.company}>{job.company_name}</Text>
-
-                <View style={styles.jobMeta}>
-                  <Ionicons
-                    name="location-outline"
-                    size={14}
-                    color="#667085"
-                  />
-
-                  <Text style={styles.metaText} numberOfLines={1}>
-                    {job.city
-                      ? `${job.city}, ${job.province}`
-                      : job.province}
-                  </Text>
-                </View>
-
-                <View style={styles.badges}>
-                  <View style={styles.badge}>
-                    <Text style={styles.badgeText}>{job.category}</Text>
-                  </View>
-
-                  {job.is_urgent && (
-                    <View style={styles.urgentBadge}>
-                      <Text style={styles.urgentText}>Urgent</Text>
-                    </View>
-                  )}
-                </View>
-              </View>
-
-              <Ionicons name="chevron-forward" size={20} color="#98A2B3" />
-            </TouchableOpacity>
-          ))
-        )}
+        <SectionHeading title="Recommended for you" action="See all" onPress={() => router.push('/jobs')} />
+        {loading ? <ActivityIndicator style={styles.loader} color={theme.colors.brand} /> : error ? (
+          <EmptyState icon="cloud-offline-outline" title="Live roles are unavailable" body={error} action={<Pressable onPress={() => void loadJobs()} style={styles.retry}><Text style={styles.retryText}>Try again</Text></Pressable>} />
+        ) : jobs.length === 0 ? (
+          <EmptyState icon="briefcase-outline" title="New roles are on their way" body="Check back shortly for opportunities matched to your ambitions." />
+        ) : <View style={styles.jobList}>{jobs.map((job) => <JobCard key={job.id} job={job} onPress={() => router.push({ pathname: '/jobs/[id]', params: { id: job.id } })} />)}</View>}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe:{flex:1,backgroundColor:"#FAFAFA"},
-  container:{flex:1},
-  content:{paddingBottom:30},
-
-  header:{
-    paddingHorizontal:20,
-    paddingTop:8,
-    paddingBottom:18,
-    flexDirection:"row",
-    alignItems:"center",
-    justifyContent:"space-between",
-  },
-
-  logo:{color:"#0B1F30",fontSize:26,fontWeight:"800"},
-  logoPink:{color:"#E31C5F"},
-  tagline:{marginTop:2,color:"#667085",fontSize:12},
-
-  notification:{
-    width:44,
-    height:44,
-    borderRadius:22,
-    backgroundColor:"#FFFFFF",
-    alignItems:"center",
-    justifyContent:"center",
-    borderWidth:1,
-    borderColor:"#EAECF0",
-  },
-
-  hero:{
-    marginHorizontal:16,
-    backgroundColor:"#0B1F30",
-    borderRadius:24,
-    padding:22,
-  },
-
-  heroTitle:{
-    color:"#FFFFFF",
-    fontSize:31,
-    lineHeight:36,
-    fontWeight:"800",
-  },
-
-  heroText:{
-    color:"#D0D5DD",
-    marginTop:10,
-    lineHeight:20,
-    fontSize:14,
-  },
-
-  search:{
-    marginTop:20,
-    height:54,
-    borderRadius:15,
-    backgroundColor:"#FFFFFF",
-    paddingHorizontal:16,
-    flexDirection:"row",
-    alignItems:"center",
-  },
-
-  searchInput:{
-    flex:1,
-    marginLeft:10,
-    fontSize:15,
-    color:"#111827",
-  },
-
-  sectionHeader:{
-    marginTop:27,
-    marginBottom:14,
-    paddingHorizontal:20,
-    flexDirection:"row",
-    alignItems:"center",
-    justifyContent:"space-between",
-  },
-
-  sectionTitle:{
-    fontSize:19,
-    fontWeight:"800",
-    color:"#0B1F30",
-  },
-
-  viewAll:{color:"#E31C5F",fontWeight:"700"},
-
-  categoryGrid:{
-    paddingHorizontal:16,
-    flexDirection:"row",
-    flexWrap:"wrap",
-    gap:10,
-  },
-
-  category:{
-    width:"31%",
-    minHeight:105,
-    padding:12,
-    backgroundColor:"#FFFFFF",
-    borderRadius:16,
-    borderWidth:1,
-    borderColor:"#EAECF0",
-  },
-
-  categoryIcon:{
-    width:39,
-    height:39,
-    borderRadius:12,
-    backgroundColor:"#FFF0F5",
-    alignItems:"center",
-    justifyContent:"center",
-    marginBottom:10,
-  },
-
-  categoryText:{
-    color:"#0B1F30",
-    fontWeight:"700",
-    fontSize:12,
-  },
-
-  jobCard:{
-    marginHorizontal:16,
-    marginBottom:10,
-    backgroundColor:"#FFFFFF",
-    borderRadius:18,
-    padding:15,
-    flexDirection:"row",
-    alignItems:"flex-start",
-    borderWidth:1,
-    borderColor:"#EAECF0",
-  },
-
-  companyLogo:{
-    width:50,
-    height:50,
-    borderRadius:13,
-    backgroundColor:"#F2F4F7",
-    alignItems:"center",
-    justifyContent:"center",
-  },
-
-  companyLetter:{
-    fontWeight:"800",
-    fontSize:20,
-    color:"#0B1F30",
-  },
-
-  jobContent:{
-    flex:1,
-    marginHorizontal:13,
-  },
-
-  jobTitle:{
-    color:"#0B1F30",
-    fontSize:15,
-    lineHeight:20,
-    fontWeight:"800",
-  },
-
-  company:{
-    color:"#667085",
-    marginTop:4,
-    fontSize:13,
-  },
-
-  jobMeta:{
-    marginTop:8,
-    flexDirection:"row",
-    alignItems:"center",
-  },
-
-  metaText:{
-    flex:1,
-    color:"#667085",
-    fontSize:11,
-    marginLeft:3,
-  },
-
-  badges:{
-    flexDirection:"row",
-    gap:7,
-    marginTop:9,
-  },
-
-  badge:{
-    backgroundColor:"#F2F4F7",
-    paddingHorizontal:8,
-    paddingVertical:4,
-    borderRadius:7,
-  },
-
-  badgeText:{
-    color:"#344054",
-    fontSize:10,
-    fontWeight:"700",
-  },
-
-  urgentBadge:{
-    backgroundColor:"#FFF0F5",
-    paddingHorizontal:8,
-    paddingVertical:4,
-    borderRadius:7,
-  },
-
-  urgentText:{
-    color:"#E31C5F",
-    fontSize:10,
-    fontWeight:"800",
-  },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.space.lg },
+  greeting: { ...theme.type.eyebrow, color: theme.colors.textMuted, marginTop: theme.space.xxs },
+  hero: { backgroundColor: theme.colors.ink, borderRadius: theme.radius.lg, padding: theme.space.lg, overflow: 'hidden' },
+  heroCopy: { gap: theme.space.sm },
+  eyebrow: { ...theme.type.eyebrow, color: '#F9A7C1', letterSpacing: 0.9 },
+  display: { ...theme.type.display, color: '#FFFFFF', letterSpacing: -0.8 },
+  heroBody: { ...theme.type.body, color: '#D7DEE5', maxWidth: 285 },
+  searchPress: { marginTop: theme.space.lg },
+  trust: { flexDirection: 'row', gap: theme.space.xs, alignItems: 'center', marginTop: theme.space.md },
+  trustText: { ...theme.type.eyebrow, color: '#F8C5D6' },
+  shortcuts: { gap: theme.space.xs },
+  shortcut: { minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: theme.space.sm, padding: theme.space.sm, borderRadius: theme.radius.md, backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.line },
+  shortcutIcon: { height: 40, width: 40, borderRadius: theme.radius.sm, backgroundColor: theme.colors.brandSoft, justifyContent: 'center', alignItems: 'center' },
+  shortcutLabel: { ...theme.type.bodyStrong, color: theme.colors.ink, flex: 1 },
+  jobList: { gap: theme.space.sm },
+  loader: { marginVertical: theme.space.xl },
+  retry: { backgroundColor: theme.colors.brand, borderRadius: theme.radius.pill, paddingVertical: theme.space.sm, paddingHorizontal: theme.space.md },
+  retryText: { ...theme.type.label, color: '#FFFFFF' },
+  pressed: { opacity: 0.76, transform: [{ scale: 0.985 }] },
 });
