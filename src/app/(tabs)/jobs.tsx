@@ -17,6 +17,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { NativeAdBlock } from "../../ads/NativeAdBlock";
 import { getSearchJobs } from "../../lib/job-api";
 import type { Job } from "../../lib/jobs";
 import {
@@ -33,6 +34,16 @@ import {
 } from "../../lib/job-filters";
 
 const PAGE_SIZE = 25;
+const FIRST_NATIVE_AD_AFTER = 6;
+const NATIVE_AD_INTERVAL = 8;
+
+function shouldShowNativeAdAfter(index: number) {
+  const jobNumber = index + 1;
+  return (
+    jobNumber >= FIRST_NATIVE_AD_AFTER &&
+    (jobNumber - FIRST_NATIVE_AD_AFTER) % NATIVE_AD_INTERVAL === 0
+  );
+}
 
 function SelectBlock({
   label,
@@ -360,8 +371,13 @@ export default function JobsScreen() {
       <FlatList
         data={visibleJobs}
         keyExtractor={(job) => job.id}
-        renderItem={({ item }) => (
-          <JobCard job={item} />
+        renderItem={({ item, index }) => (
+          <>
+            <JobCard job={item} />
+            {shouldShowNativeAdAfter(index) ? (
+              <NativeAdBlock variant="feed" />
+            ) : null}
+          </>
         )}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
@@ -656,39 +672,37 @@ export default function JobsScreen() {
                 </Text>
 
                 <View style={styles.salaryOptions}>
-  {[0, 5000, 10000, 15000, 20000, 30000, 40000].map((amount) => {
-    const selected = (draftFilters.minSalary ?? 0) === amount;
+                  {[0, 5000, 10000, 15000, 20000, 30000, 40000].map((amount) => {
+                    const selected = (draftFilters.minSalary ?? 0) === amount;
 
-    return (
-      <TouchableOpacity
-        key={amount}
-        style={[
-          styles.salaryOption,
-          selected && styles.salaryOptionSelected,
-        ]}
-        onPress={() =>
-          setDraftFilters((current) => ({
-            ...current,
-            minSalary: amount === 0 ? undefined : amount,
-          }))
-        }
-      >
-        <Text
-          style={[
-            styles.salaryOptionText,
-            selected && styles.salaryOptionTextSelected,
-          ]}
-        >
-          {amount === 0
-            ? "Any salary"
-            : `R${amount.toLocaleString("en-ZA")}+`}
-        </Text>
-      </TouchableOpacity>
-    );
-  })}
-</View>
-
-                
+                    return (
+                      <TouchableOpacity
+                        key={amount}
+                        style={[
+                          styles.salaryOption,
+                          selected && styles.salaryOptionSelected,
+                        ]}
+                        onPress={() =>
+                          setDraftFilters((current) => ({
+                            ...current,
+                            minSalary: amount === 0 ? undefined : amount,
+                          }))
+                        }
+                      >
+                        <Text
+                          style={[
+                            styles.salaryOptionText,
+                            selected && styles.salaryOptionTextSelected,
+                          ]}
+                        >
+                          {amount === 0
+                            ? "Any salary"
+                            : `R${amount.toLocaleString("en-ZA")}+`}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
               </View>
 
               <SelectBlock
@@ -1234,10 +1248,3 @@ const styles = StyleSheet.create({
     color: "#667085",
   },
 });
-
-
-
-
-
-
-

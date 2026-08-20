@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -9,10 +9,13 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 
+import { AdBanner } from "../../ads/AdBanner";
+import { NativeAdBlock } from "../../ads/NativeAdBlock";
+import { useJobInterstitial } from "../../ads/useJobInterstitial";
 import { getJob } from "../../lib/job-api";
 import { useSavedJobs } from "../../hooks/use-saved-jobs";
 import type { Job } from "../../lib/jobs";
@@ -42,15 +45,14 @@ function salary(job: Job) {
 
 export default function JobDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const insets = useSafeAreaInsets();
 
   const [job, setJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
-  const {
-    isSaved,
-    toggleSave,
-  } = useSavedJobs();
+  const { isSaved, toggleSave } = useSavedJobs();
+  const { continueWithOptionalAd } = useJobInterstitial(id);
 
   useEffect(() => {
     if (!id) return;
@@ -80,9 +82,7 @@ export default function JobDetailsScreen() {
       <SafeAreaView style={styles.center}>
         <Ionicons name="alert-circle-outline" size={45} color="#E31C5F" />
 
-        <Text style={styles.errorTitle}>
-          This opportunity is unavailable
-        </Text>
+        <Text style={styles.errorTitle}>This opportunity is unavailable</Text>
 
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <Text style={styles.backButtonText}>Go back</Text>
@@ -96,6 +96,8 @@ export default function JobDetailsScreen() {
     : job.province;
 
   const salaryLabel = salary(job);
+  const footerBottomPadding = Math.max(insets.bottom, 12);
+  const footerHeight = 56 + 16 + footerBottomPadding;
 
   const apply = async () => {
     if (!job.external_url) return;
@@ -107,10 +109,14 @@ export default function JobDetailsScreen() {
     }
   };
 
+  const goBack = () => {
+    void continueWithOptionalAd(() => router.back());
+  };
+
   return (
     <SafeAreaView style={styles.page} edges={["top"]}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.iconButton} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.iconButton} onPress={goBack}>
           <Ionicons name="arrow-back" size={23} color="#0B1F30" />
         </TouchableOpacity>
 
@@ -135,7 +141,7 @@ export default function JobDetailsScreen() {
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingBottom: footerHeight + 24 }]}
         showsVerticalScrollIndicator={false}
       >
         {job.company_logo_url ? (
@@ -190,6 +196,8 @@ export default function JobDetailsScreen() {
         <Text style={styles.heading}>About this opportunity</Text>
         <Text style={styles.body}>{job.description}</Text>
 
+        <AdBanner />
+
         {job.responsibilities?.length > 0 && (
           <>
             <Text style={styles.heading}>Responsibilities</Text>
@@ -229,10 +237,10 @@ export default function JobDetailsScreen() {
           </>
         )}
 
-        <View style={{ height: 100 }} />
+        <NativeAdBlock />
       </ScrollView>
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: footerBottomPadding }]}>
         <TouchableOpacity
           style={[
             styles.applyButton,
@@ -255,182 +263,181 @@ export default function JobDetailsScreen() {
 }
 
 const styles = StyleSheet.create({
-  page:{flex:1,backgroundColor:"#FFFFFF"},
+  page: { flex: 1, backgroundColor: "#FFFFFF" },
 
-  center:{
-    flex:1,
-    backgroundColor:"#FFFFFF",
-    alignItems:"center",
-    justifyContent:"center",
-    padding:25,
+  center: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 25,
   },
 
-  header:{
-    height:60,
-    paddingHorizontal:16,
-    flexDirection:"row",
-    alignItems:"center",
-    justifyContent:"space-between",
-    borderBottomWidth:1,
-    borderBottomColor:"#EAECF0",
+  header: {
+    height: 60,
+    paddingHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderBottomWidth: 1,
+    borderBottomColor: "#EAECF0",
   },
 
-  headerTitle:{
-    fontSize:16,
-    fontWeight:"800",
-    color:"#0B1F30",
+  headerTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#0B1F30",
   },
 
-  iconButton:{
-    width:42,
-    height:42,
-    borderRadius:21,
-    alignItems:"center",
-    justifyContent:"center",
+  iconButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: "center",
+    justifyContent: "center",
   },
 
-  content:{
-    padding:20,
-    paddingBottom:120,
+  content: {
+    padding: 20,
   },
 
-  logo:{
-    width:72,
-    height:72,
-    borderRadius:18,
-    backgroundColor:"#F2F4F7",
-    alignItems:"center",
-    justifyContent:"center",
+  logo: {
+    width: 72,
+    height: 72,
+    borderRadius: 18,
+    backgroundColor: "#F2F4F7",
+    alignItems: "center",
+    justifyContent: "center",
   },
 
-  logoLetter:{
-    color:"#E31C5F",
-    fontSize:28,
-    fontWeight:"800",
+  logoLetter: {
+    color: "#E31C5F",
+    fontSize: 28,
+    fontWeight: "800",
   },
 
-  title:{
-    fontSize:26,
-    lineHeight:33,
-    fontWeight:"800",
-    color:"#0B1F30",
-    marginTop:20,
+  title: {
+    fontSize: 26,
+    lineHeight: 33,
+    fontWeight: "800",
+    color: "#0B1F30",
+    marginTop: 20,
   },
 
-  company:{
-    color:"#475467",
-    fontSize:16,
-    marginTop:6,
+  company: {
+    color: "#475467",
+    fontSize: 16,
+    marginTop: 6,
   },
 
-  metaBlock:{
-    marginTop:20,
-    gap:11,
+  metaBlock: {
+    marginTop: 20,
+    gap: 11,
   },
 
-  metaRow:{
-    flexDirection:"row",
-    alignItems:"center",
+  metaRow: {
+    flexDirection: "row",
+    alignItems: "center",
   },
 
-  metaText:{
-    color:"#667085",
-    marginLeft:8,
-    fontSize:14,
+  metaText: {
+    color: "#667085",
+    marginLeft: 8,
+    fontSize: 14,
   },
 
-  divider:{
-    height:1,
-    backgroundColor:"#EAECF0",
-    marginVertical:26,
+  divider: {
+    height: 1,
+    backgroundColor: "#EAECF0",
+    marginVertical: 26,
   },
 
-  heading:{
-    color:"#0B1F30",
-    fontSize:18,
-    fontWeight:"800",
-    marginTop:20,
-    marginBottom:11,
+  heading: {
+    color: "#0B1F30",
+    fontSize: 18,
+    fontWeight: "800",
+    marginTop: 20,
+    marginBottom: 11,
   },
 
-  body:{
-    color:"#475467",
-    fontSize:15,
-    lineHeight:24,
+  body: {
+    color: "#475467",
+    fontSize: 15,
+    lineHeight: 24,
   },
 
-  bulletRow:{
-    flexDirection:"row",
-    alignItems:"flex-start",
-    marginBottom:10,
+  bulletRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 10,
   },
 
-  bullet:{
-    width:6,
-    height:6,
-    borderRadius:3,
-    backgroundColor:"#E31C5F",
-    marginTop:8,
-    marginRight:10,
+  bullet: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#E31C5F",
+    marginTop: 8,
+    marginRight: 10,
   },
 
-  bulletText:{
-    flex:1,
-    color:"#475467",
-    fontSize:15,
-    lineHeight:22,
+  bulletText: {
+    flex: 1,
+    color: "#475467",
+    fontSize: 15,
+    lineHeight: 22,
   },
 
-  footer:{
-    position:"absolute",
-    left:0,
-    right:0,
-    bottom:0,
-    padding:16,
-    backgroundColor:"#FFFFFF",
-    borderTopWidth:1,
-    borderTopColor:"#EAECF0",
+  footer: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingTop: 16,
+    paddingHorizontal: 16,
+    backgroundColor: "#FFFFFF",
+    borderTopWidth: 1,
+    borderTopColor: "#EAECF0",
   },
 
-  applyButton:{
-    height:56,
-    borderRadius:16,
-    backgroundColor:"#E31C5F",
-    flexDirection:"row",
-    alignItems:"center",
-    justifyContent:"center",
-    gap:8,
+  applyButton: {
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: "#E31C5F",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
   },
 
-  disabledButton:{
-    backgroundColor:"#98A2B3",
+  disabledButton: {
+    backgroundColor: "#98A2B3",
   },
 
-  applyText:{
-    color:"#FFFFFF",
-    fontSize:16,
-    fontWeight:"800",
+  applyText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "800",
   },
 
-  errorTitle:{
-    color:"#0B1F30",
-    fontSize:19,
-    fontWeight:"800",
-    marginTop:15,
-    textAlign:"center",
+  errorTitle: {
+    marginTop: 15,
+    fontSize: 19,
+    fontWeight: "800",
+    color: "#0B1F30",
+    textAlign: "center",
   },
 
-  backButton:{
-    backgroundColor:"#E31C5F",
-    borderRadius:12,
-    paddingHorizontal:24,
-    paddingVertical:13,
-    marginTop:20,
+  backButton: {
+    marginTop: 22,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    backgroundColor: "#0B1F30",
+    borderRadius: 10,
   },
 
-  backButtonText:{
-    color:"#FFFFFF",
-    fontWeight:"800",
+  backButtonText: {
+    color: "#FFFFFF",
+    fontWeight: "700",
   },
 });
-
