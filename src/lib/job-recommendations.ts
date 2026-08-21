@@ -11,7 +11,13 @@ export type RecommendationFilter = {
 type ProfileSignals = {
   skills: string[];
   preferredJobTypes: string[];
-  location: string | null;
+  city: string | null;
+  province: string | null;
+};
+
+type LocationTarget = {
+  city: string | null;
+  province: string | null;
 };
 
 type HistorySignals = {
@@ -77,10 +83,6 @@ function midpoint(job: Pick<JobRow, "salary_min" | "salary_max">) {
   return job.salary_min ?? job.salary_max ?? null;
 }
 
-function locationText(job: Pick<JobRow, "city" | "province">) {
-  return normalize([job.city, job.province].filter(Boolean).join(" "));
-}
-
 function isRemote(job: JobRow) {
   const haystack = normalize(
     [job.city, job.province, job.title, job.description].filter(Boolean).join(" "),
@@ -94,12 +96,33 @@ function recencyValue(job: JobRow) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function parseLocationFilter(value?: string | null): LocationTarget | null {
+  const raw = String(value ?? "").trim();
+  if (!raw) return null;
+
+  const parts = raw
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (parts.length >= 2) {
+    return { city: parts[0], province: parts[parts.length - 1] };
+  }
+
+  // A single filter value can be either a province or a city. Keep it in both
+  // slots so it can match the corresponding normalized job field exactly.
+  return { city: raw, province: raw };
+}
+
 function matchesFilter(job: JobRow, filter?: RecommendationFilter | null) {
   if (!filter) return true;
 
   if (filter.location?.trim()) {
-    const wanted = normalize(filter.location);
-    if (!locationText(job).includes(wanted) && !isRemote(job)) return false;
+    const wanted = parseLocationFilter(filter.location);
+    const cityMatch = wanted?.city && normalize(job.city) === normalize(wanted.city);
+    const provinceMatch =
+      wanted?.province && normalize(job.province) === normalize(wanted.province);
+    if (!cityMatch && !provinceMatch && !isRemote(job)) return false;
   }
 
   if (filter.category?.trim()) {
@@ -119,7 +142,8 @@ function matchesFilter(job: JobRow, filter?: RecommendationFilter | null) {
 }
 
 async function loadProfile(userId?: string | null): Promise<ProfileSignals> {
-  if (!userId) return { skills: [], preferredJobTypes: [], location: null };
+  const empty = { skills: [], preferredJobTypes: [], city: null, province: null };
+  if (!userId) return empty;
 
   const { data, error } = await supabase
     .from("profiles")
@@ -129,7 +153,7 @@ async function loadProfile(userId?: string | null): Promise<ProfileSignals> {
 
   if (error) {
     console.warn("Recommendation profile load failed:", error.message);
-    return { skills: [], preferredJobTypes: [], location: null };
+    return empty;
   }
 
   const skills = Array.isArray(data?.skills) ? data.skills.map(String) : [];
@@ -137,15 +161,17 @@ async function loadProfile(userId?: string | null): Promise<ProfileSignals> {
     ? data.preferred_job_types.map(String)
     : [];
   const careerText = [data?.field_of_study, data?.about].filter(Boolean).map(String);
-  const location =
-    [data?.preferred_city, data?.preferred_province].filter(Boolean).join(", ") ||
-    [data?.city, data?.province].filter(Boolean).join(", ") ||
-    null;
+
+  // Profiles and jobs both store city/province separately. Prefer explicit job
+  // preferences when present, otherwise use the user's residential location.
+  const city = String(data?.preferred_city ?? data?.city ?? "").trim() || null;
+  const province = String(data?.preferred_province ?? data?.province ?? "").trim() || null;
 
   return {
     skills: [...skills, ...careerText],
     preferredJobTypes,
-    location,
+    city,
+    province,
   };
 }
 
@@ -225,33 +251,27 @@ async function loadHistory(userId?: string | null): Promise<HistorySignals> {
   return empty;
 }
 
-function rankLocation(job: JobRow, wantedLocation: string | null) {
-  if (!wantedLocation) return isRemote(job) ? 1 : 2;
-  const wanted = normalize(wantedLocation);
-  const exact = locationText(job);
-  if (exact.includes(wanted) || wanted.split(" ").some((part) => part.length > 2 && exact.includes(part))) {
-    return 0;
-  }
-  if (isRemote(job)) return 1;
-  return 2;
+function locationTarget(profile: ProfileSignals, filter?: RecommendationFilter | null): LocationTarget {
+  return parseLocationFilter(filter?.location) ?? {
+    city: profile.city,
+    province: profile.province,
+  };
 }
 
-export async function getTopOpportunities(
-  userId?: string | null,
-  filter?: RecommendationFilter | null,
-  limit = 10,
-): Promise<Job[]> {
-  const [profile, jobs] = await Promise.all([loadProfile(userId), loadJobs(100)]);
-  const filtered = jobs.filter((job) => matchesFilter(job, filter));
-  const location = filter?.location?.trim() || profile.location;
+function locationTier(job: JobRow, target: LocationTarget) {
+  const wantedCity = normalize(target.city);
+  const wantedProvince = normalize(target.province);
+  const jobCity = normalize(job.city);
+  const jobProvince = normalize(job.province);
 
-  filtered.sort((a, b) => {
-    const tier = rankLocation(a, location) - rankLocation(b, location);
-    if (tier !== 0) return tier;
-    return recencyValue(b) - recencyValue(a);
-  });
+  if (wantedCity && jobCity && jobCity === wantedCity) return 0;
+  if (wantedProvince && jobProvince && jobProvince === wantedProvince) return 1;
+  if (isRemote(job)) return 2;
+  return 3;
+}
 
-  return filtered.slice(0, limit);
+function hasLocation(target: LocationTarget) {
+  return Boolean(target.city?.trim() || target.province?.trim());
 }
 
 function scorePersonalized(
@@ -291,9 +311,41 @@ function scorePersonalized(
   }
 
   if (history.savedIds.has(job.id)) score -= 14;
-  if (profile.location) score += rankLocation(job, profile.location) === 0 ? 6 : isRemote(job) ? 3 : 0;
-
   return score;
+}
+
+function compareRanked(
+  a: JobRow,
+  b: JobRow,
+  target: LocationTarget,
+  scores: Map<string, number>,
+) {
+  if (hasLocation(target)) {
+    const tierDifference = locationTier(a, target) - locationTier(b, target);
+    if (tierDifference !== 0) return tierDifference;
+  }
+
+  const scoreDifference = (scores.get(b.id) ?? 0) - (scores.get(a.id) ?? 0);
+  if (scoreDifference !== 0) return scoreDifference;
+  return recencyValue(b) - recencyValue(a);
+}
+
+export async function getTopOpportunities(
+  userId?: string | null,
+  filter?: RecommendationFilter | null,
+  limit = 10,
+): Promise<Job[]> {
+  const [profile, history, jobs] = await Promise.all([
+    loadProfile(userId),
+    loadHistory(userId),
+    loadJobs(120),
+  ]);
+  const filtered = jobs.filter((job) => matchesFilter(job, filter));
+  const target = locationTarget(profile, filter);
+  const scores = new Map(filtered.map((job) => [job.id, scorePersonalized(job, profile, history)]));
+
+  filtered.sort((a, b) => compareRanked(a, b, target, scores));
+  return filtered.slice(0, limit);
 }
 
 export async function getPersonalizedMatches(
@@ -304,33 +356,16 @@ export async function getPersonalizedMatches(
   const [profile, history, jobs] = await Promise.all([
     loadProfile(userId),
     loadHistory(userId),
-    loadJobs(160),
+    loadJobs(180),
   ]);
 
   const candidates = jobs
     .filter((job) => !history.appliedIds.has(job.id))
     .filter((job) => matchesFilter(job, filter));
 
-  const hasPersonalSignals =
-    profile.skills.length > 0 ||
-    profile.preferredJobTypes.length > 0 ||
-    history.categories.size > 0 ||
-    history.companies.size > 0 ||
-    history.salaryMidpoints.length > 0;
+  const target = locationTarget(profile, filter);
+  const scores = new Map(candidates.map((job) => [job.id, scorePersonalized(job, profile, history)]));
 
-  if (!hasPersonalSignals) {
-    const location = filter?.location?.trim() || profile.location;
-    candidates.sort((a, b) => {
-      const tier = rankLocation(a, location) - rankLocation(b, location);
-      if (tier !== 0) return tier;
-      return recencyValue(b) - recencyValue(a);
-    });
-    return candidates.slice(0, limit);
-  }
-
-  return candidates
-    .map((job) => ({ job, score: scorePersonalized(job, profile, history) }))
-    .sort((a, b) => b.score - a.score || recencyValue(b.job) - recencyValue(a.job))
-    .slice(0, limit)
-    .map(({ job }) => job);
+  candidates.sort((a, b) => compareRanked(a, b, target, scores));
+  return candidates.slice(0, limit);
 }
