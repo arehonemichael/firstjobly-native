@@ -20,6 +20,8 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
+        lazy: true,
+        freezeOnBlur: true,
         tabBarHideOnKeyboard: true,
         sceneStyle: { backgroundColor: Colors.background },
         tabBarActiveTintColor: Colors.primary,
