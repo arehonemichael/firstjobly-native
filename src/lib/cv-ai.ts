@@ -1,7 +1,5 @@
 import { supabase } from "./supabase";
 
-const WEB_APP_URL = "https://firstjobly.co.za";
-
 export type CvAiPurpose = "summary" | "experience";
 
 type CvAiInput = {
@@ -13,6 +11,11 @@ type CvAiInput = {
   existingText?: string;
 };
 
+type CvAiResponse = {
+  text?: string;
+  error?: string;
+};
+
 export async function generateCvText(input: CvAiInput): Promise<string> {
   const { data: sessionData } = await supabase.auth.getSession();
   const token = sessionData.session?.access_token;
@@ -21,39 +24,35 @@ export async function generateCvText(input: CvAiInput): Promise<string> {
     throw new Error("Sign in to use AI Assist.");
   }
 
-  const response = await fetch(`${WEB_APP_URL}/api/public/cv-ai`, {
-    method: "POST",
+  const { data, error } = await supabase.functions.invoke<CvAiResponse>("cv-ai", {
+    body: input,
     headers: {
-      "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify(input),
   });
 
-  const rawText = await response.text();
-  console.log("CV AI status:", response.status);
-  console.log("CV AI raw response:", rawText);
-
-  const payload = (() => {
-    try {
-      return JSON.parse(rawText) as { text?: string; error?: string };
-    } catch {
-      return null;
+  if (error) {
+    console.error("CV AI function error:", error);
+    const context = (error as { context?: Response }).context;
+    if (context) {
+      try {
+        const raw = await context.text();
+        console.log("CV AI raw response:", raw);
+        const payload = JSON.parse(raw) as CvAiResponse;
+        throw new Error(payload.error || "AI generation failed.");
+      } catch (parseError) {
+        if (parseError instanceof Error && parseError.message !== "AI generation failed.") {
+          throw parseError;
+        }
+      }
     }
-  })();
-
-  if (!response.ok || !payload?.text) {
-    if (response.status === 401) {
-      throw new Error("Sign in to use AI Assist.");
-    }
-    if (response.status === 429) {
-      throw new Error("Too many requests — try again shortly.");
-    }
-    if (response.status === 402) {
-      throw new Error("AI credits exhausted.");
-    }
-    throw new Error(payload?.error || `AI generation failed (${response.status})`);
+    throw new Error("AI generation failed. Please retry.");
   }
 
-  return payload.text.trim();
+  const text = data?.text?.trim();
+  if (!text) {
+    throw new Error(data?.error || "AI returned no text. Please retry.");
+  }
+
+  return text;
 }
