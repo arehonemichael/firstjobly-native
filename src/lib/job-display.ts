@@ -1,6 +1,8 @@
 import type { Job } from "./jobs";
 import { formatCategoryLabel } from "./job-formatters";
 
+const NEW_JOB_WINDOW_MS = 24 * 60 * 60 * 1000;
+
 export function formatJobSalary(job: Pick<Job, "salary_min" | "salary_max">): string | null {
   const format = (value: number) => `R${Math.round(value).toLocaleString("en-ZA")}`;
   if (job.salary_min != null && job.salary_max != null) return `${format(job.salary_min)} - ${format(job.salary_max)}`;
@@ -20,6 +22,14 @@ export function postedJobLabel(job: Pick<Job, "created_at" | "posted_at">): stri
   const hours = Math.max(1, Math.floor((Date.now() - time) / 3_600_000));
   if (hours < 24) return `Posted ${hours}h ago`;
   return `Posted ${Math.floor(hours / 24)}d ago`;
+}
+
+export function isJobNew(job: Pick<Job, "created_at">, now = Date.now()): boolean {
+  if (!job.created_at) return false;
+  const createdAt = new Date(job.created_at).getTime();
+  if (!Number.isFinite(createdAt)) return false;
+  const age = now - createdAt;
+  return age >= 0 && age < NEW_JOB_WINDOW_MS;
 }
 
 function johannesburgTodayUtc() {
