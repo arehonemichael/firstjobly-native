@@ -28,6 +28,7 @@ import { NativeAdBlock } from "../../ads/NativeAdBlock";
 import { useEarlyJobInterstitial } from "../../ads/useJobInterstitial";
 import { theme } from "../../constants/theme";
 import { formatCategoryLabel } from "../../lib/job-formatters";
+import { isJobNew } from "../../lib/job-display";
 import type { Job } from "../../lib/jobs";
 import {
   CATEGORIES,
@@ -147,6 +148,7 @@ const JobCard = memo(function JobCard({ job, onPress }: { job: Job; onPress: () 
   const location = job.city ? `${job.city}, ${job.province}` : job.province;
   const salary = formatSalary(job);
   const closing = closingCountdown(job);
+  const isNew = isJobNew(job);
 
   return (
     <TouchableOpacity style={styles.card} activeOpacity={0.84} onPress={onPress}>
@@ -161,7 +163,11 @@ const JobCard = memo(function JobCard({ job, onPress }: { job: Job; onPress: () 
       <View style={styles.jobInfo}>
         <View style={styles.companyStatusRow}>
           <Text style={styles.company} numberOfLines={1}>{job.company_name}</Text>
-          <View style={styles.statusPill}><Text style={styles.statusText}>{job.is_urgent ? "Hot" : "New"}</Text></View>
+          {job.is_urgent ? (
+            <View style={styles.statusPill}><Text style={styles.statusText}>Hot</Text></View>
+          ) : isNew ? (
+            <View style={styles.newStatusPill}><Text style={styles.newStatusText}>New</Text></View>
+          ) : null}
           <View style={styles.bookmarkButton}><Ionicons name="bookmark-outline" size={22} color={theme.colors.ink} /></View>
         </View>
 
@@ -461,6 +467,8 @@ const styles = StyleSheet.create({
   company: { flex: 1, minWidth: 0, color: theme.colors.ink, fontSize: 15, lineHeight: 20, fontWeight: "700" },
   statusPill: { flexShrink: 0, paddingHorizontal: 7, height: 23, borderRadius: 7, borderWidth: 1, borderColor: theme.colors.selectedBorder, backgroundColor: theme.colors.surface, alignItems: "center", justifyContent: "center" },
   statusText: { color: theme.colors.brand, fontSize: 11, fontWeight: "600" },
+  newStatusPill: { flexShrink: 0, paddingHorizontal: 7, height: 23, borderRadius: 7, borderWidth: 1, borderColor: theme.colors.success, backgroundColor: theme.colors.successSoft, alignItems: "center", justifyContent: "center" },
+  newStatusText: { color: theme.colors.success, fontSize: 11, fontWeight: "700" },
   bookmarkButton: { position: "absolute", right: 0, top: -1, width: 30, height: 30, alignItems: "flex-end", justifyContent: "flex-start" },
   jobTitle: { color: theme.colors.ink, fontSize: 14, lineHeight: 19, fontWeight: "600", marginTop: 4 },
   meta: { marginTop: 5, flexDirection: "row", alignItems: "flex-start", gap: 4, paddingRight: 6 },
