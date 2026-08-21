@@ -20,6 +20,7 @@ import { getJob } from "../../lib/job-api";
 import { useSavedJobs } from "../../hooks/use-saved-jobs";
 import { useAuth } from "../../hooks/use-auth";
 import { evaluateEasyApply } from "../../lib/apply-gate";
+import { maybeRequestReviewAfterSuccessfulApply } from "../../lib/rate-us";
 import { supabase } from "../../lib/supabase";
 import type { Job } from "../../lib/jobs";
 import { formatCategoryLabel } from "../../lib/job-formatters";
@@ -243,8 +244,20 @@ export default function JobDetailsScreen() {
       isDraft ? "Draft saved" : "Application submitted",
       isDraft ? "You can return to this application later." : "Your application is now in My Applications.",
       [
-        { text: "My Applications", onPress: () => router.push("/applications") },
-        { text: "Done", style: "cancel" },
+        {
+          text: "My Applications",
+          onPress: () => {
+            router.push("/applications");
+            if (!isDraft) setTimeout(() => void maybeRequestReviewAfterSuccessfulApply(), 900);
+          },
+        },
+        {
+          text: "Done",
+          style: "cancel",
+          onPress: () => {
+            if (!isDraft) setTimeout(() => void maybeRequestReviewAfterSuccessfulApply(), 250);
+          },
+        },
       ],
     );
   }
