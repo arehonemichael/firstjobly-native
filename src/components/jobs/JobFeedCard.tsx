@@ -1,5 +1,6 @@
-import { memo } from "react";
-import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { memo, useRef } from "react";
+import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
+import { Image as ExpoImage } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 
 import { theme } from "../../constants/theme";
@@ -28,12 +29,38 @@ export const JobFeedCard = memo(function JobFeedCard({
   const salary = formatJobSalary(job);
   const closing = closingJobCountdown(job);
   const tags = jobDisplayTags(job);
+  const bookmarkScale = useRef(new Animated.Value(1)).current;
+
+  function handleBookmark() {
+    if (!onBookmark) return;
+    bookmarkScale.stopAnimation();
+    Animated.sequence([
+      Animated.timing(bookmarkScale, { toValue: 0.82, duration: 70, useNativeDriver: true }),
+      Animated.spring(bookmarkScale, {
+        toValue: 1,
+        speed: 24,
+        bounciness: 6,
+        useNativeDriver: true,
+      }),
+    ]).start();
+    onBookmark();
+  }
 
   return (
-    <TouchableOpacity activeOpacity={0.84} style={styles.card} onPress={onPress}>
+    <Pressable
+      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+      onPress={onPress}
+      accessibilityRole="button"
+    >
       <View style={styles.logo}>
         {job.company_logo_url ? (
-          <Image source={{ uri: job.company_logo_url }} style={styles.logoImage} resizeMode="contain" />
+          <ExpoImage
+            source={{ uri: job.company_logo_url }}
+            style={styles.logoImage}
+            contentFit="contain"
+            cachePolicy="memory-disk"
+            transition={0}
+          />
         ) : (
           <Text style={styles.logoText}>{job.company_name.charAt(0).toUpperCase()}</Text>
         )}
@@ -45,17 +72,21 @@ export const JobFeedCard = memo(function JobFeedCard({
           <View style={styles.statusPill}>
             <Text style={styles.statusText}>{statusLabel ?? (job.is_urgent ? "Hot" : "New")}</Text>
           </View>
-          <TouchableOpacity
-            style={styles.bookmarkButton}
-            activeOpacity={0.7}
+          <Pressable
+            style={({ pressed }) => [styles.bookmarkButton, pressed && styles.bookmarkPressed]}
             disabled={!onBookmark}
+            hitSlop={8}
             onPress={(event) => {
               event.stopPropagation();
-              onBookmark?.();
+              handleBookmark();
             }}
+            accessibilityRole="button"
+            accessibilityLabel={bookmarkName === "bookmark" ? "Remove saved job" : "Save job"}
           >
-            <Ionicons name={bookmarkName} size={22} color={theme.colors.ink} />
-          </TouchableOpacity>
+            <Animated.View style={{ transform: [{ scale: bookmarkScale }] }}>
+              <Ionicons name={bookmarkName} size={22} color={theme.colors.ink} />
+            </Animated.View>
+          </Pressable>
         </View>
 
         <Text numberOfLines={2} style={styles.title}>{job.title}</Text>
@@ -69,8 +100,8 @@ export const JobFeedCard = memo(function JobFeedCard({
 
         <View style={styles.footer}>
           <View style={styles.tagsRow}>
-            {tags.map((tag) => (
-              <View key={tag} style={styles.tagPill}>
+            {tags.map((tag, index) => (
+              <View key={`${job.id}-${tag}-${index}`} style={styles.tagPill}>
                 <Text numberOfLines={1} style={styles.tagText}>{tag}</Text>
               </View>
             ))}
@@ -85,7 +116,7 @@ export const JobFeedCard = memo(function JobFeedCard({
           </View>
         </View>
       </View>
-    </TouchableOpacity>
+    </Pressable>
   );
 });
 
@@ -101,6 +132,7 @@ const styles = StyleSheet.create({
     gap: 12,
     ...theme.shadow.card,
   },
+  cardPressed: { opacity: 0.88, transform: [{ scale: 0.995 }] },
   logo: {
     width: 56,
     height: 56,
@@ -149,6 +181,7 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
     justifyContent: "flex-start",
   },
+  bookmarkPressed: { opacity: 0.7 },
   title: {
     color: theme.colors.ink,
     fontSize: 14,
