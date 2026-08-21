@@ -1,5 +1,7 @@
 import { supabase } from "./supabase";
 
+const WEB_APP_URL = (process.env.EXPO_PUBLIC_WEB_URL ?? "https://firstjobly.co.za").replace(/\/$/, "");
+
 export type CvAiPurpose = "summary" | "experience";
 
 type CvAiInput = {
@@ -16,13 +18,7 @@ type CvAiResponse = {
   error?: string;
 };
 
-const CV_AI_URL = process.env.EXPO_PUBLIC_CV_AI_URL?.trim();
-
 export async function generateCvText(input: CvAiInput): Promise<string> {
-  if (!CV_AI_URL) {
-    throw new Error("AI Assist is not configured yet.");
-  }
-
   const { data: sessionData } = await supabase.auth.getSession();
   const token = sessionData.session?.access_token;
 
@@ -30,7 +26,7 @@ export async function generateCvText(input: CvAiInput): Promise<string> {
     throw new Error("Sign in to use AI Assist.");
   }
 
-  const response = await fetch(CV_AI_URL, {
+  const response = await fetch(`${WEB_APP_URL}/api/public/cv-ai`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -51,13 +47,22 @@ export async function generateCvText(input: CvAiInput): Promise<string> {
 
   if (!response.ok || !payload?.text) {
     if (response.status === 401) {
-      throw new Error("Sign in to use AI Assist.");
+      throw new Error("Sign in again to use AI Assist.");
+    }
+    if (response.status === 402) {
+      throw new Error(payload?.error || "AI credits exhausted.");
+    }
+    if (response.status === 403) {
+      throw new Error(payload?.error || "AI Assist is currently unavailable.");
     }
     if (response.status === 429) {
-      throw new Error("Too many requests. Try again shortly.");
+      throw new Error(payload?.error || "Too many requests. Try again shortly.");
+    }
+    if (response.status === 503) {
+      throw new Error(payload?.error || "AI Assist is not configured.");
     }
     if (response.status === 504) {
-      throw new Error("AI request timed out. Please retry.");
+      throw new Error(payload?.error || "AI request timed out. Please retry.");
     }
     throw new Error(payload?.error || `AI generation failed (${response.status}).`);
   }
