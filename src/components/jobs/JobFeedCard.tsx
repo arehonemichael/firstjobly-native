@@ -9,6 +9,7 @@ import {
   closingJobCountdown,
   formatJobLocation,
   formatJobSalary,
+  isJobNew,
   jobDisplayTags,
   postedJobLabel,
 } from "../../lib/job-display";
@@ -29,6 +30,8 @@ export const JobFeedCard = memo(function JobFeedCard({
   const salary = formatJobSalary(job);
   const closing = closingJobCountdown(job);
   const tags = jobDisplayTags(job);
+  const isNew = isJobNew(job);
+  const computedStatus = statusLabel ?? (job.is_urgent ? "Hot" : isNew ? "New" : null);
   const bookmarkScale = useRef(new Animated.Value(1)).current;
 
   function handleBookmark() {
@@ -69,9 +72,11 @@ export const JobFeedCard = memo(function JobFeedCard({
       <View style={styles.body}>
         <View style={styles.companyRow}>
           <Text numberOfLines={1} style={styles.company}>{job.company_name}</Text>
-          <View style={styles.statusPill}>
-            <Text style={styles.statusText}>{statusLabel ?? (job.is_urgent ? "Hot" : "New")}</Text>
-          </View>
+          {computedStatus ? (
+            <View style={[styles.statusPill, computedStatus === "New" && styles.newStatusPill]}>
+              <Text style={[styles.statusText, computedStatus === "New" && styles.newStatusText]}>{computedStatus}</Text>
+            </View>
+          ) : null}
           <Pressable
             style={({ pressed }) => [styles.bookmarkButton, pressed && styles.bookmarkPressed]}
             disabled={!onBookmark}
@@ -172,6 +177,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   statusText: { color: theme.colors.brand, fontSize: 11, fontWeight: "600" },
+  newStatusPill: { borderColor: theme.colors.success, backgroundColor: theme.colors.successSoft },
+  newStatusText: { color: theme.colors.success, fontWeight: "700" },
   bookmarkButton: {
     position: "absolute",
     right: 0,
