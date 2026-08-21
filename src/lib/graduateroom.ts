@@ -1,4 +1,4 @@
-﻿import { supabase } from "./supabase";
+import { supabase } from "./supabase";
 
 export type VerificationStatus =
   | "none"
@@ -62,9 +62,7 @@ export type CommunityComment = {
   createdAt: string;
 };
 
-
 export const INSTITUTIONS = [
-  // Universities
   "University of Cape Town",
   "University of the Witwatersrand",
   "Stellenbosch University",
@@ -85,16 +83,12 @@ export const INSTITUTIONS = [
   "Walter Sisulu University",
   "Sefako Makgatho Health Sciences University",
   "University of South Africa (UNISA)",
-
-  // Universities of technology
   "Tshwane University of Technology",
   "Durban University of Technology",
   "Cape Peninsula University of Technology",
   "Vaal University of Technology",
   "Central University of Technology",
   "Mangosuthu University of Technology",
-
-  // TVET colleges — Gauteng
   "Central Johannesburg TVET College",
   "Ekurhuleni East TVET College",
   "Ekurhuleni West TVET College",
@@ -102,16 +96,12 @@ export const INSTITUTIONS = [
   "South West Gauteng TVET College",
   "Tshwane North TVET College",
   "Tshwane South TVET College",
-
-  // TVET colleges — Western Cape
   "Boland TVET College",
   "College of Cape Town",
   "False Bay TVET College",
   "Northlink TVET College",
   "South Cape TVET College",
   "West Coast TVET College",
-
-  // TVET colleges — KwaZulu-Natal
   "Coastal KZN TVET College",
   "Elangeni TVET College",
   "Esayidi TVET College",
@@ -120,15 +110,11 @@ export const INSTITUTIONS = [
   "Thekwini TVET College",
   "Umfolozi TVET College",
   "Umgungundlovu TVET College",
-
-  // TVET colleges — Eastern Cape
   "Buffalo City TVET College",
   "East Cape Midlands TVET College",
   "King Hintsa TVET College",
   "Lovedale TVET College",
   "Port Elizabeth TVET College",
-
-  // TVET colleges — Limpopo, Mpumalanga & North West
   "Capricorn TVET College",
   "Lephalale TVET College",
   "Mopani South East TVET College",
@@ -141,16 +127,12 @@ export const INSTITUTIONS = [
   "Orbit TVET College",
   "Taletso TVET College",
   "Vuselela TVET College",
-
-  // TVET colleges — Free State & Northern Cape
   "Flavius Mareka TVET College",
   "Goldfields TVET College",
   "Maluti TVET College",
   "Motheo TVET College",
   "Northern Cape Rural TVET College",
   "Northern Cape Urban TVET College",
-
-  // Private higher education institutions
   "Rosebank College (IIE)",
   "Varsity College (IIE)",
   "IIE MSA (Monash South Africa)",
@@ -185,6 +167,7 @@ export const INSTITUTIONS = [
   "Optimi College",
   "Other institution",
 ] as const;
+
 export const POST_TYPES: {
   value: PostType;
   label: string;
@@ -241,9 +224,11 @@ const API_BASE =
   process.env.EXPO_PUBLIC_WEB_URL?.replace(/\/$/, "") ||
   "https://firstjobly.co.za";
 
-export async function graduateRoomApi<T>(
+const inFlightListRequests = new Map<string, Promise<unknown>>();
+
+async function requestGraduateRoom<T>(
   action: string,
-  data: Record<string, unknown> = {},
+  data: Record<string, unknown>,
 ): Promise<T> {
   const { data: sessionData } = await supabase.auth.getSession();
   const token = sessionData.session?.access_token;
@@ -270,6 +255,28 @@ export async function graduateRoomApi<T>(
   return payload as T;
 }
 
+export async function graduateRoomApi<T>(
+  action: string,
+  data: Record<string, unknown> = {},
+): Promise<T> {
+  if (action !== "list-posts") {
+    return requestGraduateRoom<T>(action, data);
+  }
+
+  const key = JSON.stringify(data);
+  const existing = inFlightListRequests.get(key);
+  if (existing) return existing as Promise<T>;
+
+  const request = requestGraduateRoom<T>(action, data).finally(() => {
+    if (inFlightListRequests.get(key) === request) {
+      inFlightListRequests.delete(key);
+    }
+  });
+
+  inFlightListRequests.set(key, request);
+  return request;
+}
+
 export function relativeTime(value: string) {
   const ms = Date.now() - new Date(value).getTime();
   const minutes = Math.max(0, Math.floor(ms / 60_000));
@@ -281,4 +288,3 @@ export function relativeTime(value: string) {
   if (days < 7) return `${days}d`;
   return new Date(value).toLocaleDateString();
 }
-
