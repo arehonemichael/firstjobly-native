@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppState, ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Image as ExpoImage } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
@@ -13,7 +13,9 @@ import { theme } from "../../constants/theme";
 import { JOB_MARKET_FACTS } from "../../constants/job-market-facts";
 import type { Job } from "../../lib/jobs";
 import { formatCategoryLabel } from "../../lib/job-formatters";
+import { isJobNew } from "../../lib/job-display";
 import { getPersonalizedMatches, getTopOpportunities, type RecommendationFilter } from "../../lib/job-recommendations";
+import { NativeAdBlock } from "../../ads/NativeAdBlock";
 
 const HERO_IMAGES = [
   require("../../../assets/images/hero/hero-1.png"),
@@ -31,6 +33,7 @@ const HERO_HEADLINES = [
 
 const HOME_REQUEST_TIMEOUT_MS = 12_000;
 const HOME_STALE_MS = 7 * 60 * 1000;
+const MATCH_AD_AFTER_INDEXES = new Set([3, 9]);
 
 function withTimeout<T>(label: string, promise: Promise<T>, timeoutMs = HOME_REQUEST_TIMEOUT_MS) {
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -116,6 +119,7 @@ function johannesburgGreeting() {
 const TopOpportunityCard = memo(function TopOpportunityCard({ item }: { item: Job }) {
   const salary = formatSalary(item);
   const closing = closingCountdown(item);
+  const isNew = isJobNew(item);
   return (
     <TouchableOpacity activeOpacity={0.82} style={styles.topCard} onPress={() => router.push(jobPath(item))}>
       <View style={styles.topCardHead}>
@@ -127,7 +131,10 @@ const TopOpportunityCard = memo(function TopOpportunityCard({ item }: { item: Jo
             <Text numberOfLines={1} style={styles.companyName}>{item.company_name}</Text>
             <View style={styles.microBadge}><Text style={styles.microBadgeText}>{item.is_featured ? "\u2605" : "\u2726"}</Text></View>
           </View>
-          <Text style={styles.categoryLabel}>{formatCategoryLabel(item.category)}</Text>
+          <View style={styles.compactCategoryRow}>
+            <Text numberOfLines={1} style={styles.categoryLabel}>{formatCategoryLabel(item.category)}</Text>
+            {isNew ? <View style={styles.newCompactPill}><Text style={styles.newCompactText}>New</Text></View> : null}
+          </View>
         </View>
       </View>
       <Text numberOfLines={2} style={styles.compactJobTitle}>{item.title}</Text>
@@ -142,6 +149,7 @@ const TopOpportunityCard = memo(function TopOpportunityCard({ item }: { item: Jo
 const PersonalizedMatchCard = memo(function PersonalizedMatchCard({ item }: { item: Job }) {
   const salary = formatSalary(item);
   const closing = closingCountdown(item);
+  const isNew = isJobNew(item);
   return (
     <TouchableOpacity activeOpacity={0.84} style={styles.matchCard} onPress={() => router.push(jobPath(item))}>
       <View style={styles.matchLogo}>
@@ -150,7 +158,11 @@ const PersonalizedMatchCard = memo(function PersonalizedMatchCard({ item }: { it
       <View style={styles.matchBody}>
         <View style={styles.companyStatusRow}>
           <Text numberOfLines={1} style={styles.matchCompany}>{item.company_name}</Text>
-          <View style={styles.statusPill}><Text style={styles.statusText}>{item.is_urgent ? "Hot" : "New"}</Text></View>
+          {item.is_urgent ? (
+            <View style={styles.statusPill}><Text style={styles.statusText}>Hot</Text></View>
+          ) : isNew ? (
+            <View style={styles.newStatusPill}><Text style={styles.newStatusText}>New</Text></View>
+          ) : null}
           <TouchableOpacity style={styles.bookmarkButton} activeOpacity={0.7}><Ionicons name="bookmark-outline" size={22} color={theme.colors.ink} /></TouchableOpacity>
         </View>
         <Text numberOfLines={2} style={styles.matchTitle}>{item.title}</Text>
@@ -284,7 +296,16 @@ export default function HomeScreen() {
         </ScrollView>
 
         <View style={[styles.sectionHeader, styles.matchesHeader]}><Text style={styles.sectionTitle}>More great matches for you</Text><TouchableOpacity onPress={() => router.push(jobsRoute)}><Text style={styles.seeAll}>See all</Text></TouchableOpacity></View>
-        <View style={styles.matchesList}>{recommendationsLoading && matches.length === 0 ? [0, 1, 2].map((key) => <MatchSkeleton key={key} />) : matches.map((item) => <PersonalizedMatchCard key={item.id} item={item} />)}</View>
+        <View style={styles.matchesList}>
+          {recommendationsLoading && matches.length === 0
+            ? [0, 1, 2].map((key) => <MatchSkeleton key={key} />)
+            : matches.map((item, index) => (
+                <Fragment key={item.id}>
+                  <PersonalizedMatchCard item={item} />
+                  {MATCH_AD_AFTER_INDEXES.has(index) ? <NativeAdBlock variant="feed" /> : null}
+                </Fragment>
+              ))}
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -329,7 +350,10 @@ const styles = StyleSheet.create({
   companyName: { flex: 1, color: theme.colors.ink, fontSize: 15, lineHeight: 19, fontWeight: "700" },
   microBadge: { minWidth: 22, height: 22, paddingHorizontal: 5, borderRadius: 7, backgroundColor: theme.colors.brandSoft, alignItems: "center", justifyContent: "center" },
   microBadgeText: { color: theme.colors.brand, fontSize: 11, fontWeight: "700" },
-  categoryLabel: { color: theme.colors.brand, fontSize: 12, lineHeight: 16, fontWeight: "500", marginTop: 2 },
+  compactCategoryRow: { marginTop: 2, flexDirection: "row", alignItems: "center", gap: 5, minWidth: 0 },
+  categoryLabel: { flexShrink: 1, color: theme.colors.brand, fontSize: 12, lineHeight: 16, fontWeight: "500" },
+  newCompactPill: { flexShrink: 0, minHeight: 18, paddingHorizontal: 6, borderRadius: 6, backgroundColor: theme.colors.successSoft, alignItems: "center", justifyContent: "center" },
+  newCompactText: { color: theme.colors.success, fontSize: 9, lineHeight: 12, fontWeight: "700" },
   compactJobTitle: { color: theme.colors.ink, fontSize: 14, lineHeight: 19, fontWeight: "500", marginTop: 14 },
   compactPostedText: { color: theme.colors.textMuted, fontSize: 10, lineHeight: 14, marginTop: 8 },
   closingCountdownText: { flexShrink: 1, color: theme.colors.danger, fontSize: 10, lineHeight: 14, fontWeight: "700", marginTop: 3 },
@@ -346,6 +370,8 @@ const styles = StyleSheet.create({
   matchCompany: { flex: 1, minWidth: 0, color: theme.colors.ink, fontSize: 15, lineHeight: 20, fontWeight: "700" },
   statusPill: { flexShrink: 0, paddingHorizontal: 7, height: 23, borderRadius: 7, borderWidth: 1, borderColor: theme.colors.selectedBorder, backgroundColor: theme.colors.surface, alignItems: "center", justifyContent: "center" },
   statusText: { color: theme.colors.brand, fontSize: 11, fontWeight: "600" },
+  newStatusPill: { flexShrink: 0, paddingHorizontal: 7, height: 23, borderRadius: 7, borderWidth: 1, borderColor: theme.colors.success, backgroundColor: theme.colors.successSoft, alignItems: "center", justifyContent: "center" },
+  newStatusText: { color: theme.colors.success, fontSize: 11, fontWeight: "700" },
   matchTitle: { color: theme.colors.ink, fontSize: 14, lineHeight: 19, fontWeight: "600", marginTop: 4 },
   matchLocationRow: { marginTop: 5, flexDirection: "row", alignItems: "flex-start", gap: 4, paddingRight: 6 },
   matchLocation: { flex: 1, minWidth: 0, color: theme.colors.inkSoft, fontSize: 11, lineHeight: 15 },
