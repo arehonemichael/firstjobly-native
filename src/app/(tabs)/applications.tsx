@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -51,6 +51,21 @@ function formatDateTime(value: string) {
   });
 }
 
+function ApplicationSkeleton() {
+  return (
+    <View style={styles.card}>
+      <View style={styles.cardHeader}>
+        <View style={[styles.jobMark, styles.skeletonBlock]} />
+        <View style={styles.skeletonBody}>
+          <View style={[styles.skeletonLine, { width: "68%" }]} />
+          <View style={[styles.skeletonLine, { width: "88%", height: 13 }]} />
+          <View style={[styles.skeletonLine, { width: "42%" }]} />
+        </View>
+      </View>
+    </View>
+  );
+}
+
 export default function ApplicationsScreen() {
   const bottomContentPadding = useScreenBottomPadding(false);
   const { userId, loading: authLoading } = useAuth();
@@ -91,8 +106,32 @@ export default function ApplicationsScreen() {
 
   useEffect(() => { void load(); }, [load]);
 
+  const historyByApplication = useMemo(() => {
+    const grouped = new Map<string, History[]>();
+    for (const entry of history) {
+      const current = grouped.get(entry.application_id);
+      if (current) current.push(entry);
+      else grouped.set(entry.application_id, [entry]);
+    }
+    return grouped;
+  }, [history]);
+
   if (authLoading || loading) {
-    return <SafeAreaView style={styles.center}><ActivityIndicator color={theme.colors.brand} /></SafeAreaView>;
+    return (
+      <SafeAreaView style={styles.page} edges={["top", "bottom"]}>
+        <View style={styles.loadingShell}>
+          <View style={styles.header}>
+            <Text style={styles.title}>My applications</Text>
+            <Text style={styles.subtitle}>Loading your application activity</Text>
+          </View>
+          <View style={styles.skeletonList}>
+            <ApplicationSkeleton />
+            <ApplicationSkeleton />
+            <ApplicationSkeleton />
+          </View>
+        </View>
+      </SafeAreaView>
+    );
   }
 
   if (!userId) {
@@ -102,7 +141,7 @@ export default function ApplicationsScreen() {
           <View style={styles.iconWrap}><Ionicons name="briefcase-outline" size={30} color={theme.colors.brand} /></View>
           <Text style={styles.emptyTitle}>Track your applications</Text>
           <Text style={styles.emptyText}>Sign in to see every FirstJobly application and its latest status.</Text>
-          <TouchableOpacity style={styles.primary} onPress={() => router.push("/auth")}>
+          <TouchableOpacity activeOpacity={0.82} style={styles.primary} onPress={() => router.push("/auth")}>
             <Text style={styles.primaryText}>Sign in</Text>
           </TouchableOpacity>
         </View>
@@ -119,30 +158,27 @@ export default function ApplicationsScreen() {
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         refreshing={loading}
         onRefresh={() => void load()}
+        initialNumToRender={6}
+        maxToRenderPerBatch={6}
+        windowSize={7}
+        removeClippedSubviews
         ListHeaderComponent={
           <View style={styles.header}>
-            <View style={styles.headerRow}>
-              <TouchableOpacity style={styles.iconButton} onPress={() => router.back()}>
-                <Ionicons name="arrow-back" size={22} color={theme.colors.ink} />
-              </TouchableOpacity>
-              <View style={styles.headerCopy}>
-                <Text style={styles.title}>My applications</Text>
-                <Text style={styles.subtitle}>Track jobs you applied for through FirstJobly.</Text>
-              </View>
-            </View>
+            <Text style={styles.title}>My applications</Text>
+            <Text style={styles.subtitle}>Track jobs you applied for through FirstJobly.</Text>
           </View>
         }
         ListEmptyComponent={
           <View style={styles.emptyList}>
             <View style={styles.iconWrap}><Ionicons name="briefcase-outline" size={28} color={theme.colors.brand} /></View>
             <Text style={styles.emptyListTitle}>No applications yet</Text>
-            <TouchableOpacity style={styles.secondary} onPress={() => router.push("/jobs")}>
+            <TouchableOpacity activeOpacity={0.82} style={styles.secondary} onPress={() => router.push("/jobs")}>
               <Text style={styles.secondaryText}>Search jobs</Text>
             </TouchableOpacity>
           </View>
         }
         renderItem={({ item }) => {
-          const timeline = history.filter((entry) => entry.application_id === item.id);
+          const timeline = historyByApplication.get(item.id) ?? [];
           const latestNote = timeline.find((entry) => entry.message);
           const expanded = openId === item.id;
           const status = item.is_draft ? "Draft" : STATUS_LABEL[item.status] ?? item.status;
@@ -154,6 +190,7 @@ export default function ApplicationsScreen() {
                   <Text style={styles.jobMarkText}>{item.jobs?.company_name?.charAt(0).toUpperCase() || "F"}</Text>
                 </View>
                 <TouchableOpacity
+                  activeOpacity={0.82}
                   style={styles.jobCopy}
                   disabled={!item.jobs}
                   onPress={() => item.jobs && router.push({ pathname: "/jobs/[id]", params: { id: item.jobs.id } })}
@@ -175,7 +212,11 @@ export default function ApplicationsScreen() {
               ) : null}
 
               {timeline.length > 0 ? (
-                <TouchableOpacity style={styles.historyButton} onPress={() => setOpenId(expanded ? null : item.id)}>
+                <TouchableOpacity
+                  activeOpacity={0.72}
+                  style={styles.historyButton}
+                  onPress={() => setOpenId(expanded ? null : item.id)}
+                >
                   <Text style={styles.historyText}>{expanded ? "Hide status history" : `Status history (${timeline.length})`}</Text>
                   <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={17} color={theme.colors.brand} />
                 </TouchableOpacity>
@@ -207,23 +248,14 @@ export default function ApplicationsScreen() {
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: theme.colors.background },
-  center: { flex: 1, backgroundColor: theme.colors.background, alignItems: "center", justifyContent: "center" },
+  loadingShell: { flex: 1, paddingHorizontal: 16 },
+  skeletonList: { gap: 10 },
+  skeletonBody: { flex: 1, gap: 10, paddingTop: 4 },
+  skeletonBlock: { backgroundColor: theme.colors.surfaceMuted },
+  skeletonLine: { height: 10, borderRadius: theme.radius.pill, backgroundColor: theme.colors.surfaceMuted },
   list: { padding: 16, paddingBottom: 110 },
   separator: { height: 10 },
   header: { paddingTop: 4, paddingBottom: 16 },
-  headerRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  iconButton: {
-    width: 44,
-    height: 44,
-    borderRadius: theme.radius.pill,
-    borderWidth: 1,
-    borderColor: theme.colors.line,
-    backgroundColor: theme.colors.surface,
-    alignItems: "center",
-    justifyContent: "center",
-    ...theme.shadow.card,
-  },
-  headerCopy: { flex: 1 },
   title: { color: theme.colors.ink, fontSize: 23, lineHeight: 29, fontWeight: "800", letterSpacing: -0.3 },
   subtitle: { color: theme.colors.inkSoft, fontSize: 12, lineHeight: 17, marginTop: 3 },
   card: {
