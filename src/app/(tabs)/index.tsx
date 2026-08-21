@@ -72,6 +72,42 @@ function postedLabel(job: Job) {
   return `Posted ${days}d ago`;
 }
 
+function johannesburgTodayUtc() {
+  try {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Africa/Johannesburg",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(new Date());
+    const year = Number(parts.find((part) => part.type === "year")?.value);
+    const month = Number(parts.find((part) => part.type === "month")?.value);
+    const day = Number(parts.find((part) => part.type === "day")?.value);
+    if (year && month && day) return Date.UTC(year, month - 1, day);
+  } catch {
+    // Africa/Johannesburg is UTC+2 year-round; this fallback preserves the SA date.
+  }
+
+  const now = new Date(Date.now() + 2 * 60 * 60 * 1000);
+  return Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+}
+
+function closingCountdown(job: Job): string | null {
+  if (!job.closing_date) return null;
+
+  const dateOnly = String(job.closing_date).slice(0, 10);
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateOnly);
+  if (!match) return null;
+
+  const closingUtc = Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  const days = Math.round((closingUtc - johannesburgTodayUtc()) / 86_400_000);
+
+  if (days < 0 || days > 10) return null;
+  if (days === 0) return "Closing today";
+  if (days === 1) return "Closing tomorrow";
+  return `Closing in ${days} days`;
+}
+
 function tagsFor(job: Job) {
   return [job.category, job.job_type, job.experience_level]
     .filter((value): value is string => Boolean(value?.trim()))
@@ -282,6 +318,7 @@ export default function HomeScreen() {
         >
           {topOpportunities.map((item) => {
             const salary = formatSalary(item);
+            const closing = closingCountdown(item);
             return (
               <TouchableOpacity
                 key={item.id}
@@ -325,6 +362,11 @@ export default function HomeScreen() {
                   {item.title}
                 </Text>
                 <Text style={styles.compactPostedText}>{postedLabel(item)}</Text>
+                {closing ? (
+                  <Text numberOfLines={1} style={styles.closingCountdownText}>
+                    {closing}
+                  </Text>
+                ) : null}
                 {salary ? (
                   <Text numberOfLines={1} style={styles.compactSalaryText}>
                     {salary}
@@ -356,6 +398,7 @@ export default function HomeScreen() {
         <View style={styles.matchesList}>
           {matches.map((item) => {
             const salary = formatSalary(item);
+            const closing = closingCountdown(item);
             return (
               <TouchableOpacity
                 key={item.id}
@@ -430,6 +473,11 @@ export default function HomeScreen() {
                       <View style={styles.postedPill}>
                         <Text style={styles.postedText}>{postedLabel(item)}</Text>
                       </View>
+                      {closing ? (
+                        <Text numberOfLines={1} style={styles.closingCountdownText}>
+                          {closing}
+                        </Text>
+                      ) : null}
                       {salary ? (
                         <Text numberOfLines={1} style={styles.compactSalaryText}>
                           {salary}
@@ -713,6 +761,14 @@ const styles = StyleSheet.create({
     fontSize: 10,
     lineHeight: 14,
     marginTop: 8,
+  },
+  closingCountdownText: {
+    flexShrink: 1,
+    color: theme.colors.danger,
+    fontSize: 10,
+    lineHeight: 14,
+    fontWeight: "700",
+    marginTop: 3,
   },
   compactSalaryText: {
     flexShrink: 1,
