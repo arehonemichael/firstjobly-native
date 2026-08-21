@@ -20,6 +20,12 @@ type LocationTarget = {
   province: string | null;
 };
 
+type ExperienceSignals = {
+  known: boolean;
+  years: number;
+  entryCount: number;
+};
+
 type HistorySignals = {
   appliedIds: Set<string>;
   savedIds: Set<string>;
@@ -31,6 +37,12 @@ type HistorySignals = {
 type JobRow = Job & {
   created_at?: string | null;
   requirements?: string[] | null;
+};
+
+type WorkExperienceRow = {
+  start_date: string | null;
+  end_date: string | null;
+  currently_working: boolean | null;
 };
 
 const HOME_JOB_COLUMNS = [
@@ -109,8 +121,6 @@ function parseLocationFilter(value?: string | null): LocationTarget | null {
     return { city: parts[0], province: parts[parts.length - 1] };
   }
 
-  // A single filter value can be either a province or a city. Keep it in both
-  // slots so it can match the corresponding normalized job field exactly.
   return { city: raw, province: raw };
 }
 
@@ -161,9 +171,6 @@ async function loadProfile(userId?: string | null): Promise<ProfileSignals> {
     ? data.preferred_job_types.map(String)
     : [];
   const careerText = [data?.field_of_study, data?.about].filter(Boolean).map(String);
-
-  // Profiles and jobs both store city/province separately. Prefer explicit job
-  // preferences when present, otherwise use the user's residential location.
   const city = String(data?.preferred_city ?? data?.city ?? "").trim() || null;
   const province = String(data?.preferred_province ?? data?.province ?? "").trim() || null;
 
@@ -172,6 +179,45 @@ async function loadProfile(userId?: string | null): Promise<ProfileSignals> {
     preferredJobTypes,
     city,
     province,
+  };
+}
+
+function dateValue(value: string | null | undefined) {
+  if (!value) return null;
+  const parsed = new Date(value).getTime();
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+async function loadExperience(userId?: string | null): Promise<ExperienceSignals> {
+  if (!userId) return { known: false, years: 0, entryCount: 0 };
+
+  const { data, error } = await supabase
+    .from("work_experience")
+    .select("start_date,end_date,currently_working")
+    .eq("user_id", userId);
+
+  if (error) {
+    console.warn("Recommendation work experience load failed:", error.message);
+    return { known: false, years: 0, entryCount: 0 };
+  }
+
+  const rows = (data ?? []) as WorkExperienceRow[];
+  const now = Date.now();
+  let totalMs = 0;
+
+  rows.forEach((row) => {
+    const start = dateValue(row.start_date);
+    if (start == null) return;
+    const end = row.currently_working ? now : dateValue(row.end_date);
+    if (end == null || end <= start) return;
+    totalMs += end - start;
+  });
+
+  const years = totalMs / (365.25 * 24 * 60 * 60 * 1000);
+  return {
+    known: true,
+    years: Math.max(0, years),
+    entryCount: rows.length,
   };
 }
 
@@ -274,6 +320,75 @@ function hasLocation(target: LocationTarget) {
   return Boolean(target.city?.trim() || target.province?.trim());
 }
 
+function jobExperienceText(job: JobRow) {
+  return normalize(
+    [
+      job.experience_level,
+      job.title,
+      job.category,
+      job.job_type,
+      job.description,
+      ...(job.requirements ?? []),
+    ]
+      .filter(Boolean)
+      .join(" "),
+  );
+}
+
+function explicitRequiredYears(job: JobRow): number | null {
+  const structured = normalize(job.experience_level);
+  const text = jobExperienceText(job);
+
+  const yearPatterns = [
+    /(?:minimum(?: of)?|at least)\s*(\d+)\s*\+?\s*years?/,
+    /(\d+)\s*\+\s*years?/,
+    /(\d+)\s*(?:-|to)\s*\d+\s*years?/,
+    /(\d+)\s*years?\s+(?:of\s+)?experience/,
+  ];
+
+  for (const pattern of yearPatterns) {
+    const match = pattern.exec(text);
+    if (match) return Number(match[1]);
+  }
+
+  if (/no experience|no prior experience|entry level|entry-level|graduate|internship|intern\b|learnership|trainee/.test(structured)) {
+    return 0;
+  }
+  if (/junior/.test(structured)) return 1;
+  if (/intermediate|mid level|mid-level/.test(structured)) return 2;
+  if (/senior/.test(structured)) return 4;
+  if (/lead|manager|management/.test(structured)) return 5;
+
+  if (/\b(entry level|entry-level|graduate programme|graduate program|internship|intern|learnership|trainee)\b/.test(text)) {
+    return 0;
+  }
+  if (/\bjunior\b/.test(text)) return 1;
+  if (/\bmid[- ]?level|\bintermediate\b/.test(text)) return 2;
+  if (/\bsenior\b/.test(text)) return 4;
+  if (/\blead\b|\bteam lead\b|\bmanager\b|\bmanagement\b/.test(text)) return 5;
+
+  return null;
+}
+
+function experienceTier(job: JobRow, experience: ExperienceSignals) {
+  if (!experience.known) return 0;
+
+  const requiredYears = explicitRequiredYears(job);
+
+  if (experience.entryCount === 0) {
+    if (requiredYears === 0) return 0;
+    if (requiredYears == null) return 1;
+    if (requiredYears <= 1) return 1;
+    if (requiredYears <= 2) return 2;
+    return 3;
+  }
+
+  if (requiredYears == null) return 1;
+  if (requiredYears <= experience.years + 1) return 0;
+  if (requiredYears <= experience.years + 2) return 1;
+  return 2;
+}
+
 function scorePersonalized(
   job: JobRow,
   profile: ProfileSignals,
@@ -318,11 +433,17 @@ function compareRanked(
   a: JobRow,
   b: JobRow,
   target: LocationTarget,
+  experience: ExperienceSignals,
   scores: Map<string, number>,
 ) {
   if (hasLocation(target)) {
     const tierDifference = locationTier(a, target) - locationTier(b, target);
     if (tierDifference !== 0) return tierDifference;
+  }
+
+  if (experience.known) {
+    const experienceDifference = experienceTier(a, experience) - experienceTier(b, experience);
+    if (experienceDifference !== 0) return experienceDifference;
   }
 
   const scoreDifference = (scores.get(b.id) ?? 0) - (scores.get(a.id) ?? 0);
@@ -335,8 +456,9 @@ export async function getTopOpportunities(
   filter?: RecommendationFilter | null,
   limit = 10,
 ): Promise<Job[]> {
-  const [profile, history, jobs] = await Promise.all([
+  const [profile, experience, history, jobs] = await Promise.all([
     loadProfile(userId),
+    loadExperience(userId),
     loadHistory(userId),
     loadJobs(120),
   ]);
@@ -344,7 +466,7 @@ export async function getTopOpportunities(
   const target = locationTarget(profile, filter);
   const scores = new Map(filtered.map((job) => [job.id, scorePersonalized(job, profile, history)]));
 
-  filtered.sort((a, b) => compareRanked(a, b, target, scores));
+  filtered.sort((a, b) => compareRanked(a, b, target, experience, scores));
   return filtered.slice(0, limit);
 }
 
@@ -353,8 +475,9 @@ export async function getPersonalizedMatches(
   filter?: RecommendationFilter | null,
   limit = 20,
 ): Promise<Job[]> {
-  const [profile, history, jobs] = await Promise.all([
+  const [profile, experience, history, jobs] = await Promise.all([
     loadProfile(userId),
+    loadExperience(userId),
     loadHistory(userId),
     loadJobs(180),
   ]);
@@ -366,6 +489,6 @@ export async function getPersonalizedMatches(
   const target = locationTarget(profile, filter);
   const scores = new Map(candidates.map((job) => [job.id, scorePersonalized(job, profile, history)]));
 
-  candidates.sort((a, b) => compareRanked(a, b, target, scores));
+  candidates.sort((a, b) => compareRanked(a, b, target, experience, scores));
   return candidates.slice(0, limit);
 }
