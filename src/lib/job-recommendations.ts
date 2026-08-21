@@ -45,6 +45,16 @@ type WorkExperienceRow = {
   currently_working: boolean | null;
 };
 
+type CacheEntry<T> = {
+  expiresAt: number;
+  promise: Promise<T>;
+};
+
+type ScoringContext = {
+  profileTokens: Set<string>;
+  averageSalary: number | null;
+};
+
 const HOME_JOB_COLUMNS = [
   "id",
   "slug",
@@ -72,6 +82,33 @@ const HOME_JOB_COLUMNS = [
   "description",
   "requirements",
 ].join(",");
+
+// Home calls the two ranking entry points at the same time. Keep a short-lived
+// in-memory cache so both calls share the same Supabase promises instead of
+// issuing duplicate profile/history/work/job requests. The TTL is deliberately
+// short so saves/applications/profile edits become visible quickly.
+const CACHE_TTL_MS = 30_000;
+const profileCache = new Map<string, CacheEntry<ProfileSignals>>();
+const experienceCache = new Map<string, CacheEntry<ExperienceSignals>>();
+const historyCache = new Map<string, CacheEntry<HistorySignals>>();
+const jobsCache = new Map<string, CacheEntry<JobRow[]>>();
+
+function cached<T>(
+  cache: Map<string, CacheEntry<T>>,
+  key: string,
+  loader: () => Promise<T>,
+): Promise<T> {
+  const now = Date.now();
+  const current = cache.get(key);
+  if (current && current.expiresAt > now) return current.promise;
+
+  const promise = loader().catch((error) => {
+    cache.delete(key);
+    throw error;
+  });
+  cache.set(key, { expiresAt: now + CACHE_TTL_MS, promise });
+  return promise;
+}
 
 const normalize = (value: unknown) =>
   String(value ?? "")
@@ -143,7 +180,9 @@ function matchesFilter(job: JobRow, filter?: RecommendationFilter | null) {
   if (filter.role?.trim()) {
     const wantedTokens = [...tokens(filter.role)];
     const roleHaystack = normalize(
-      [job.title, job.category, job.job_type, job.experience_level].filter(Boolean).join(" "),
+      [job.title, job.category, job.job_type, job.experience_level]
+        .filter(Boolean)
+        .join(" "),
     );
     if (!wantedTokens.every((token) => roleHaystack.includes(token))) return false;
   }
@@ -151,13 +190,13 @@ function matchesFilter(job: JobRow, filter?: RecommendationFilter | null) {
   return true;
 }
 
-async function loadProfile(userId?: string | null): Promise<ProfileSignals> {
+async function loadProfileUncached(userId: string): Promise<ProfileSignals> {
   const empty = { skills: [], preferredJobTypes: [], city: null, province: null };
-  if (!userId) return empty;
-
   const { data, error } = await supabase
     .from("profiles")
-    .select("skills,preferred_job_types,preferred_province,preferred_city,province,city,field_of_study,about")
+    .select(
+      "skills,preferred_job_types,preferred_province,preferred_city,province,city,field_of_study,about",
+    )
     .eq("id", userId)
     .maybeSingle();
 
@@ -172,7 +211,8 @@ async function loadProfile(userId?: string | null): Promise<ProfileSignals> {
     : [];
   const careerText = [data?.field_of_study, data?.about].filter(Boolean).map(String);
   const city = String(data?.preferred_city ?? data?.city ?? "").trim() || null;
-  const province = String(data?.preferred_province ?? data?.province ?? "").trim() || null;
+  const province =
+    String(data?.preferred_province ?? data?.province ?? "").trim() || null;
 
   return {
     skills: [...skills, ...careerText],
@@ -182,15 +222,25 @@ async function loadProfile(userId?: string | null): Promise<ProfileSignals> {
   };
 }
 
+function loadProfile(userId?: string | null): Promise<ProfileSignals> {
+  if (!userId) {
+    return Promise.resolve({
+      skills: [],
+      preferredJobTypes: [],
+      city: null,
+      province: null,
+    });
+  }
+  return cached(profileCache, userId, () => loadProfileUncached(userId));
+}
+
 function dateValue(value: string | null | undefined) {
   if (!value) return null;
   const parsed = new Date(value).getTime();
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-async function loadExperience(userId?: string | null): Promise<ExperienceSignals> {
-  if (!userId) return { known: false, years: 0, entryCount: 0 };
-
+async function loadExperienceUncached(userId: string): Promise<ExperienceSignals> {
   const { data, error } = await supabase
     .from("work_experience")
     .select("start_date,end_date,currently_working")
@@ -221,7 +271,15 @@ async function loadExperience(userId?: string | null): Promise<ExperienceSignals
   };
 }
 
-async function loadJobs(limit = 120): Promise<JobRow[]> {
+function loadExperience(userId?: string | null): Promise<ExperienceSignals> {
+  if (!userId) return Promise.resolve({ known: false, years: 0, entryCount: 0 });
+  return cached(experienceCache, userId, () => loadExperienceUncached(userId));
+}
+
+async function loadJobsUncached(): Promise<JobRow[]> {
+  // One 180-row request is shared by both recommendation entry points. The top
+  // opportunities path still slices the first 120 rows before ranking, preserving
+  // its previous candidate pool exactly.
   const { data, error } = await supabase
     .from("jobs")
     .select(HOME_JOB_COLUMNS)
@@ -229,7 +287,7 @@ async function loadJobs(limit = 120): Promise<JobRow[]> {
     .eq("is_active", true)
     .or(openClosingDateFilter())
     .order("created_at", { ascending: false })
-    .limit(limit);
+    .limit(180);
 
   if (error) {
     const fallback = await supabase
@@ -239,7 +297,7 @@ async function loadJobs(limit = 120): Promise<JobRow[]> {
       .eq("is_active", true)
       .or(openClosingDateFilter())
       .order("posted_at", { ascending: false })
-      .limit(limit);
+      .limit(180);
 
     if (fallback.error) throw fallback.error;
     return (fallback.data ?? []) as JobRow[];
@@ -248,15 +306,19 @@ async function loadJobs(limit = 120): Promise<JobRow[]> {
   return (data ?? []) as JobRow[];
 }
 
-async function loadHistory(userId?: string | null): Promise<HistorySignals> {
-  const empty: HistorySignals = {
+async function loadJobs(limit = 120): Promise<JobRow[]> {
+  const rows = await cached(jobsCache, "open-jobs-180", loadJobsUncached);
+  return rows.slice(0, limit);
+}
+
+async function loadHistoryUncached(userId: string): Promise<HistorySignals> {
+  const result: HistorySignals = {
     appliedIds: new Set(),
     savedIds: new Set(),
     categories: new Map(),
     companies: new Map(),
     salaryMidpoints: [],
   };
-  if (!userId) return empty;
 
   const [savedRes, applicationsRes] = await Promise.all([
     supabase
@@ -269,8 +331,15 @@ async function loadHistory(userId?: string | null): Promise<HistorySignals> {
       .eq("user_id", userId),
   ]);
 
-  if (savedRes.error) console.warn("Recommendation saved history failed:", savedRes.error.message);
-  if (applicationsRes.error) console.warn("Recommendation application history failed:", applicationsRes.error.message);
+  if (savedRes.error) {
+    console.warn("Recommendation saved history failed:", savedRes.error.message);
+  }
+  if (applicationsRes.error) {
+    console.warn(
+      "Recommendation application history failed:",
+      applicationsRes.error.message,
+    );
+  }
 
   const increment = (map: Map<string, number>, value: unknown, weight = 1) => {
     const key = normalize(value);
@@ -281,23 +350,39 @@ async function loadHistory(userId?: string | null): Promise<HistorySignals> {
   const absorb = (rows: any[], kind: "saved" | "applied") => {
     rows.forEach((row) => {
       const id = String(row?.job_id ?? row?.jobs?.id ?? "");
-      if (id) (kind === "applied" ? empty.appliedIds : empty.savedIds).add(id);
+      if (id) (kind === "applied" ? result.appliedIds : result.savedIds).add(id);
       const job = Array.isArray(row?.jobs) ? row.jobs[0] : row?.jobs;
       if (!job) return;
       const weight = kind === "applied" ? 2 : 1;
-      increment(empty.categories, job.category, weight);
-      increment(empty.companies, job.company_name, weight);
+      increment(result.categories, job.category, weight);
+      increment(result.companies, job.company_name, weight);
       const salary = midpoint(job);
-      if (salary != null) empty.salaryMidpoints.push(salary);
+      if (salary != null) result.salaryMidpoints.push(salary);
     });
   };
 
   absorb((savedRes.data ?? []) as any[], "saved");
   absorb((applicationsRes.data ?? []) as any[], "applied");
-  return empty;
+  return result;
 }
 
-function locationTarget(profile: ProfileSignals, filter?: RecommendationFilter | null): LocationTarget {
+function loadHistory(userId?: string | null): Promise<HistorySignals> {
+  if (!userId) {
+    return Promise.resolve({
+      appliedIds: new Set(),
+      savedIds: new Set(),
+      categories: new Map(),
+      companies: new Map(),
+      salaryMidpoints: [],
+    });
+  }
+  return cached(historyCache, userId, () => loadHistoryUncached(userId));
+}
+
+function locationTarget(
+  profile: ProfileSignals,
+  filter?: RecommendationFilter | null,
+): LocationTarget {
   return parseLocationFilter(filter?.location) ?? {
     city: profile.city,
     province: profile.province,
@@ -351,7 +436,11 @@ function explicitRequiredYears(job: JobRow): number | null {
     if (match) return Number(match[1]);
   }
 
-  if (/no experience|no prior experience|entry level|entry-level|graduate|internship|intern\b|learnership|trainee/.test(structured)) {
+  if (
+    /no experience|no prior experience|entry level|entry-level|graduate|internship|intern\b|learnership|trainee/.test(
+      structured,
+    )
+  ) {
     return 0;
   }
   if (/junior/.test(structured)) return 1;
@@ -359,7 +448,11 @@ function explicitRequiredYears(job: JobRow): number | null {
   if (/senior/.test(structured)) return 4;
   if (/lead|manager|management/.test(structured)) return 5;
 
-  if (/\b(entry level|entry-level|graduate programme|graduate program|internship|intern|learnership|trainee)\b/.test(text)) {
+  if (
+    /\b(entry level|entry-level|graduate programme|graduate program|internship|intern|learnership|trainee)\b/.test(
+      text,
+    )
+  ) {
     return 0;
   }
   if (/\bjunior\b/.test(text)) return 1;
@@ -389,10 +482,26 @@ function experienceTier(job: JobRow, experience: ExperienceSignals) {
   return 2;
 }
 
-function scorePersonalized(
-  job: JobRow,
+function createScoringContext(
   profile: ProfileSignals,
   history: HistorySignals,
+): ScoringContext {
+  const averageSalary = history.salaryMidpoints.length
+    ? history.salaryMidpoints.reduce((sum, value) => sum + value, 0) /
+      history.salaryMidpoints.length
+    : null;
+  return {
+    profileTokens: tokens(
+      [...profile.skills, ...profile.preferredJobTypes].join(" "),
+    ),
+    averageSalary,
+  };
+}
+
+function scorePersonalized(
+  job: JobRow,
+  history: HistorySignals,
+  context: ScoringContext,
 ) {
   let score = 0;
   const jobTokens = tokens(
@@ -408,9 +517,8 @@ function scorePersonalized(
       .join(" "),
   );
 
-  const profileTokens = tokens([...profile.skills, ...profile.preferredJobTypes].join(" "));
   let overlap = 0;
-  profileTokens.forEach((token) => {
+  context.profileTokens.forEach((token) => {
     if (jobTokens.has(token)) overlap += 1;
   });
   score += Math.min(overlap, 8) * 7;
@@ -419,9 +527,9 @@ function scorePersonalized(
   score += (history.companies.get(normalize(job.company_name)) ?? 0) * 12;
 
   const salary = midpoint(job);
-  if (salary != null && history.salaryMidpoints.length) {
-    const average = history.salaryMidpoints.reduce((sum, value) => sum + value, 0) / history.salaryMidpoints.length;
-    const distance = Math.abs(salary - average) / Math.max(average, 1);
+  if (salary != null && context.averageSalary != null) {
+    const distance =
+      Math.abs(salary - context.averageSalary) / Math.max(context.averageSalary, 1);
     score += Math.max(0, 12 - distance * 18);
   }
 
@@ -442,7 +550,8 @@ function compareRanked(
   }
 
   if (experience.known) {
-    const experienceDifference = experienceTier(a, experience) - experienceTier(b, experience);
+    const experienceDifference =
+      experienceTier(a, experience) - experienceTier(b, experience);
     if (experienceDifference !== 0) return experienceDifference;
   }
 
@@ -464,7 +573,10 @@ export async function getTopOpportunities(
   ]);
   const filtered = jobs.filter((job) => matchesFilter(job, filter));
   const target = locationTarget(profile, filter);
-  const scores = new Map(filtered.map((job) => [job.id, scorePersonalized(job, profile, history)]));
+  const context = createScoringContext(profile, history);
+  const scores = new Map(
+    filtered.map((job) => [job.id, scorePersonalized(job, history, context)]),
+  );
 
   filtered.sort((a, b) => compareRanked(a, b, target, experience, scores));
   return filtered.slice(0, limit);
@@ -487,7 +599,10 @@ export async function getPersonalizedMatches(
     .filter((job) => matchesFilter(job, filter));
 
   const target = locationTarget(profile, filter);
-  const scores = new Map(candidates.map((job) => [job.id, scorePersonalized(job, profile, history)]));
+  const context = createScoringContext(profile, history);
+  const scores = new Map(
+    candidates.map((job) => [job.id, scorePersonalized(job, history, context)]),
+  );
 
   candidates.sort((a, b) => compareRanked(a, b, target, experience, scores));
   return candidates.slice(0, limit);
