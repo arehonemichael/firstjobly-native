@@ -1,8 +1,14 @@
-﻿import { JOB_LIST_COLUMNS, type Job } from './jobs';
+﻿import { getHotJobIds } from './apply-clicks';
+import { JOB_LIST_COLUMNS, type Job } from './jobs';
 import { openClosingDateFilter } from './job-availability';
 import { supabase } from './supabase';
 
 export const JOB_PAGE_SIZE = 20;
+
+async function withComputedHotStatus(rows: Job[]): Promise<Job[]> {
+  const hotJobIds = await getHotJobIds();
+  return rows.map((job) => ({ ...job, is_urgent: hotJobIds.has(job.id) }));
+}
 
 export async function getJobs(page = 0): Promise<Job[]> {
   const from = page * JOB_PAGE_SIZE;
@@ -19,7 +25,7 @@ export async function getJobs(page = 0): Promise<Job[]> {
 
   if (error) throw error;
 
-  return (data ?? []) as unknown as Job[];
+  return withComputedHotStatus((data ?? []) as unknown as Job[]);
 }
 
 export async function getFeaturedJobs(limit = 8): Promise<Job[]> {
@@ -35,7 +41,7 @@ export async function getFeaturedJobs(limit = 8): Promise<Job[]> {
 
   if (error) throw error;
 
-  return (data ?? []) as unknown as Job[];
+  return withComputedHotStatus((data ?? []) as unknown as Job[]);
 }
 
 export async function getJob(id: string): Promise<Job | null> {
@@ -49,8 +55,10 @@ export async function getJob(id: string): Promise<Job | null> {
     .maybeSingle();
 
   if (error) throw error;
+  if (!data) return null;
 
-  return data as Job | null;
+  const [job] = await withComputedHotStatus([data as Job]);
+  return job ?? null;
 }
 
 export async function getSearchJobs(limit = 300): Promise<Job[]> {
@@ -65,5 +73,5 @@ export async function getSearchJobs(limit = 300): Promise<Job[]> {
 
   if (error) throw error;
 
-  return (data ?? []) as unknown as Job[];
+  return withComputedHotStatus((data ?? []) as unknown as Job[]);
 }
