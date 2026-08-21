@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
@@ -26,13 +27,13 @@ import {
 
 const HERO_IMAGES = [
   {
-    uri: "https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1400&q=85",
+    uri: "https://images.unsplash.com/photo-1758876201853-31f6bc71f390?auto=format&fit=crop&w=1400&q=82",
   },
   {
-    uri: "https://images.unsplash.com/photo-1497366811353-6870744d04b2?auto=format&fit=crop&w=1400&q=85",
+    uri: "https://images.unsplash.com/photo-1758518730380-04c8e0d57b68?auto=format&fit=crop&w=1400&q=82",
   },
   {
-    uri: "https://images.unsplash.com/photo-1524758631624-e2822e304c36?auto=format&fit=crop&w=1400&q=85",
+    uri: "https://images.unsplash.com/photo-1573167292756-6ca7737b8143?auto=format&fit=crop&w=1400&q=82",
   },
 ] as const;
 
@@ -40,20 +41,14 @@ const HERO_HEADLINES = [
   "Build experience that opens doors",
   "Skills can shape your next move",
   "Start where opportunity grows",
+  "Your next chapter starts with one opportunity",
 ] as const;
 
-const HERO_FACT_INDEXES = [0, 8, 7] as const;
-
 function formatSalary(job: Job): string | null {
-  const format = (value: number) =>
-    new Intl.NumberFormat("en-ZA", {
-      style: "currency",
-      currency: "ZAR",
-      maximumFractionDigits: 0,
-    }).format(value);
+  const format = (value: number) => `R${Math.round(value).toLocaleString("en-ZA")}`;
 
   if (job.salary_min != null && job.salary_max != null) {
-    return `${format(job.salary_min)} – ${format(job.salary_max)}`;
+    return `${format(job.salary_min)} - ${format(job.salary_max)}`;
   }
   if (job.salary_min != null) return `From ${format(job.salary_min)}`;
   if (job.salary_max != null) return `Up to ${format(job.salary_max)}`;
@@ -124,8 +119,17 @@ export default function HomeScreen() {
   }>();
   const [topOpportunities, setTopOpportunities] = useState<Job[]>([]);
   const [matches, setMatches] = useState<Job[]>([]);
-  const [heroImageIndex, setHeroImageIndex] = useState(0);
-  const [heroFactIndex] = useState(() => Math.floor(Math.random() * HERO_HEADLINES.length));
+  const [heroImageIndex, setHeroImageIndex] = useState(() =>
+    Math.floor(Math.random() * HERO_IMAGES.length),
+  );
+  const [heroHeadline] = useState(
+    () => HERO_HEADLINES[Math.floor(Math.random() * HERO_HEADLINES.length)],
+  );
+  const [heroFact] = useState(
+    () =>
+      JOB_MARKET_FACTS[Math.floor(Math.random() * JOB_MARKET_FACTS.length)]?.text ??
+      "Practical experience can strengthen your next application.",
+  );
 
   const filter = useMemo<RecommendationFilter>(
     () => ({
@@ -155,10 +159,6 @@ export default function HomeScreen() {
   }, [user?.user_metadata]);
 
   const greeting = useMemo(() => johannesburgGreeting(), []);
-  const heroFact =
-    JOB_MARKET_FACTS[HERO_FACT_INDEXES[heroFactIndex]]?.text ??
-    JOB_MARKET_FACTS[0]?.text ??
-    "Practical experience can strengthen your next application.";
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -226,7 +226,12 @@ export default function HomeScreen() {
             style={styles.heroImage}
             imageStyle={styles.heroImageRadius}
           >
-            <View style={styles.heroOverlay} />
+            <LinearGradient
+              pointerEvents="none"
+              colors={["rgba(23,33,43,0.50)", "rgba(23,33,43,0.72)", "rgba(23,33,43,0.94)"]}
+              locations={[0, 0.5, 1]}
+              style={styles.heroScrim}
+            />
 
             <View style={styles.heroContent}>
               <View style={styles.recommendedPill}>
@@ -236,7 +241,7 @@ export default function HomeScreen() {
                 </Text>
               </View>
 
-              <Text style={styles.heroHeadline}>{HERO_HEADLINES[heroFactIndex]}</Text>
+              <Text style={styles.heroHeadline}>{heroHeadline}</Text>
               <Text style={styles.heroSubtext}>{heroFact}</Text>
 
               <TouchableOpacity
@@ -321,12 +326,9 @@ export default function HomeScreen() {
                 </Text>
                 <Text style={styles.compactPostedText}>{postedLabel(item)}</Text>
                 {salary ? (
-                  <View style={styles.compactSalaryRow}>
-                    <Text style={styles.salaryIcon}>$</Text>
-                    <Text numberOfLines={1} style={styles.compactSalaryText}>
-                      {salary}
-                    </Text>
-                  </View>
+                  <Text numberOfLines={1} style={styles.compactSalaryText}>
+                    {salary}
+                  </Text>
                 ) : null}
 
                 <View style={styles.locationRow}>
@@ -376,36 +378,15 @@ export default function HomeScreen() {
                 </View>
 
                 <View style={styles.matchBody}>
-                  <View style={styles.matchTopRow}>
-                    <View style={styles.matchIdentity}>
-                      <View style={styles.companyStatusRow}>
-                        <Text numberOfLines={1} style={styles.matchCompany}>
-                          {item.company_name}
-                        </Text>
-                        <View style={styles.statusPill}>
-                          <Text style={styles.statusText}>
-                            {item.is_urgent ? "Hot" : "New"}
-                          </Text>
-                        </View>
-                      </View>
-                      <Text numberOfLines={2} style={styles.matchTitle}>
-                        {item.title}
+                  <View style={styles.companyStatusRow}>
+                    <Text numberOfLines={1} style={styles.matchCompany}>
+                      {item.company_name}
+                    </Text>
+                    <View style={styles.statusPill}>
+                      <Text style={styles.statusText}>
+                        {item.is_urgent ? "Hot" : "New"}
                       </Text>
                     </View>
-
-                    <View style={styles.matchRight}>
-                      <View style={styles.matchLocationRow}>
-                        <Ionicons
-                          name="location-outline"
-                          size={14}
-                          color={theme.colors.inkSoft}
-                        />
-                        <Text numberOfLines={1} style={styles.matchLocation}>
-                          {formatLocation(item)}
-                        </Text>
-                      </View>
-                    </View>
-
                     <TouchableOpacity style={styles.bookmarkButton} activeOpacity={0.7}>
                       <Ionicons
                         name="bookmark-outline"
@@ -413,6 +394,21 @@ export default function HomeScreen() {
                         color={theme.colors.ink}
                       />
                     </TouchableOpacity>
+                  </View>
+
+                  <Text numberOfLines={2} style={styles.matchTitle}>
+                    {item.title}
+                  </Text>
+
+                  <View style={styles.matchLocationRow}>
+                    <Ionicons
+                      name="location-outline"
+                      size={14}
+                      color={theme.colors.inkSoft}
+                    />
+                    <Text numberOfLines={2} style={styles.matchLocation}>
+                      {formatLocation(item)}
+                    </Text>
                   </View>
 
                   <Text numberOfLines={2} style={styles.description}>
@@ -435,12 +431,9 @@ export default function HomeScreen() {
                         <Text style={styles.postedText}>{postedLabel(item)}</Text>
                       </View>
                       {salary ? (
-                        <View style={styles.compactSalaryRow}>
-                          <Text style={styles.salaryIcon}>$</Text>
-                          <Text numberOfLines={1} style={styles.compactSalaryText}>
-                            {salary}
-                          </Text>
-                        </View>
+                        <Text numberOfLines={1} style={styles.compactSalaryText}>
+                          {salary}
+                        </Text>
                       ) : null}
                     </View>
                   </View>
@@ -533,10 +526,8 @@ const styles = StyleSheet.create({
   heroImageRadius: {
     borderRadius: theme.radius.lg,
   },
-  heroOverlay: {
+  heroScrim: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: theme.colors.ink,
-    opacity: 0.58,
   },
   heroContent: {
     paddingHorizontal: 20,
@@ -569,7 +560,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.6,
   },
   heroSubtext: {
-    color: theme.colors.heroSupportingText,
+    color: theme.colors.primaryForeground,
     fontSize: 15,
     lineHeight: 21,
     fontWeight: "500",
@@ -683,7 +674,7 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   companyName: {
-    flexShrink: 1,
+    flex: 1,
     color: theme.colors.ink,
     fontSize: 15,
     lineHeight: 19,
@@ -723,25 +714,13 @@ const styles = StyleSheet.create({
     lineHeight: 14,
     marginTop: 8,
   },
-  compactSalaryRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    marginTop: 4,
-    maxWidth: 150,
-  },
-  salaryIcon: {
-    color: theme.colors.brand,
-    fontSize: 11,
-    lineHeight: 15,
-    fontWeight: "700",
-  },
   compactSalaryText: {
     flexShrink: 1,
     color: theme.colors.brand,
     fontSize: 10,
     lineHeight: 14,
     fontWeight: "600",
+    marginTop: 3,
   },
   locationRow: {
     marginTop: 9,
@@ -760,7 +739,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   matchCard: {
-    minHeight: 162,
+    minHeight: 170,
     backgroundColor: theme.colors.surface,
     borderRadius: theme.radius.md,
     borderWidth: 1,
@@ -792,28 +771,23 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
-  matchTopRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    paddingRight: 28,
-    gap: 8,
-  },
-  matchIdentity: {
-    flex: 1,
-    minWidth: 0,
-  },
   companyStatusRow: {
+    minHeight: 24,
     flexDirection: "row",
     alignItems: "center",
+    paddingRight: 34,
     gap: 7,
   },
   matchCompany: {
+    flex: 1,
+    minWidth: 0,
     color: theme.colors.ink,
     fontSize: 15,
     lineHeight: 20,
     fontWeight: "700",
   },
   statusPill: {
+    flexShrink: 0,
     paddingHorizontal: 7,
     height: 23,
     borderRadius: 7,
@@ -835,19 +809,16 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginTop: 4,
   },
-  matchRight: {
-    width: 126,
-    alignItems: "flex-start",
-    paddingTop: 2,
-  },
   matchLocationRow: {
+    marginTop: 5,
     flexDirection: "row",
-    alignItems: "center",
-    gap: 3,
-    maxWidth: 126,
+    alignItems: "flex-start",
+    gap: 4,
+    paddingRight: 6,
   },
   matchLocation: {
     flex: 1,
+    minWidth: 0,
     color: theme.colors.inkSoft,
     fontSize: 11,
     lineHeight: 15,
@@ -898,9 +869,10 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   postedSalaryStack: {
+    flexShrink: 0,
     alignItems: "flex-end",
     gap: 2,
-    maxWidth: 130,
+    maxWidth: 136,
   },
   postedPill: {
     minHeight: 26,
