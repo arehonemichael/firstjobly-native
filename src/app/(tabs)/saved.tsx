@@ -16,6 +16,7 @@ import { useAuth } from "../../hooks/use-auth";
 import { useScreenBottomPadding } from "../../hooks/use-screen-bottom-padding";
 import { EmptyState, SkeletonJobCard } from "../../components/ui/app-ui";
 import { useSavedJobs } from "../../hooks/use-saved-jobs";
+import { openClosingDateFilter } from "../../lib/job-availability";
 import { supabase } from "../../lib/supabase";
 import type { Job } from "../../lib/jobs";
 
@@ -40,7 +41,9 @@ export default function SavedScreen() {
         .from("jobs")
         .select("*")
         .in("id", savedIds)
-        .eq("approval_status", "approved");
+        .eq("approval_status", "approved")
+        .eq("is_active", true)
+        .or(openClosingDateFilter());
 
       if (error) throw error;
 
@@ -341,11 +344,3 @@ const styles = StyleSheet.create({
     fontSize: 11,
   },
 });
-
-
-
-
-
-
-
-
