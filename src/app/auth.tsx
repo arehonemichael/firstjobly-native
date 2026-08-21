@@ -133,7 +133,7 @@ export default function AuthScreen() {
 
           <View style={styles.brand}>
             <View style={styles.brandMark}><Ionicons name="briefcase-outline" size={28} color={theme.colors.brand} /></View>
-            <Text style={styles.wordmark}>First<Text style={styles.pink}>Jobly</Text></Text>
+            <Text style={styles.wordmark}><Text style={styles.firstWord}>First</Text><Text style={styles.joblyWord}>Jobly</Text></Text>
             <Text style={styles.subtitle}>
               {mode === "signup"
                 ? "Create a free account to save jobs and track applications."
@@ -248,8 +248,9 @@ const styles = StyleSheet.create({
   },
   brand: { alignItems: "center", marginTop: 28 },
   brandMark: { width: 62, height: 62, borderRadius: theme.radius.md, backgroundColor: theme.colors.brandSoft, alignItems: "center", justifyContent: "center", marginBottom: 14 },
-  wordmark: { color: theme.colors.ink, fontSize: 32, lineHeight: 38, fontWeight: "800", letterSpacing: -0.6 },
-  pink: { color: theme.colors.brand },
+  wordmark: { fontSize: 32, lineHeight: 38, fontWeight: "800", letterSpacing: -0.6 },
+  firstWord: { color: theme.colors.brandPink },
+  joblyWord: { color: theme.colors.brandNavy },
   subtitle: { maxWidth: 330, marginTop: 10, color: theme.colors.inkSoft, textAlign: "center", fontSize: 14, lineHeight: 20 },
   formCard: {
     marginTop: 30,
