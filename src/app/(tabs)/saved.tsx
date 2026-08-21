@@ -19,13 +19,22 @@ export default function SavedScreen() {
   const { isAuthenticated, loading: authLoading } = useAuth();
   const { savedIds, loading: savedLoading, refreshSaved, toggleSave } = useSavedJobs();
   const [jobs, setJobs] = useState<Job[]>([]);
-  const [loadingJobs, setLoadingJobs] = useState(false);
+  const [loadingJobs, setLoadingJobs] = useState(true);
+  const [hasResolvedJobs, setHasResolvedJobs] = useState(false);
 
   const loadJobs = useCallback(async () => {
-    if (savedIds.length === 0) {
+    // Do not resolve the job-list stage while the saved-id query is still in flight.
+    // This prevents a cold-start render where savedIds is temporarily [] and the
+    // header flashes "0 saved opportunities" before the real ids arrive.
+    if (authLoading || savedLoading) return;
+
+    if (!isAuthenticated || savedIds.length === 0) {
       setJobs([]);
+      setLoadingJobs(false);
+      setHasResolvedJobs(true);
       return;
     }
+
     try {
       setLoadingJobs(true);
       const { data, error } = await supabase
@@ -44,8 +53,9 @@ export default function SavedScreen() {
       console.error("Could not load saved jobs:", error);
     } finally {
       setLoadingJobs(false);
+      setHasResolvedJobs(true);
     }
-  }, [savedIds]);
+  }, [authLoading, isAuthenticated, savedIds, savedLoading]);
 
   useEffect(() => {
     void loadJobs();
@@ -64,7 +74,9 @@ export default function SavedScreen() {
     [toggleSave],
   );
 
-  if (authLoading || savedLoading) {
+  const initialLoading = authLoading || savedLoading || !hasResolvedJobs;
+
+  if (initialLoading) {
     return (
       <SafeAreaView style={styles.page} edges={["top", "bottom"]}>
         <View style={styles.loadingShell}>
