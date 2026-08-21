@@ -1,3 +1,4 @@
+import { openClosingDateFilter } from "./job-availability";
 import { supabase } from "./supabase";
 import type { Job } from "./jobs";
 
@@ -152,16 +153,19 @@ async function loadJobs(limit = 120): Promise<JobRow[]> {
   const { data, error } = await supabase
     .from("jobs")
     .select(HOME_JOB_COLUMNS)
+    .eq("approval_status", "approved")
     .eq("is_active", true)
+    .or(openClosingDateFilter())
     .order("created_at", { ascending: false })
     .limit(limit);
 
   if (error) {
-    // Some older deployments expose posted_at but not created_at in the API view.
     const fallback = await supabase
       .from("jobs")
       .select(HOME_JOB_COLUMNS.replace(",created_at", ""))
+      .eq("approval_status", "approved")
       .eq("is_active", true)
+      .or(openClosingDateFilter())
       .order("posted_at", { ascending: false })
       .limit(limit);
 
