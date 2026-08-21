@@ -1,3 +1,4 @@
+import { getHotJobIds } from "./apply-clicks";
 import { openClosingDateFilter } from "./job-availability";
 import { supabase } from "./supabase";
 import type { Job } from "./jobs";
@@ -83,10 +84,6 @@ const HOME_JOB_COLUMNS = [
   "requirements",
 ].join(",");
 
-// Home calls the two ranking entry points at the same time. Keep a short-lived
-// in-memory cache so both calls share the same Supabase promises instead of
-// issuing duplicate profile/history/work/job requests. The TTL is deliberately
-// short so saves/applications/profile edits become visible quickly.
 const CACHE_TTL_MS = 30_000;
 const profileCache = new Map<string, CacheEntry<ProfileSignals>>();
 const experienceCache = new Map<string, CacheEntry<ExperienceSignals>>();
@@ -277,9 +274,6 @@ function loadExperience(userId?: string | null): Promise<ExperienceSignals> {
 }
 
 async function loadJobsUncached(): Promise<JobRow[]> {
-  // One 180-row request is shared by both recommendation entry points. The top
-  // opportunities path still slices the first 120 rows before ranking, preserving
-  // its previous candidate pool exactly.
   const { data, error } = await supabase
     .from("jobs")
     .select(HOME_JOB_COLUMNS)
@@ -307,8 +301,13 @@ async function loadJobsUncached(): Promise<JobRow[]> {
 }
 
 async function loadJobs(limit = 120): Promise<JobRow[]> {
-  const rows = await cached(jobsCache, "open-jobs-180", loadJobsUncached);
-  return rows.slice(0, limit);
+  const [rows, hotJobIds] = await Promise.all([
+    cached(jobsCache, "open-jobs-180", loadJobsUncached),
+    getHotJobIds(),
+  ]);
+  return rows
+    .slice(0, limit)
+    .map((job) => ({ ...job, is_urgent: hotJobIds.has(job.id) }));
 }
 
 async function loadHistoryUncached(userId: string): Promise<HistorySignals> {
