@@ -1,5 +1,6 @@
 import { memo, useEffect, useMemo, useState } from "react";
 import {
+  ImageBackground,
   ScrollView,
   StyleSheet,
   Text,
@@ -24,9 +25,6 @@ import {
   type RecommendationFilter,
 } from "../../lib/job-recommendations";
 
-// Free-to-use Pexels imagery selected for an African youth/professional context.
-// The image and fact are chosen independently once per Home mount. Keeping the
-// hero stable while it is visible avoids remote-image swaps and dot desync/flicker.
 const HERO_IMAGES = [
   {
     uri: "https://images.pexels.com/photos/9301196/pexels-photo-9301196.jpeg?auto=compress&cs=tinysrgb&w=1400",
@@ -45,6 +43,21 @@ const HERO_HEADLINES = [
   "Start where opportunity grows",
   "Your next chapter starts with one opportunity",
 ] as const;
+
+const HOME_REQUEST_TIMEOUT_MS = 12_000;
+
+function withTimeout<T>(label: string, promise: Promise<T>, timeoutMs = HOME_REQUEST_TIMEOUT_MS) {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(
+      () => reject(new Error(`${label} timed out after ${timeoutMs}ms`)),
+      timeoutMs,
+    );
+  });
+  return Promise.race([promise, timeout]).finally(() => {
+    if (timer) clearTimeout(timer);
+  }) as Promise<T>;
+}
 
 function formatSalary(job: Job): string | null {
   const format = (value: number) =>
@@ -353,9 +366,10 @@ export default function HomeScreen() {
   const [topOpportunities, setTopOpportunities] = useState<Job[]>([]);
   const [matches, setMatches] = useState<Job[]>([]);
   const [recommendationsLoading, setRecommendationsLoading] = useState(true);
-  const [heroImageIndex] = useState(() =>
+  const [heroImageIndex, setHeroImageIndex] = useState(() =>
     Math.floor(Math.random() * HERO_IMAGES.length),
   );
+  const [heroImageFailures, setHeroImageFailures] = useState(0);
   const [heroHeadline] = useState(
     () => HERO_HEADLINES[Math.floor(Math.random() * HERO_HEADLINES.length)],
   );
@@ -400,29 +414,77 @@ export default function HomeScreen() {
       setRecommendationsLoading(true);
     }
 
+    console.info("[Home] recommendations:start", {
+      userId: userId ?? "anonymous",
+      filter,
+    });
+
     void (async () => {
-      try {
-        // These stay parallel. The recommendation service now deduplicates their
-        // shared Supabase dependencies, so parallelism no longer means duplicate
-        // network work.
-        const [top, personalized] = await Promise.all([
+      const [topResult, personalizedResult] = await Promise.allSettled([
+        withTimeout(
+          "Home top opportunities",
           getTopOpportunities(userId, filter, 10),
+        ),
+        withTimeout(
+          "Home personalized matches",
           getPersonalizedMatches(userId, filter, 20),
-        ]);
-        if (!alive) return;
-        setTopOpportunities(top.length ? top : personalized.slice(0, 10));
-        setMatches(personalized.length ? personalized : top.slice(0, 20));
-      } catch (error) {
-        console.error("Home recommendations failed:", error);
-      } finally {
-        if (alive) setRecommendationsLoading(false);
+        ),
+      ]);
+
+      if (!alive) return;
+
+      const top =
+        topResult.status === "fulfilled" ? topResult.value : ([] as Job[]);
+      const personalized =
+        personalizedResult.status === "fulfilled"
+          ? personalizedResult.value
+          : ([] as Job[]);
+
+      if (topResult.status === "fulfilled") {
+        console.info("[Home] top opportunities:success", {
+          count: top.length,
+        });
+      } else {
+        console.error("[Home] top opportunities:failed", topResult.reason);
       }
-    })();
+
+      if (personalizedResult.status === "fulfilled") {
+        console.info("[Home] personalized matches:success", {
+          count: personalized.length,
+        });
+      } else {
+        console.error(
+          "[Home] personalized matches:failed",
+          personalizedResult.reason,
+        );
+      }
+
+      setTopOpportunities(top.length ? top : personalized.slice(0, 10));
+      setMatches(personalized.length ? personalized : top.slice(0, 20));
+      setRecommendationsLoading(false);
+    })().catch((error) => {
+      if (!alive) return;
+      console.error("[Home] recommendation coordinator failed", error);
+      setRecommendationsLoading(false);
+    });
 
     return () => {
       alive = false;
     };
   }, [authLoading, userId, filter]);
+
+  function handleHeroImageError(error: unknown) {
+    console.error("[Home] hero image failed", {
+      index: heroImageIndex,
+      uri: HERO_IMAGES[heroImageIndex]?.uri,
+      error,
+    });
+
+    if (heroImageFailures < HERO_IMAGES.length - 1) {
+      setHeroImageFailures((count) => count + 1);
+      setHeroImageIndex((index) => (index + 1) % HERO_IMAGES.length);
+    }
+  }
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
@@ -453,63 +515,72 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.heroWrap}>
-          <ExpoImage
+          <ImageBackground
+            key={`hero-${heroImageIndex}`}
             source={HERO_IMAGES[heroImageIndex]}
-            style={styles.heroBackgroundImage}
-            contentFit="cover"
-            cachePolicy="memory-disk"
-            transition={0}
-            priority="normal"
-          />
-          <LinearGradient
-            pointerEvents="none"
-            colors={[
-              "rgba(23,33,43,0.50)",
-              "rgba(23,33,43,0.72)",
-              "rgba(23,33,43,0.94)",
-            ]}
-            locations={[0, 0.5, 1]}
-            style={styles.heroScrim}
-          />
-          <View style={styles.heroContent}>
-            <View style={styles.recommendedPill}>
-              <Ionicons
-                name="sparkles"
-                size={16}
-                color={theme.colors.primaryForeground}
-              />
-              <Text style={styles.recommendedText}>
-                {firstName
-                  ? `Recommended for ${firstName}`
-                  : "Recommended for you"}
-              </Text>
+            resizeMode="cover"
+            style={styles.heroImage}
+            imageStyle={styles.heroImageRadius}
+            onLoad={() =>
+              console.info("[Home] hero image:success", {
+                index: heroImageIndex,
+                uri: HERO_IMAGES[heroImageIndex]?.uri,
+              })
+            }
+            onError={(event) =>
+              handleHeroImageError(event.nativeEvent?.error ?? event.nativeEvent)
+            }
+          >
+            <LinearGradient
+              pointerEvents="none"
+              colors={[
+                "rgba(23,33,43,0.50)",
+                "rgba(23,33,43,0.72)",
+                "rgba(23,33,43,0.94)",
+              ]}
+              locations={[0, 0.5, 1]}
+              style={styles.heroScrim}
+            />
+            <View style={styles.heroContent}>
+              <View style={styles.recommendedPill}>
+                <Ionicons
+                  name="sparkles"
+                  size={16}
+                  color={theme.colors.primaryForeground}
+                />
+                <Text style={styles.recommendedText}>
+                  {firstName
+                    ? `Recommended for ${firstName}`
+                    : "Recommended for you"}
+                </Text>
+              </View>
+              <Text style={styles.heroHeadline}>{heroHeadline}</Text>
+              <Text style={styles.heroSubtext}>{heroFact}</Text>
+              <TouchableOpacity
+                activeOpacity={0.86}
+                style={styles.heroCta}
+                onPress={() => router.push(jobsRoute)}
+              >
+                <Text style={styles.heroCtaText}>See recommendations</Text>
+                <Ionicons
+                  name="arrow-forward"
+                  size={20}
+                  color={theme.colors.ink}
+                />
+              </TouchableOpacity>
             </View>
-            <Text style={styles.heroHeadline}>{heroHeadline}</Text>
-            <Text style={styles.heroSubtext}>{heroFact}</Text>
-            <TouchableOpacity
-              activeOpacity={0.86}
-              style={styles.heroCta}
-              onPress={() => router.push(jobsRoute)}
-            >
-              <Text style={styles.heroCtaText}>See recommendations</Text>
-              <Ionicons
-                name="arrow-forward"
-                size={20}
-                color={theme.colors.ink}
-              />
-            </TouchableOpacity>
-          </View>
-          <View style={styles.carouselDots}>
-            {HERO_IMAGES.map((_, index) => (
-              <View
-                key={index}
-                style={[
-                  styles.carouselDot,
-                  index === heroImageIndex && styles.carouselDotActive,
-                ]}
-              />
-            ))}
-          </View>
+            <View style={styles.carouselDots}>
+              {HERO_IMAGES.map((_, index) => (
+                <View
+                  key={index}
+                  style={[
+                    styles.carouselDot,
+                    index === heroImageIndex && styles.carouselDotActive,
+                  ]}
+                />
+              ))}
+            </View>
+          </ImageBackground>
         </View>
 
         <View style={styles.sectionHeader}>
@@ -598,17 +669,17 @@ const styles = StyleSheet.create({
   },
   heroWrap: {
     marginHorizontal: 16,
-    minHeight: 306,
     borderRadius: theme.radius.lg,
     overflow: "hidden",
     backgroundColor: theme.colors.ink,
     ...theme.shadow.card,
   },
-  heroBackgroundImage: {
-    ...StyleSheet.absoluteFillObject,
-    width: "100%",
-    height: "100%",
+  heroImage: {
+    minHeight: 306,
+    justifyContent: "space-between",
+    backgroundColor: theme.colors.ink,
   },
+  heroImageRadius: { borderRadius: theme.radius.lg },
   heroScrim: { ...StyleSheet.absoluteFillObject },
   heroContent: {
     minHeight: 306,
