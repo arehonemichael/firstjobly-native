@@ -2,8 +2,6 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { supabase } from "./supabase";
 
-export const HOT_JOB_WINDOW_DAYS = 7;
-export const HOT_JOB_CLICK_THRESHOLD = 12;
 const HOT_JOB_CACHE_MS = 5 * 60 * 1000;
 const ANONYMOUS_ID_KEY = "firstjobly.apply-clicks.anonymous-id.v1";
 
