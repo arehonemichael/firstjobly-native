@@ -5,6 +5,7 @@ const PROD = {
   appOpen: "ca-app-pub-1505001993402465/8648800689",
   interstitial: "ca-app-pub-1505001993402465/4410223100",
   native: "ca-app-pub-1505001993402465/9578738973",
+  rewardedDocument: "ca-app-pub-1505001993402465/5757806244",
 } as const;
 
 export const AD_UNITS = {
@@ -12,6 +13,7 @@ export const AD_UNITS = {
   appOpen: __DEV__ ? TestIds.APP_OPEN : PROD.appOpen,
   interstitial: __DEV__ ? TestIds.INTERSTITIAL : PROD.interstitial,
   native: __DEV__ ? TestIds.NATIVE : PROD.native,
+  rewardedDocument: __DEV__ ? TestIds.REWARDED : PROD.rewardedDocument,
 } as const;
 
 export const AD_FEATURES = {
@@ -19,6 +21,7 @@ export const AD_FEATURES = {
   nativeFeed: true,
   nativeDetail: true,
   interstitial: true,
+  rewardedDocument: true,
   appOpen: false,
 } as const;
 
