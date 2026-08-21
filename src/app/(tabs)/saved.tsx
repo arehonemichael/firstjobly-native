@@ -1,13 +1,5 @@
-﻿import { useCallback, useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  FlatList,
-  Image,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -15,16 +7,17 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../../hooks/use-auth";
 import { useScreenBottomPadding } from "../../hooks/use-screen-bottom-padding";
 import { EmptyState, SkeletonJobCard } from "../../components/ui/app-ui";
+import { JobFeedCard } from "../../components/jobs/JobFeedCard";
 import { useSavedJobs } from "../../hooks/use-saved-jobs";
 import { openClosingDateFilter } from "../../lib/job-availability";
 import { supabase } from "../../lib/supabase";
 import type { Job } from "../../lib/jobs";
+import { theme } from "../../constants/theme";
 
 export default function SavedScreen() {
   const bottomContentPadding = useScreenBottomPadding(true);
   const { isAuthenticated, loading: authLoading } = useAuth();
-  const { savedIds, loading: savedLoading, refreshSaved } = useSavedJobs();
-
+  const { savedIds, loading: savedLoading, refreshSaved, toggleSave } = useSavedJobs();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loadingJobs, setLoadingJobs] = useState(false);
 
@@ -33,10 +26,8 @@ export default function SavedScreen() {
       setJobs([]);
       return;
     }
-
     try {
       setLoadingJobs(true);
-
       const { data, error } = await supabase
         .from("jobs")
         .select("*")
@@ -44,19 +35,10 @@ export default function SavedScreen() {
         .eq("approval_status", "approved")
         .eq("is_active", true)
         .or(openClosingDateFilter());
-
       if (error) throw error;
-
       const rows = (data ?? []) as Job[];
-
       const order = new Map(savedIds.map((id, index) => [id, index]));
-
-      rows.sort(
-        (a, b) =>
-          (order.get(a.id) ?? 9999) -
-          (order.get(b.id) ?? 9999)
-      );
-
+      rows.sort((a, b) => (order.get(a.id) ?? 9999) - (order.get(b.id) ?? 9999));
       setJobs(rows);
     } catch (error) {
       console.error("Could not load saved jobs:", error);
@@ -72,7 +54,7 @@ export default function SavedScreen() {
   if (authLoading || savedLoading) {
     return (
       <SafeAreaView style={styles.center}>
-        <ActivityIndicator color="#E1225F" />
+        <ActivityIndicator color={theme.colors.brand} />
       </SafeAreaView>
     );
   }
@@ -80,19 +62,13 @@ export default function SavedScreen() {
   if (!isAuthenticated) {
     return (
       <SafeAreaView style={styles.page} edges={["top", "bottom"]}>
-        <View style={styles.empty}>
-          <Ionicons name="bookmark-outline" size={44} color="#E1225F" />
-
+        <View style={styles.signedOutCard}>
+          <View style={styles.iconWrap}>
+            <Ionicons name="bookmark-outline" size={30} color={theme.colors.brand} />
+          </View>
           <Text style={styles.emptyTitle}>Save jobs for later</Text>
-
-          <Text style={styles.emptyText}>
-            Sign in to save opportunities and access them from your FirstJobly account.
-          </Text>
-
-          <TouchableOpacity
-            style={styles.primary}
-            onPress={() => router.push("/auth")}
-          >
+          <Text style={styles.emptyText}>Sign in to save opportunities and access them from your FirstJobly account.</Text>
+          <TouchableOpacity style={styles.primary} onPress={() => router.push("/auth")}>
             <Text style={styles.primaryText}>Sign in</Text>
           </TouchableOpacity>
         </View>
@@ -106,19 +82,18 @@ export default function SavedScreen() {
         data={jobs}
         keyExtractor={(job) => job.id}
         contentContainerStyle={[styles.list, { paddingBottom: bottomContentPadding }]}
+        ItemSeparatorComponent={() => <View style={styles.separator} />}
         refreshing={savedLoading || loadingJobs}
         onRefresh={() => void refreshSaved()}
         ListHeaderComponent={
           <View style={styles.header}>
             <Text style={styles.title}>Saved jobs</Text>
-            <Text style={styles.subtitle}>
-              {jobs.length} saved {jobs.length === 1 ? "opportunity" : "opportunities"}
-            </Text>
+            <Text style={styles.subtitle}>{jobs.length} saved {jobs.length === 1 ? "opportunity" : "opportunities"}</Text>
           </View>
         }
         ListEmptyComponent={
           loadingJobs ? (
-            <View>
+            <View style={styles.skeletons}>
               <SkeletonJobCard />
               <SkeletonJobCard />
               <SkeletonJobCard />
@@ -133,57 +108,13 @@ export default function SavedScreen() {
           )
         }
         renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.card}
-            onPress={() =>
-              router.push({
-                pathname: "/jobs/[id]",
-                params: { id: item.id },
-              })
-            }
-          >
-            {item.company_logo_url ? (
-              <Image
-                source={{ uri: item.company_logo_url }}
-                style={styles.logo}
-                resizeMode="contain"
-              />
-            ) : (
-              <View style={styles.logo}>
-                <Text style={styles.logoText}>
-                  {item.company_name.charAt(0).toUpperCase()}
-                </Text>
-              </View>
-            )}
-
-            <View style={styles.jobInfo}>
-              <Text style={styles.jobTitle} numberOfLines={2}>
-                {item.title}
-              </Text>
-
-              <Text style={styles.company}>{item.company_name}</Text>
-
-              <View style={styles.meta}>
-                <Ionicons
-                  name="location-outline"
-                  size={14}
-                  color="#556274"
-                />
-
-                <Text style={styles.metaText}>
-                  {item.city
-                    ? `${item.city}, ${item.province}`
-                    : item.province}
-                </Text>
-              </View>
-            </View>
-
-            <Ionicons
-              name="chevron-forward"
-              size={19}
-              color="#94A3B8"
-            />
-          </TouchableOpacity>
+          <JobFeedCard
+            job={item}
+            statusLabel="Saved"
+            bookmarkName="bookmark"
+            onBookmark={() => void toggleSave(item.id)}
+            onPress={() => router.push({ pathname: "/jobs/[id]", params: { id: item.id } })}
+          />
         )}
       />
     </SafeAreaView>
@@ -191,156 +122,42 @@ export default function SavedScreen() {
 }
 
 const styles = StyleSheet.create({
-  page: {
-    flex: 1,
-    backgroundColor: "#F6F7F9",
+  page: { flex: 1, backgroundColor: theme.colors.background },
+  center: { flex: 1, backgroundColor: theme.colors.background, alignItems: "center", justifyContent: "center" },
+  list: { paddingHorizontal: 16, paddingBottom: 110 },
+  header: { paddingTop: 18, paddingBottom: 18 },
+  title: { color: theme.colors.ink, fontSize: 24, lineHeight: 30, fontWeight: "800", letterSpacing: -0.4 },
+  subtitle: { marginTop: 4, color: theme.colors.inkSoft, fontSize: 13, lineHeight: 18 },
+  separator: { height: 10 },
+  skeletons: { gap: 10 },
+  signedOutCard: {
+    margin: 16,
+    padding: 24,
+    borderRadius: theme.radius.lg,
+    borderWidth: 1,
+    borderColor: theme.colors.line,
+    backgroundColor: theme.colors.surface,
+    alignItems: "center",
+    ...theme.shadow.card,
   },
-
-  center: {
-    flex: 1,
-    backgroundColor: "#F6F7F9",
+  iconWrap: {
+    width: 58,
+    height: 58,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.brandSoft,
     alignItems: "center",
     justifyContent: "center",
   },
-
-  list: {
-    paddingHorizontal: 16,
-    paddingBottom: 110,
-  },
-
-  header: {
-    paddingTop: 18,
-    paddingBottom: 18,
-  },
-
-  title: {
-    color: "#061A30",
-    fontSize: 24,
-    fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800",
-  },
-
-  subtitle: {
-    marginTop: 4,
-    color: "#556274",
-    fontSize: 13,
-  },
-
-  empty: {
-    flex: 1,
-    padding: 28,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-
-  emptyTitle: {
-    marginTop: 18,
-    color: "#061A30",
-    fontSize: 21,
-    fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800",
-  },
-
-  emptyText: {
-    maxWidth: 310,
-    marginTop: 8,
-    color: "#556274",
-    fontSize: 13,
-    lineHeight: 20,
-    textAlign: "center",
-  },
-
-  emptyList: {
-    alignItems: "center",
-    paddingTop: 80,
-  },
-
-  emptyListTitle: {
-    marginTop: 12,
-    color: "#061A30",
-    fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800",
-  },
-
+  emptyTitle: { marginTop: 18, color: theme.colors.ink, fontSize: 21, lineHeight: 27, fontWeight: "800" },
+  emptyText: { maxWidth: 310, marginTop: 8, color: theme.colors.inkSoft, fontSize: 13, lineHeight: 20, textAlign: "center" },
   primary: {
     width: "100%",
     height: 52,
     marginTop: 24,
-    borderRadius: 10,
-    backgroundColor: "#E1225F",
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.brand,
     alignItems: "center",
     justifyContent: "center",
   },
-
-  primaryText: {
-    color: "#FFFFFF",
-    fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800",
-  },
-
-  secondary: {
-    marginTop: 20,
-    height: 48,
-    paddingHorizontal: 24,
-    borderWidth: 1,
-    borderColor: "#DFE4EC",
-    borderRadius: 9,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  secondaryText: {
-    color: "#061A30",
-    fontFamily: "PlusJakartaSans_700Bold", fontWeight: "700",
-  },
-
-  card: {
-    minHeight: 88,
-    paddingVertical: 14,
-    flexDirection: "row",
-    alignItems: "flex-start",
-    borderBottomWidth: 1,
-    borderBottomColor: "#E8EBF0",
-  },
-
-  logo: {
-    width: 48,
-    height: 48,
-    borderRadius: 8,
-    backgroundColor: "#F1F5F9",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  logoText: {
-    color: "#E1225F",
-    fontSize: 18,
-    fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800",
-  },
-
-  jobInfo: {
-    flex: 1,
-    marginHorizontal: 12,
-  },
-
-  jobTitle: {
-    color: "#061A30",
-    fontSize: 14,
-    lineHeight: 19,
-    fontFamily: "PlusJakartaSans_700Bold", fontWeight: "700",
-  },
-
-  company: {
-    marginTop: 3,
-    color: "#556274",
-    fontSize: 12,
-  },
-
-  meta: {
-    marginTop: 7,
-    flexDirection: "row",
-    alignItems: "center",
-  },
-
-  metaText: {
-    marginLeft: 4,
-    color: "#556274",
-    fontSize: 11,
-  },
+  primaryText: { color: theme.colors.primaryForeground, fontWeight: "800" },
 });
