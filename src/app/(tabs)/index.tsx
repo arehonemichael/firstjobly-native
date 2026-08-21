@@ -16,9 +16,10 @@ import { formatCategoryLabel } from "../../lib/job-formatters";
 import { getPersonalizedMatches, getTopOpportunities, type RecommendationFilter } from "../../lib/job-recommendations";
 
 const HERO_IMAGES = [
-  { uri: "https://images.pexels.com/photos/9301196/pexels-photo-9301196.jpeg?auto=compress&cs=tinysrgb&w=1400" },
-  { uri: "https://images.pexels.com/photos/7971360/pexels-photo-7971360.jpeg?auto=compress&cs=tinysrgb&w=1400" },
-  { uri: "https://images.pexels.com/photos/12497061/pexels-photo-12497061.jpeg?auto=compress&cs=tinysrgb&w=1400" },
+  require("../../../assets/images/hero/hero-1.png"),
+  require("../../../assets/images/hero/hero-2.png"),
+  require("../../../assets/images/hero/hero-3.png"),
+  require("../../../assets/images/hero/hero-4.png"),
 ] as const;
 
 const HERO_HEADLINES = [
@@ -186,8 +187,7 @@ export default function HomeScreen() {
   const [topOpportunities, setTopOpportunities] = useState<Job[]>([]);
   const [matches, setMatches] = useState<Job[]>([]);
   const [recommendationsLoading, setRecommendationsLoading] = useState(true);
-  const [heroImageIndex, setHeroImageIndex] = useState(() => Math.floor(Math.random() * HERO_IMAGES.length));
-  const [heroImageFailures, setHeroImageFailures] = useState(0);
+  const [heroImageIndex] = useState(() => Math.floor(Math.random() * HERO_IMAGES.length));
   const [heroHeadline] = useState(() => HERO_HEADLINES[Math.floor(Math.random() * HERO_HEADLINES.length)]);
   const [heroFact] = useState(() => JOB_MARKET_FACTS[Math.floor(Math.random() * JOB_MARKET_FACTS.length)]?.text ?? "Practical experience can strengthen your next application.");
   const lastFetchedAt = useRef(0);
@@ -257,14 +257,6 @@ export default function HomeScreen() {
     return () => subscription.remove();
   }, [isFocused, loadRecommendations]);
 
-  function handleHeroImageError(error: unknown) {
-    console.error("[Home] hero image failed", { index: heroImageIndex, uri: HERO_IMAGES[heroImageIndex]?.uri, error });
-    if (heroImageFailures < HERO_IMAGES.length - 1) {
-      setHeroImageFailures((count) => count + 1);
-      setHeroImageIndex((index) => (index + 1) % HERO_IMAGES.length);
-    }
-  }
-
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingBottom: bottomContentPadding + 18 }]} showsVerticalScrollIndicator={false}>
@@ -274,7 +266,7 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.heroWrap}>
-          <ImageBackground key={`hero-${heroImageIndex}`} source={HERO_IMAGES[heroImageIndex]} resizeMode="cover" style={styles.heroImage} imageStyle={styles.heroImageRadius} onLoad={() => console.info("[Home] hero image:success", { index: heroImageIndex, uri: HERO_IMAGES[heroImageIndex]?.uri })} onError={(event) => handleHeroImageError(event.nativeEvent?.error ?? event.nativeEvent)}>
+          <ImageBackground key={`hero-${heroImageIndex}`} source={HERO_IMAGES[heroImageIndex]} resizeMode="cover" style={styles.heroImage} imageStyle={styles.heroImageRadius}>
             <LinearGradient pointerEvents="none" colors={["rgba(23,33,43,0.50)", "rgba(23,33,43,0.72)", "rgba(23,33,43,0.94)"]} locations={[0, 0.5, 1]} style={styles.heroScrim} />
             <View style={styles.heroContent}>
               <View style={styles.recommendedPill}><Ionicons name="sparkles" size={16} color={theme.colors.primaryForeground} /><Text style={styles.recommendedText}>{firstName ? `Recommended for ${firstName}` : "Recommended for you"}</Text></View>
