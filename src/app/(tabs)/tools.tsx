@@ -1,4 +1,4 @@
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -31,7 +31,13 @@ export default function ToolsScreen() {
 
         <View style={styles.grid}>
           {TOOLS.map((tool) => (
-            <TouchableOpacity key={tool.title} style={styles.card} activeOpacity={0.8} onPress={() => router.push(tool.route)}>
+            <Pressable
+              key={tool.title}
+              style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+              onPress={() => router.push(tool.route)}
+              accessibilityRole="button"
+              accessibilityLabel={tool.title}
+            >
               <View style={styles.icon}>
                 <Ionicons name={tool.icon} size={25} color={theme.colors.brand} />
               </View>
@@ -42,7 +48,7 @@ export default function ToolsScreen() {
               <View style={styles.chevronWrap}>
                 <Ionicons name="chevron-forward" size={20} color={theme.colors.inkSoft} />
               </View>
-            </TouchableOpacity>
+            </Pressable>
           ))}
         </View>
 
@@ -75,6 +81,7 @@ const styles = StyleSheet.create({
     gap: 12,
     ...theme.shadow.card,
   },
+  cardPressed: { opacity: 0.86, transform: [{ scale: 0.99 }] },
   icon: {
     width: 54,
     height: 54,
