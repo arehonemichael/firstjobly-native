@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   StyleSheet,
@@ -8,6 +8,7 @@ import {
 import { Lightbulb } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { theme } from "../constants/theme";
 import { sessionJobMarketFact } from "../lib/session-fact";
 
 type LaunchSplashProps = {
@@ -109,10 +110,10 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
   first: {
-    color: "#E1225F",
+    color: theme.colors.brandPink,
   },
   jobly: {
-    color: "#FFFFFF",
+    color: theme.colors.brandNavy,
   },
   greeting: {
     color: "#FFFFFF",
