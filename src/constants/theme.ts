@@ -1,17 +1,24 @@
 import { Platform } from "react-native";
 
+// Official FirstJobly brand colors. Keep these as the single source of truth for
+// all primary brand usage in the native app.
+const BRAND_PINK = "#E1225F";
+const BRAND_NAVY = "#061A30";
+
 export const theme = {
   colors: {
-    ink: "#17212B",
+    brandPink: BRAND_PINK,
+    brandNavy: BRAND_NAVY,
+    ink: BRAND_NAVY,
     inkSoft: "#425466",
-    brand: "#E31C5F",
-    brandPressed: "#C8144D",
+    brand: BRAND_PINK,
+    brandPressed: "#C81D55",
     brandSoft: "#FFF0F5",
     background: "#F7F7F5",
     surface: "#FFFFFF",
     surfaceMuted: "#F0F2F4",
     line: "#E2E6EA",
-    text: "#17212B",
+    text: BRAND_NAVY,
     textMuted: "#6B7785",
     success: "#147A62",
     successSoft: "#E8F7F2",
@@ -25,6 +32,10 @@ export const theme = {
     toolSwitchTrack: "#F6A8C4",
     heroSupportingText: "#D7DEE5",
     heroTrustText: "#F8C5D6",
+    heroOverlaySoft: "rgba(6,26,48,0.50)",
+    heroOverlayMedium: "rgba(6,26,48,0.72)",
+    heroOverlayStrong: "rgba(6,26,48,0.94)",
+    modalOverlay: "rgba(6,26,48,0.45)",
   },
   space: { xxs: 4, xs: 8, sm: 12, md: 16, lg: 24, xl: 32 },
   radius: { sm: 12, md: 16, lg: 24, pill: 999 },
@@ -38,7 +49,7 @@ export const theme = {
   },
   shadow: {
     card: {
-      shadowColor: "#17212B",
+      shadowColor: BRAND_NAVY,
       shadowOffset: { width: 0, height: 6 },
       shadowOpacity: 0.07,
       shadowRadius: 14,
@@ -52,7 +63,7 @@ export const theme = {
 export const Colors = {
   background: theme.colors.background,
   foreground: theme.colors.ink,
-  navy: theme.colors.ink,
+  navy: theme.colors.brandNavy,
   ink: theme.colors.ink,
   inkSoft: theme.colors.inkSoft,
 
