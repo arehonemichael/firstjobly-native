@@ -1,0 +1,332 @@
+import { supabase } from "./supabase";
+import type { Job } from "./jobs";
+
+export type RecommendationFilter = {
+  location?: string | null;
+  role?: string | null;
+  category?: string | null;
+};
+
+type ProfileSignals = {
+  skills: string[];
+  preferredJobTypes: string[];
+  location: string | null;
+};
+
+type HistorySignals = {
+  appliedIds: Set<string>;
+  savedIds: Set<string>;
+  categories: Map<string, number>;
+  companies: Map<string, number>;
+  salaryMidpoints: number[];
+};
+
+type JobRow = Job & {
+  created_at?: string | null;
+  requirements?: string[] | null;
+};
+
+const HOME_JOB_COLUMNS = [
+  "id",
+  "slug",
+  "title",
+  "company_name",
+  "company_logo_url",
+  "company_id",
+  "city",
+  "province",
+  "category",
+  "job_type",
+  "experience_level",
+  "education_level",
+  "salary_min",
+  "salary_max",
+  "salary_period",
+  "closing_date",
+  "posted_at",
+  "created_at",
+  "apply_type",
+  "external_url",
+  "is_urgent",
+  "is_featured",
+  "is_active",
+  "description",
+  "requirements",
+].join(",");
+
+const normalize = (value: unknown) =>
+  String(value ?? "")
+    .toLowerCase()
+    .replace(/[^a-z0-9+.#\-\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const tokens = (value: unknown) =>
+  new Set(
+    normalize(value)
+      .split(" ")
+      .map((item) => item.trim())
+      .filter((item) => item.length >= 2),
+  );
+
+function midpoint(job: Pick<JobRow, "salary_min" | "salary_max">) {
+  if (job.salary_min != null && job.salary_max != null) {
+    return (job.salary_min + job.salary_max) / 2;
+  }
+  return job.salary_min ?? job.salary_max ?? null;
+}
+
+function locationText(job: Pick<JobRow, "city" | "province">) {
+  return normalize([job.city, job.province].filter(Boolean).join(" "));
+}
+
+function isRemote(job: JobRow) {
+  const haystack = normalize(
+    [job.city, job.province, job.title, job.description].filter(Boolean).join(" "),
+  );
+  return haystack.includes("remote") || haystack.includes("work from home");
+}
+
+function recencyValue(job: JobRow) {
+  const value = job.created_at ?? job.posted_at;
+  const parsed = value ? new Date(value).getTime() : 0;
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function matchesFilter(job: JobRow, filter?: RecommendationFilter | null) {
+  if (!filter) return true;
+
+  if (filter.location?.trim()) {
+    const wanted = normalize(filter.location);
+    if (!locationText(job).includes(wanted) && !isRemote(job)) return false;
+  }
+
+  if (filter.category?.trim()) {
+    const wanted = normalize(filter.category);
+    if (!normalize(job.category).includes(wanted)) return false;
+  }
+
+  if (filter.role?.trim()) {
+    const wantedTokens = [...tokens(filter.role)];
+    const roleHaystack = normalize(
+      [job.title, job.category, job.job_type, job.experience_level].filter(Boolean).join(" "),
+    );
+    if (!wantedTokens.every((token) => roleHaystack.includes(token))) return false;
+  }
+
+  return true;
+}
+
+async function loadProfile(userId?: string | null): Promise<ProfileSignals> {
+  if (!userId) return { skills: [], preferredJobTypes: [], location: null };
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("skills,preferred_job_types,preferred_province,preferred_city,province,city,field_of_study,about")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (error) {
+    console.warn("Recommendation profile load failed:", error.message);
+    return { skills: [], preferredJobTypes: [], location: null };
+  }
+
+  const skills = Array.isArray(data?.skills) ? data.skills.map(String) : [];
+  const preferredJobTypes = Array.isArray(data?.preferred_job_types)
+    ? data.preferred_job_types.map(String)
+    : [];
+  const careerText = [data?.field_of_study, data?.about].filter(Boolean).map(String);
+  const location =
+    [data?.preferred_city, data?.preferred_province].filter(Boolean).join(", ") ||
+    [data?.city, data?.province].filter(Boolean).join(", ") ||
+    null;
+
+  return {
+    skills: [...skills, ...careerText],
+    preferredJobTypes,
+    location,
+  };
+}
+
+async function loadJobs(limit = 120): Promise<JobRow[]> {
+  const { data, error } = await supabase
+    .from("jobs")
+    .select(HOME_JOB_COLUMNS)
+    .eq("is_active", true)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    // Some older deployments expose posted_at but not created_at in the API view.
+    const fallback = await supabase
+      .from("jobs")
+      .select(HOME_JOB_COLUMNS.replace(",created_at", ""))
+      .eq("is_active", true)
+      .order("posted_at", { ascending: false })
+      .limit(limit);
+
+    if (fallback.error) throw fallback.error;
+    return (fallback.data ?? []) as JobRow[];
+  }
+
+  return (data ?? []) as JobRow[];
+}
+
+async function loadHistory(userId?: string | null): Promise<HistorySignals> {
+  const empty: HistorySignals = {
+    appliedIds: new Set(),
+    savedIds: new Set(),
+    categories: new Map(),
+    companies: new Map(),
+    salaryMidpoints: [],
+  };
+  if (!userId) return empty;
+
+  const [savedRes, applicationsRes] = await Promise.all([
+    supabase
+      .from("saved_jobs")
+      .select("job_id,jobs(id,category,company_name,salary_min,salary_max)")
+      .eq("user_id", userId),
+    supabase
+      .from("applications")
+      .select("job_id,jobs(id,category,company_name,salary_min,salary_max)")
+      .eq("user_id", userId),
+  ]);
+
+  if (savedRes.error) console.warn("Recommendation saved history failed:", savedRes.error.message);
+  if (applicationsRes.error) console.warn("Recommendation application history failed:", applicationsRes.error.message);
+
+  const increment = (map: Map<string, number>, value: unknown, weight = 1) => {
+    const key = normalize(value);
+    if (!key) return;
+    map.set(key, (map.get(key) ?? 0) + weight);
+  };
+
+  const absorb = (rows: any[], kind: "saved" | "applied") => {
+    rows.forEach((row) => {
+      const id = String(row?.job_id ?? row?.jobs?.id ?? "");
+      if (id) (kind === "applied" ? empty.appliedIds : empty.savedIds).add(id);
+      const job = Array.isArray(row?.jobs) ? row.jobs[0] : row?.jobs;
+      if (!job) return;
+      const weight = kind === "applied" ? 2 : 1;
+      increment(empty.categories, job.category, weight);
+      increment(empty.companies, job.company_name, weight);
+      const salary = midpoint(job);
+      if (salary != null) empty.salaryMidpoints.push(salary);
+    });
+  };
+
+  absorb((savedRes.data ?? []) as any[], "saved");
+  absorb((applicationsRes.data ?? []) as any[], "applied");
+  return empty;
+}
+
+function rankLocation(job: JobRow, wantedLocation: string | null) {
+  if (!wantedLocation) return isRemote(job) ? 1 : 2;
+  const wanted = normalize(wantedLocation);
+  const exact = locationText(job);
+  if (exact.includes(wanted) || wanted.split(" ").some((part) => part.length > 2 && exact.includes(part))) {
+    return 0;
+  }
+  if (isRemote(job)) return 1;
+  return 2;
+}
+
+export async function getTopOpportunities(
+  userId?: string | null,
+  filter?: RecommendationFilter | null,
+  limit = 10,
+): Promise<Job[]> {
+  const [profile, jobs] = await Promise.all([loadProfile(userId), loadJobs(100)]);
+  const filtered = jobs.filter((job) => matchesFilter(job, filter));
+  const location = filter?.location?.trim() || profile.location;
+
+  filtered.sort((a, b) => {
+    const tier = rankLocation(a, location) - rankLocation(b, location);
+    if (tier !== 0) return tier;
+    return recencyValue(b) - recencyValue(a);
+  });
+
+  return filtered.slice(0, limit);
+}
+
+function scorePersonalized(
+  job: JobRow,
+  profile: ProfileSignals,
+  history: HistorySignals,
+) {
+  let score = 0;
+  const jobTokens = tokens(
+    [
+      job.title,
+      job.category,
+      job.job_type,
+      job.experience_level,
+      job.description,
+      ...(job.requirements ?? []),
+    ]
+      .filter(Boolean)
+      .join(" "),
+  );
+
+  const profileTokens = tokens([...profile.skills, ...profile.preferredJobTypes].join(" "));
+  let overlap = 0;
+  profileTokens.forEach((token) => {
+    if (jobTokens.has(token)) overlap += 1;
+  });
+  score += Math.min(overlap, 8) * 7;
+
+  score += (history.categories.get(normalize(job.category)) ?? 0) * 10;
+  score += (history.companies.get(normalize(job.company_name)) ?? 0) * 12;
+
+  const salary = midpoint(job);
+  if (salary != null && history.salaryMidpoints.length) {
+    const average = history.salaryMidpoints.reduce((sum, value) => sum + value, 0) / history.salaryMidpoints.length;
+    const distance = Math.abs(salary - average) / Math.max(average, 1);
+    score += Math.max(0, 12 - distance * 18);
+  }
+
+  if (history.savedIds.has(job.id)) score -= 14;
+  if (profile.location) score += rankLocation(job, profile.location) === 0 ? 6 : isRemote(job) ? 3 : 0;
+
+  return score;
+}
+
+export async function getPersonalizedMatches(
+  userId?: string | null,
+  filter?: RecommendationFilter | null,
+  limit = 20,
+): Promise<Job[]> {
+  const [profile, history, jobs] = await Promise.all([
+    loadProfile(userId),
+    loadHistory(userId),
+    loadJobs(160),
+  ]);
+
+  const candidates = jobs
+    .filter((job) => !history.appliedIds.has(job.id))
+    .filter((job) => matchesFilter(job, filter));
+
+  const hasPersonalSignals =
+    profile.skills.length > 0 ||
+    profile.preferredJobTypes.length > 0 ||
+    history.categories.size > 0 ||
+    history.companies.size > 0 ||
+    history.salaryMidpoints.length > 0;
+
+  if (!hasPersonalSignals) {
+    const location = filter?.location?.trim() || profile.location;
+    candidates.sort((a, b) => {
+      const tier = rankLocation(a, location) - rankLocation(b, location);
+      if (tier !== 0) return tier;
+      return recencyValue(b) - recencyValue(a);
+    });
+    return candidates.slice(0, limit);
+  }
+
+  return candidates
+    .map((job) => ({ job, score: scorePersonalized(job, profile, history) }))
+    .sort((a, b) => b.score - a.score || recencyValue(b.job) - recencyValue(a.job))
+    .slice(0, limit)
+    .map(({ job }) => job);
+}
