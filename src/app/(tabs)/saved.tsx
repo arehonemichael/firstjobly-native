@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -51,10 +51,33 @@ export default function SavedScreen() {
     void loadJobs();
   }, [loadJobs]);
 
+  const renderJob = useCallback(
+    ({ item }: { item: Job }) => (
+      <JobFeedCard
+        job={item}
+        statusLabel="Saved"
+        bookmarkName="bookmark"
+        onBookmark={() => void toggleSave(item.id)}
+        onPress={() => router.push({ pathname: "/jobs/[id]", params: { id: item.id } })}
+      />
+    ),
+    [toggleSave],
+  );
+
   if (authLoading || savedLoading) {
     return (
-      <SafeAreaView style={styles.center}>
-        <ActivityIndicator color={theme.colors.brand} />
+      <SafeAreaView style={styles.page} edges={["top", "bottom"]}>
+        <View style={styles.loadingShell}>
+          <View style={styles.header}>
+            <Text style={styles.title}>Saved jobs</Text>
+            <Text style={styles.subtitle}>Loading your saved opportunities</Text>
+          </View>
+          <View style={styles.skeletons}>
+            <SkeletonJobCard />
+            <SkeletonJobCard />
+            <SkeletonJobCard />
+          </View>
+        </View>
       </SafeAreaView>
     );
   }
@@ -68,7 +91,7 @@ export default function SavedScreen() {
           </View>
           <Text style={styles.emptyTitle}>Save jobs for later</Text>
           <Text style={styles.emptyText}>Sign in to save opportunities and access them from your FirstJobly account.</Text>
-          <TouchableOpacity style={styles.primary} onPress={() => router.push("/auth")}>
+          <TouchableOpacity activeOpacity={0.82} style={styles.primary} onPress={() => router.push("/auth")}>
             <Text style={styles.primaryText}>Sign in</Text>
           </TouchableOpacity>
         </View>
@@ -81,10 +104,15 @@ export default function SavedScreen() {
       <FlatList
         data={jobs}
         keyExtractor={(job) => job.id}
+        renderItem={renderJob}
         contentContainerStyle={[styles.list, { paddingBottom: bottomContentPadding }]}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         refreshing={savedLoading || loadingJobs}
         onRefresh={() => void refreshSaved()}
+        initialNumToRender={6}
+        maxToRenderPerBatch={6}
+        windowSize={7}
+        removeClippedSubviews
         ListHeaderComponent={
           <View style={styles.header}>
             <Text style={styles.title}>Saved jobs</Text>
@@ -107,15 +135,6 @@ export default function SavedScreen() {
             />
           )
         }
-        renderItem={({ item }) => (
-          <JobFeedCard
-            job={item}
-            statusLabel="Saved"
-            bookmarkName="bookmark"
-            onBookmark={() => void toggleSave(item.id)}
-            onPress={() => router.push({ pathname: "/jobs/[id]", params: { id: item.id } })}
-          />
-        )}
       />
     </SafeAreaView>
   );
@@ -123,7 +142,7 @@ export default function SavedScreen() {
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: theme.colors.background },
-  center: { flex: 1, backgroundColor: theme.colors.background, alignItems: "center", justifyContent: "center" },
+  loadingShell: { flex: 1, paddingHorizontal: 16 },
   list: { paddingHorizontal: 16, paddingBottom: 110 },
   header: { paddingTop: 18, paddingBottom: 18 },
   title: { color: theme.colors.ink, fontSize: 24, lineHeight: 30, fontWeight: "800", letterSpacing: -0.4 },
