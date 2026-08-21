@@ -1,4 +1,5 @@
 ﻿import { JOB_LIST_COLUMNS, type Job } from './jobs';
+import { openClosingDateFilter } from './job-availability';
 import { supabase } from './supabase';
 
 export const JOB_PAGE_SIZE = 20;
@@ -12,6 +13,7 @@ export async function getJobs(page = 0): Promise<Job[]> {
     .select(JOB_LIST_COLUMNS)
     .eq('approval_status', 'approved')
     .eq('is_active', true)
+    .or(openClosingDateFilter())
     .order('posted_at', { ascending: false })
     .range(from, to);
 
@@ -26,6 +28,7 @@ export async function getFeaturedJobs(limit = 8): Promise<Job[]> {
     .select(JOB_LIST_COLUMNS)
     .eq('approval_status', 'approved')
     .eq('is_active', true)
+    .or(openClosingDateFilter())
     .eq('is_featured', true)
     .order('posted_at', { ascending: false })
     .limit(limit);
@@ -41,6 +44,8 @@ export async function getJob(id: string): Promise<Job | null> {
     .select('*')
     .eq('id', id)
     .eq('approval_status', 'approved')
+    .eq('is_active', true)
+    .or(openClosingDateFilter())
     .maybeSingle();
 
   if (error) throw error;
@@ -54,6 +59,7 @@ export async function getSearchJobs(limit = 300): Promise<Job[]> {
     .select(JOB_LIST_COLUMNS)
     .eq("approval_status", "approved")
     .eq("is_active", true)
+    .or(openClosingDateFilter())
     .order("posted_at", { ascending: false })
     .limit(limit);
 
