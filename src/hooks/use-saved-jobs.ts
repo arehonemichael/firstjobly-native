@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState } from "react-native";
 import { useFocusEffect } from "expo-router";
-import { useIsFocused } from "@react-navigation/native";
+import { useIsFocused } from "./use-is-focused";
 
 import { useAuth } from "./use-auth";
 import { supabase } from "../lib/supabase";

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppState, FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
-import { useIsFocused } from "@react-navigation/native";
+import { useIsFocused } from "../../hooks/use-is-focused";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useAuth } from "../../hooks/use-auth";
@@ -273,7 +273,7 @@ export default function ApplicationsScreen() {
                       <View style={styles.timelineBody}>
                         <Text style={styles.timelineStatus}>{STATUS_LABEL[entry.status] ?? entry.status}</Text>
                         <Text style={styles.timelineDate}>
-                          {formatDateTime(entry.changed_at)}{entry.changed_by === "employer" ? " · from the employer" : ""}
+                          {formatDateTime(entry.changed_at)}{entry.changed_by === "employer" ? " Â· from the employer" : ""}
                         </Text>
                         {entry.message ? <Text style={styles.timelineMessage}>{entry.message}</Text> : null}
                       </View>

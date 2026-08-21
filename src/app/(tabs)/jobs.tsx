@@ -17,7 +17,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { Image as ExpoImage } from "expo-image";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { useIsFocused } from "@react-navigation/native";
+import { useIsFocused } from "../../hooks/use-is-focused";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { getSearchJobs } from "../../lib/job-api";
