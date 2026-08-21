@@ -15,18 +15,36 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useAuth } from "../../hooks/use-auth";
 import { useScreenBottomPadding } from "../../hooks/use-screen-bottom-padding";
 import { theme } from "../../constants/theme";
+import { JOB_MARKET_FACTS } from "../../constants/job-market-facts";
 import type { Job } from "../../lib/jobs";
+import { formatCategoryLabel } from "../../lib/job-formatters";
 import {
   getPersonalizedMatches,
   getTopOpportunities,
   type RecommendationFilter,
 } from "../../lib/job-recommendations";
 
-const heroImage = {
-  uri: "https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1400&q=85",
-};
+const HERO_IMAGES = [
+  {
+    uri: "https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1400&q=85",
+  },
+  {
+    uri: "https://images.unsplash.com/photo-1497366811353-6870744d04b2?auto=format&fit=crop&w=1400&q=85",
+  },
+  {
+    uri: "https://images.unsplash.com/photo-1524758631624-e2822e304c36?auto=format&fit=crop&w=1400&q=85",
+  },
+] as const;
 
-function formatSalary(job: Job) {
+const HERO_HEADLINES = [
+  "Build experience that opens doors",
+  "Skills can shape your next move",
+  "Start where opportunity grows",
+] as const;
+
+const HERO_FACT_INDEXES = [0, 8, 7] as const;
+
+function formatSalary(job: Job): string | null {
   const format = (value: number) =>
     new Intl.NumberFormat("en-ZA", {
       style: "currency",
@@ -39,7 +57,7 @@ function formatSalary(job: Job) {
   }
   if (job.salary_min != null) return `From ${format(job.salary_min)}`;
   if (job.salary_max != null) return `Up to ${format(job.salary_max)}`;
-  return "Salary not listed";
+  return null;
 }
 
 function formatLocation(job: Job) {
@@ -63,7 +81,8 @@ function tagsFor(job: Job) {
   return [job.category, job.job_type, job.experience_level]
     .filter((value): value is string => Boolean(value?.trim()))
     .filter((value, index, list) => list.indexOf(value) === index)
-    .slice(0, 3);
+    .slice(0, 3)
+    .map(formatCategoryLabel);
 }
 
 function jobPath(job: Job) {
@@ -73,9 +92,31 @@ function jobPath(job: Job) {
   };
 }
 
+function johannesburgGreeting() {
+  try {
+    const hourPart = new Intl.DateTimeFormat("en-ZA", {
+      hour: "2-digit",
+      hour12: false,
+      timeZone: "Africa/Johannesburg",
+    })
+      .formatToParts(new Date())
+      .find((part) => part.type === "hour")?.value;
+    const hour = Number(hourPart ?? 12);
+    if (hour < 12) return "Good morning";
+    if (hour < 18) return "Good afternoon";
+    return "Good evening";
+  } catch {
+    const utcHour = new Date().getUTCHours();
+    const hour = (utcHour + 2) % 24;
+    if (hour < 12) return "Good morning";
+    if (hour < 18) return "Good afternoon";
+    return "Good evening";
+  }
+}
+
 export default function HomeScreen() {
   const bottomContentPadding = useScreenBottomPadding(true);
-  const { userId, loading: authLoading } = useAuth();
+  const { userId, user, loading: authLoading } = useAuth();
   const params = useLocalSearchParams<{
     location?: string;
     role?: string;
@@ -83,6 +124,8 @@ export default function HomeScreen() {
   }>();
   const [topOpportunities, setTopOpportunities] = useState<Job[]>([]);
   const [matches, setMatches] = useState<Job[]>([]);
+  const [heroImageIndex, setHeroImageIndex] = useState(0);
+  const [heroFactIndex] = useState(() => Math.floor(Math.random() * HERO_HEADLINES.length));
 
   const filter = useMemo<RecommendationFilter>(
     () => ({
@@ -103,6 +146,27 @@ export default function HomeScreen() {
     [filter],
   );
 
+  const firstName = useMemo(() => {
+    const metadata = user?.user_metadata ?? {};
+    const value = String(
+      metadata.first_name ?? metadata.full_name ?? metadata.name ?? "",
+    ).trim();
+    return value ? value.split(/\s+/)[0] : "";
+  }, [user?.user_metadata]);
+
+  const greeting = useMemo(() => johannesburgGreeting(), []);
+  const heroFact =
+    JOB_MARKET_FACTS[HERO_FACT_INDEXES[heroFactIndex]]?.text ??
+    JOB_MARKET_FACTS[0]?.text ??
+    "Practical experience can strengthen your next application.";
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setHeroImageIndex((current) => (current + 1) % HERO_IMAGES.length);
+    }, 7000);
+    return () => clearInterval(interval);
+  }, []);
+
   useEffect(() => {
     if (authLoading) return;
     let alive = true;
@@ -115,7 +179,6 @@ export default function HomeScreen() {
         ]);
         if (!alive) return;
 
-        // Keep Home useful even when one section has fewer candidates after filters.
         setTopOpportunities(top.length ? top : personalized.slice(0, 10));
         setMatches(personalized.length ? personalized : top.slice(0, 20));
       } catch (error) {
@@ -135,6 +198,10 @@ export default function HomeScreen() {
         contentContainerStyle={[styles.content, { paddingBottom: bottomContentPadding + 18 }]}
         showsVerticalScrollIndicator={false}
       >
+        <View style={styles.greetingRow}>
+          <Text style={styles.greetingText}>{greeting}</Text>
+        </View>
+
         <View style={styles.topBar}>
           <TouchableOpacity
             activeOpacity={0.78}
@@ -153,17 +220,24 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.heroWrap}>
-          <ImageBackground source={heroImage} resizeMode="cover" style={styles.heroImage} imageStyle={styles.heroImageRadius}>
+          <ImageBackground
+            source={HERO_IMAGES[heroImageIndex]}
+            resizeMode="cover"
+            style={styles.heroImage}
+            imageStyle={styles.heroImageRadius}
+          >
             <View style={styles.heroOverlay} />
 
             <View style={styles.heroContent}>
               <View style={styles.recommendedPill}>
                 <Ionicons name="sparkles" size={16} color={theme.colors.primaryForeground} />
-                <Text style={styles.recommendedText}>Recommended for you</Text>
+                <Text style={styles.recommendedText}>
+                  {firstName ? `Recommended for ${firstName}` : "Recommended for you"}
+                </Text>
               </View>
 
-              <Text style={styles.heroHeadline}>Find the perfect job{"\n"}for your next chapter</Text>
-              <Text style={styles.heroSubtext}>Handpicked opportunities based on your skills and goals.</Text>
+              <Text style={styles.heroHeadline}>{HERO_HEADLINES[heroFactIndex]}</Text>
+              <Text style={styles.heroSubtext}>{heroFact}</Text>
 
               <TouchableOpacity
                 activeOpacity={0.86}
@@ -176,9 +250,15 @@ export default function HomeScreen() {
             </View>
 
             <View style={styles.carouselDots}>
-              <View style={[styles.carouselDot, styles.carouselDotActive]} />
-              <View style={styles.carouselDot} />
-              <View style={styles.carouselDot} />
+              {HERO_IMAGES.map((_, index) => (
+                <View
+                  key={index}
+                  style={[
+                    styles.carouselDot,
+                    index === heroImageIndex && styles.carouselDotActive,
+                  ]}
+                />
+              ))}
             </View>
           </ImageBackground>
         </View>
@@ -195,42 +275,73 @@ export default function HomeScreen() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.topCardsRow}
         >
-          {topOpportunities.map((item) => (
-            <TouchableOpacity
-              key={item.id}
-              activeOpacity={0.82}
-              style={styles.topCard}
-              onPress={() => router.push(jobPath(item))}
-            >
-              <View style={styles.topCardHead}>
-                <View style={styles.companyMark}>
-                  {item.company_logo_url ? (
-                    <Image source={{ uri: item.company_logo_url }} style={styles.companyLogoImage} resizeMode="contain" />
-                  ) : (
-                    <Text style={styles.companyMarkText}>{item.company_name.charAt(0).toUpperCase()}</Text>
-                  )}
-                </View>
-
-                <View style={styles.topCompanyCopy}>
-                  <View style={styles.companyNameRow}>
-                    <Text numberOfLines={1} style={styles.companyName}>{item.company_name}</Text>
-                    <View style={styles.microBadge}>
-                      <Text style={styles.microBadgeText}>{item.is_featured ? "★" : "✦"}</Text>
-                    </View>
+          {topOpportunities.map((item) => {
+            const salary = formatSalary(item);
+            return (
+              <TouchableOpacity
+                key={item.id}
+                activeOpacity={0.82}
+                style={styles.topCard}
+                onPress={() => router.push(jobPath(item))}
+              >
+                <View style={styles.topCardHead}>
+                  <View style={styles.companyMark}>
+                    {item.company_logo_url ? (
+                      <Image
+                        source={{ uri: item.company_logo_url }}
+                        style={styles.companyLogoImage}
+                        resizeMode="contain"
+                      />
+                    ) : (
+                      <Text style={styles.companyMarkText}>
+                        {item.company_name.charAt(0).toUpperCase()}
+                      </Text>
+                    )}
                   </View>
-                  <Text style={styles.categoryLabel}>{item.category}</Text>
+
+                  <View style={styles.topCompanyCopy}>
+                    <View style={styles.companyNameRow}>
+                      <Text numberOfLines={1} style={styles.companyName}>
+                        {item.company_name}
+                      </Text>
+                      <View style={styles.microBadge}>
+                        <Text style={styles.microBadgeText}>
+                          {item.is_featured ? "★" : "✦"}
+                        </Text>
+                      </View>
+                    </View>
+                    <Text style={styles.categoryLabel}>
+                      {formatCategoryLabel(item.category)}
+                    </Text>
+                  </View>
                 </View>
-              </View>
 
-              <Text numberOfLines={2} style={styles.compactJobTitle}>{item.title}</Text>
-              <Text numberOfLines={1} style={styles.salary}>{formatSalary(item)}</Text>
+                <Text numberOfLines={2} style={styles.compactJobTitle}>
+                  {item.title}
+                </Text>
+                <Text style={styles.compactPostedText}>{postedLabel(item)}</Text>
+                {salary ? (
+                  <View style={styles.compactSalaryRow}>
+                    <Text style={styles.salaryIcon}>$</Text>
+                    <Text numberOfLines={1} style={styles.compactSalaryText}>
+                      {salary}
+                    </Text>
+                  </View>
+                ) : null}
 
-              <View style={styles.locationRow}>
-                <Ionicons name="location-outline" size={14} color={theme.colors.inkSoft} />
-                <Text numberOfLines={1} style={styles.locationText}>{formatLocation(item)}</Text>
-              </View>
-            </TouchableOpacity>
-          ))}
+                <View style={styles.locationRow}>
+                  <Ionicons
+                    name="location-outline"
+                    size={14}
+                    color={theme.colors.inkSoft}
+                  />
+                  <Text numberOfLines={1} style={styles.locationText}>
+                    {formatLocation(item)}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
         </ScrollView>
 
         <View style={[styles.sectionHeader, styles.matchesHeader]}>
@@ -241,64 +352,102 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.matchesList}>
-          {matches.map((item) => (
-            <TouchableOpacity
-              key={item.id}
-              activeOpacity={0.84}
-              style={styles.matchCard}
-              onPress={() => router.push(jobPath(item))}
-            >
-              <View style={styles.matchLogo}>
-                {item.company_logo_url ? (
-                  <Image source={{ uri: item.company_logo_url }} style={styles.matchLogoImage} resizeMode="contain" />
-                ) : (
-                  <Text style={styles.matchLogoText}>{item.company_name.charAt(0).toUpperCase()}</Text>
-                )}
-              </View>
-
-              <View style={styles.matchBody}>
-                <View style={styles.matchTopRow}>
-                  <View style={styles.matchIdentity}>
-                    <View style={styles.companyStatusRow}>
-                      <Text numberOfLines={1} style={styles.matchCompany}>{item.company_name}</Text>
-                      <View style={styles.statusPill}>
-                        <Text style={styles.statusText}>{item.is_urgent ? "Hot" : "New"}</Text>
-                      </View>
-                    </View>
-                    <Text numberOfLines={2} style={styles.matchTitle}>{item.title}</Text>
-                  </View>
-
-                  <View style={styles.matchRight}>
-                    <Text numberOfLines={1} style={styles.matchSalary}>{formatSalary(item)}</Text>
-                    <View style={styles.matchLocationRow}>
-                      <Ionicons name="location-outline" size={14} color={theme.colors.inkSoft} />
-                      <Text numberOfLines={1} style={styles.matchLocation}>{formatLocation(item)}</Text>
-                    </View>
-                  </View>
-
-                  <TouchableOpacity style={styles.bookmarkButton} activeOpacity={0.7}>
-                    <Ionicons name="bookmark-outline" size={22} color={theme.colors.ink} />
-                  </TouchableOpacity>
+          {matches.map((item) => {
+            const salary = formatSalary(item);
+            return (
+              <TouchableOpacity
+                key={item.id}
+                activeOpacity={0.84}
+                style={styles.matchCard}
+                onPress={() => router.push(jobPath(item))}
+              >
+                <View style={styles.matchLogo}>
+                  {item.company_logo_url ? (
+                    <Image
+                      source={{ uri: item.company_logo_url }}
+                      style={styles.matchLogoImage}
+                      resizeMode="contain"
+                    />
+                  ) : (
+                    <Text style={styles.matchLogoText}>
+                      {item.company_name.charAt(0).toUpperCase()}
+                    </Text>
+                  )}
                 </View>
 
-                <Text numberOfLines={2} style={styles.description}>{item.description}</Text>
-
-                <View style={styles.matchFooter}>
-                  <View style={styles.tagsRow}>
-                    {tagsFor(item).map((tag) => (
-                      <View key={tag} style={styles.tagPill}>
-                        <Text numberOfLines={1} style={styles.tagText}>{tag}</Text>
+                <View style={styles.matchBody}>
+                  <View style={styles.matchTopRow}>
+                    <View style={styles.matchIdentity}>
+                      <View style={styles.companyStatusRow}>
+                        <Text numberOfLines={1} style={styles.matchCompany}>
+                          {item.company_name}
+                        </Text>
+                        <View style={styles.statusPill}>
+                          <Text style={styles.statusText}>
+                            {item.is_urgent ? "Hot" : "New"}
+                          </Text>
+                        </View>
                       </View>
-                    ))}
+                      <Text numberOfLines={2} style={styles.matchTitle}>
+                        {item.title}
+                      </Text>
+                    </View>
+
+                    <View style={styles.matchRight}>
+                      <View style={styles.matchLocationRow}>
+                        <Ionicons
+                          name="location-outline"
+                          size={14}
+                          color={theme.colors.inkSoft}
+                        />
+                        <Text numberOfLines={1} style={styles.matchLocation}>
+                          {formatLocation(item)}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <TouchableOpacity style={styles.bookmarkButton} activeOpacity={0.7}>
+                      <Ionicons
+                        name="bookmark-outline"
+                        size={22}
+                        color={theme.colors.ink}
+                      />
+                    </TouchableOpacity>
                   </View>
 
-                  <View style={styles.postedPill}>
-                    <Text style={styles.postedText}>{postedLabel(item)}</Text>
+                  <Text numberOfLines={2} style={styles.description}>
+                    {item.description}
+                  </Text>
+
+                  <View style={styles.matchFooter}>
+                    <View style={styles.tagsRow}>
+                      {tagsFor(item).map((tag) => (
+                        <View key={tag} style={styles.tagPill}>
+                          <Text numberOfLines={1} style={styles.tagText}>
+                            {tag}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+
+                    <View style={styles.postedSalaryStack}>
+                      <View style={styles.postedPill}>
+                        <Text style={styles.postedText}>{postedLabel(item)}</Text>
+                      </View>
+                      {salary ? (
+                        <View style={styles.compactSalaryRow}>
+                          <Text style={styles.salaryIcon}>$</Text>
+                          <Text numberOfLines={1} style={styles.compactSalaryText}>
+                            {salary}
+                          </Text>
+                        </View>
+                      ) : null}
+                    </View>
                   </View>
                 </View>
-              </View>
-            </TouchableOpacity>
-          ))}
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -315,6 +464,16 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingTop: 8,
+  },
+  greetingRow: {
+    paddingHorizontal: 16,
+    marginBottom: 2,
+  },
+  greetingText: {
+    color: theme.colors.inkSoft,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "600",
   },
   topBar: {
     minHeight: 58,
@@ -483,7 +642,7 @@ const styles = StyleSheet.create({
   },
   topCard: {
     width: 190,
-    minHeight: 198,
+    minHeight: 208,
     backgroundColor: theme.colors.surface,
     borderRadius: theme.radius.md,
     borderWidth: 1,
@@ -558,12 +717,31 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     marginTop: 14,
   },
-  salary: {
-    color: theme.colors.ink,
-    fontSize: 14,
-    lineHeight: 19,
-    fontWeight: "700",
+  compactPostedText: {
+    color: theme.colors.textMuted,
+    fontSize: 10,
+    lineHeight: 14,
     marginTop: 8,
+  },
+  compactSalaryRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginTop: 4,
+    maxWidth: 150,
+  },
+  salaryIcon: {
+    color: theme.colors.brand,
+    fontSize: 11,
+    lineHeight: 15,
+    fontWeight: "700",
+  },
+  compactSalaryText: {
+    flexShrink: 1,
+    color: theme.colors.brand,
+    fontSize: 10,
+    lineHeight: 14,
+    fontWeight: "600",
   },
   locationRow: {
     marginTop: 9,
@@ -660,15 +838,9 @@ const styles = StyleSheet.create({
   matchRight: {
     width: 126,
     alignItems: "flex-start",
-  },
-  matchSalary: {
-    color: theme.colors.ink,
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: "700",
+    paddingTop: 2,
   },
   matchLocationRow: {
-    marginTop: 5,
     flexDirection: "row",
     alignItems: "center",
     gap: 3,
@@ -699,7 +871,7 @@ const styles = StyleSheet.create({
   matchFooter: {
     marginTop: 11,
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "space-between",
     gap: 8,
   },
@@ -724,6 +896,11 @@ const styles = StyleSheet.create({
     fontSize: 10,
     lineHeight: 14,
     fontWeight: "500",
+  },
+  postedSalaryStack: {
+    alignItems: "flex-end",
+    gap: 2,
+    maxWidth: 130,
   },
   postedPill: {
     minHeight: 26,
