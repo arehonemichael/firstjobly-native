@@ -1,4 +1,6 @@
+import { useEffect, useMemo, useState } from "react";
 import {
+  Image,
   ImageBackground,
   ScrollView,
   StyleSheet,
@@ -8,81 +10,123 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 
+import { useAuth } from "../../hooks/use-auth";
 import { useScreenBottomPadding } from "../../hooks/use-screen-bottom-padding";
 import { theme } from "../../constants/theme";
+import type { Job } from "../../lib/jobs";
+import {
+  getPersonalizedMatches,
+  getTopOpportunities,
+  type RecommendationFilter,
+} from "../../lib/job-recommendations";
 
 const heroImage = {
   uri: "https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1400&q=85",
 };
 
-const topOpportunities = [
-  {
-    company: "Airbnb",
-    badge: "✦",
-    category: "Design",
-    title: "Product Designer",
-    salary: "$120,000 – $145,000",
-    location: "San Francisco, CA",
-    mark: "A",
-  },
-  {
-    company: "Google",
-    badge: "G",
-    category: "Engineering",
-    title: "Frontend Engineer",
-    salary: "$130,000 – $160,000",
-    location: "Remote · United States",
-    mark: "G",
-  },
-  {
-    company: "Notion",
-    badge: "N",
-    category: "Product",
-    title: "Product Manager",
-    salary: "$110,000 – $135,000",
-    location: "New York, NY",
-    mark: "N",
-  },
-  {
-    company: "Stripe",
-    badge: "S",
-    category: "Growth",
-    title: "Market Strategist",
-    salary: "$115,000 – $140,000",
-    location: "Chicago, IL",
-    mark: "S",
-  },
-] as const;
+function formatSalary(job: Job) {
+  const format = (value: number) =>
+    new Intl.NumberFormat("en-ZA", {
+      style: "currency",
+      currency: "ZAR",
+      maximumFractionDigits: 0,
+    }).format(value);
 
-const matches = [
-  {
-    company: "Slack",
-    status: "New",
-    salary: "$115,000 – $140,000",
-    title: "Senior UX Researcher",
-    location: "Remote · United States",
-    description: "Lead user research initiatives that shape products millions of people use every day.",
-    tags: ["UX Research", "User Interviews", "Figma"],
-    posted: "Posted 2h ago",
-    mark: "S",
-  },
-  {
-    company: "Microsoft",
-    status: "Hot",
-    salary: "$125,000 – $150,000",
-    title: "Software Engineer II",
-    location: "Seattle, WA",
-    description: "Build scalable cloud solutions and delightful experiences for Microsoft 365 users.",
-    tags: ["TypeScript", "Azure", ".NET"],
-    posted: "Posted 5h ago",
-    mark: "M",
-  },
-] as const;
+  if (job.salary_min != null && job.salary_max != null) {
+    return `${format(job.salary_min)} – ${format(job.salary_max)}`;
+  }
+  if (job.salary_min != null) return `From ${format(job.salary_min)}`;
+  if (job.salary_max != null) return `Up to ${format(job.salary_max)}`;
+  return "Salary not listed";
+}
+
+function formatLocation(job: Job) {
+  const parts = [job.city, job.province].filter(Boolean);
+  if (parts.length) return parts.join(", ");
+  const haystack = `${job.title} ${job.description}`.toLowerCase();
+  return haystack.includes("remote") ? "Remote" : "South Africa";
+}
+
+function postedLabel(job: Job) {
+  const value = job.created_at ?? job.posted_at;
+  const time = value ? new Date(value).getTime() : 0;
+  if (!time || !Number.isFinite(time)) return "Recently posted";
+  const hours = Math.max(1, Math.floor((Date.now() - time) / 3_600_000));
+  if (hours < 24) return `Posted ${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `Posted ${days}d ago`;
+}
+
+function tagsFor(job: Job) {
+  return [job.category, job.job_type, job.experience_level]
+    .filter((value): value is string => Boolean(value?.trim()))
+    .filter((value, index, list) => list.indexOf(value) === index)
+    .slice(0, 3);
+}
+
+function jobPath(job: Job) {
+  return {
+    pathname: "/jobs/[id]" as const,
+    params: { id: job.id },
+  };
+}
 
 export default function HomeScreen() {
   const bottomContentPadding = useScreenBottomPadding(true);
+  const { userId, loading: authLoading } = useAuth();
+  const params = useLocalSearchParams<{
+    location?: string;
+    role?: string;
+    category?: string;
+  }>();
+  const [topOpportunities, setTopOpportunities] = useState<Job[]>([]);
+  const [matches, setMatches] = useState<Job[]>([]);
+
+  const filter = useMemo<RecommendationFilter>(
+    () => ({
+      location: typeof params.location === "string" ? params.location : null,
+      role: typeof params.role === "string" ? params.role : null,
+      category: typeof params.category === "string" ? params.category : null,
+    }),
+    [params.location, params.role, params.category],
+  );
+
+  const jobsRoute = useMemo(
+    () => ({
+      pathname: "/jobs" as const,
+      params: Object.fromEntries(
+        Object.entries(filter).filter(([, value]) => Boolean(value)),
+      ),
+    }),
+    [filter],
+  );
+
+  useEffect(() => {
+    if (authLoading) return;
+    let alive = true;
+
+    void (async () => {
+      try {
+        const [top, personalized] = await Promise.all([
+          getTopOpportunities(userId, filter, 10),
+          getPersonalizedMatches(userId, filter, 20),
+        ]);
+        if (!alive) return;
+
+        // Keep Home useful even when one section has fewer candidates after filters.
+        setTopOpportunities(top.length ? top : personalized.slice(0, 10));
+        setMatches(personalized.length ? personalized : top.slice(0, 20));
+      } catch (error) {
+        console.error("Home recommendations failed:", error);
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [authLoading, userId, filter]);
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
@@ -95,7 +139,7 @@ export default function HomeScreen() {
           <TouchableOpacity
             activeOpacity={0.78}
             style={styles.jobsYouPill}
-            onPress={() => router.push("/jobs")}
+            onPress={() => router.push(jobsRoute)}
           >
             <Ionicons name="location" size={22} color={theme.colors.brand} />
             <Text style={styles.jobsYouText}>Jobs you</Text>
@@ -124,7 +168,7 @@ export default function HomeScreen() {
               <TouchableOpacity
                 activeOpacity={0.86}
                 style={styles.heroCta}
-                onPress={() => router.push("/jobs")}
+                onPress={() => router.push(jobsRoute)}
               >
                 <Text style={styles.heroCtaText}>See recommendations</Text>
                 <Ionicons name="arrow-forward" size={20} color={theme.colors.ink} />
@@ -141,7 +185,7 @@ export default function HomeScreen() {
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Top opportunities near you</Text>
-          <TouchableOpacity onPress={() => router.push("/jobs")}>
+          <TouchableOpacity onPress={() => router.push(jobsRoute)}>
             <Text style={styles.seeAll}>See all</Text>
           </TouchableOpacity>
         </View>
@@ -153,33 +197,37 @@ export default function HomeScreen() {
         >
           {topOpportunities.map((item) => (
             <TouchableOpacity
-              key={item.company}
+              key={item.id}
               activeOpacity={0.82}
               style={styles.topCard}
-              onPress={() => router.push("/jobs")}
+              onPress={() => router.push(jobPath(item))}
             >
               <View style={styles.topCardHead}>
                 <View style={styles.companyMark}>
-                  <Text style={styles.companyMarkText}>{item.mark}</Text>
+                  {item.company_logo_url ? (
+                    <Image source={{ uri: item.company_logo_url }} style={styles.companyLogoImage} resizeMode="contain" />
+                  ) : (
+                    <Text style={styles.companyMarkText}>{item.company_name.charAt(0).toUpperCase()}</Text>
+                  )}
                 </View>
 
                 <View style={styles.topCompanyCopy}>
                   <View style={styles.companyNameRow}>
-                    <Text numberOfLines={1} style={styles.companyName}>{item.company}</Text>
+                    <Text numberOfLines={1} style={styles.companyName}>{item.company_name}</Text>
                     <View style={styles.microBadge}>
-                      <Text style={styles.microBadgeText}>{item.badge}</Text>
+                      <Text style={styles.microBadgeText}>{item.is_featured ? "★" : "✦"}</Text>
                     </View>
                   </View>
                   <Text style={styles.categoryLabel}>{item.category}</Text>
                 </View>
               </View>
 
-              <Text style={styles.compactJobTitle}>{item.title}</Text>
-              <Text style={styles.salary}>{item.salary}</Text>
+              <Text numberOfLines={2} style={styles.compactJobTitle}>{item.title}</Text>
+              <Text numberOfLines={1} style={styles.salary}>{formatSalary(item)}</Text>
 
               <View style={styles.locationRow}>
                 <Ionicons name="location-outline" size={14} color={theme.colors.inkSoft} />
-                <Text numberOfLines={1} style={styles.locationText}>{item.location}</Text>
+                <Text numberOfLines={1} style={styles.locationText}>{formatLocation(item)}</Text>
               </View>
             </TouchableOpacity>
           ))}
@@ -187,7 +235,7 @@ export default function HomeScreen() {
 
         <View style={[styles.sectionHeader, styles.matchesHeader]}>
           <Text style={styles.sectionTitle}>More great matches for you</Text>
-          <TouchableOpacity onPress={() => router.push("/jobs")}>
+          <TouchableOpacity onPress={() => router.push(jobsRoute)}>
             <Text style={styles.seeAll}>See all</Text>
           </TouchableOpacity>
         </View>
@@ -195,32 +243,36 @@ export default function HomeScreen() {
         <View style={styles.matchesList}>
           {matches.map((item) => (
             <TouchableOpacity
-              key={item.company}
+              key={item.id}
               activeOpacity={0.84}
               style={styles.matchCard}
-              onPress={() => router.push("/jobs")}
+              onPress={() => router.push(jobPath(item))}
             >
               <View style={styles.matchLogo}>
-                <Text style={styles.matchLogoText}>{item.mark}</Text>
+                {item.company_logo_url ? (
+                  <Image source={{ uri: item.company_logo_url }} style={styles.matchLogoImage} resizeMode="contain" />
+                ) : (
+                  <Text style={styles.matchLogoText}>{item.company_name.charAt(0).toUpperCase()}</Text>
+                )}
               </View>
 
               <View style={styles.matchBody}>
                 <View style={styles.matchTopRow}>
                   <View style={styles.matchIdentity}>
                     <View style={styles.companyStatusRow}>
-                      <Text style={styles.matchCompany}>{item.company}</Text>
+                      <Text numberOfLines={1} style={styles.matchCompany}>{item.company_name}</Text>
                       <View style={styles.statusPill}>
-                        <Text style={styles.statusText}>{item.status}</Text>
+                        <Text style={styles.statusText}>{item.is_urgent ? "Hot" : "New"}</Text>
                       </View>
                     </View>
-                    <Text style={styles.matchTitle}>{item.title}</Text>
+                    <Text numberOfLines={2} style={styles.matchTitle}>{item.title}</Text>
                   </View>
 
                   <View style={styles.matchRight}>
-                    <Text style={styles.matchSalary}>{item.salary}</Text>
+                    <Text numberOfLines={1} style={styles.matchSalary}>{formatSalary(item)}</Text>
                     <View style={styles.matchLocationRow}>
                       <Ionicons name="location-outline" size={14} color={theme.colors.inkSoft} />
-                      <Text numberOfLines={1} style={styles.matchLocation}>{item.location}</Text>
+                      <Text numberOfLines={1} style={styles.matchLocation}>{formatLocation(item)}</Text>
                     </View>
                   </View>
 
@@ -233,15 +285,15 @@ export default function HomeScreen() {
 
                 <View style={styles.matchFooter}>
                   <View style={styles.tagsRow}>
-                    {item.tags.map((tag) => (
+                    {tagsFor(item).map((tag) => (
                       <View key={tag} style={styles.tagPill}>
-                        <Text style={styles.tagText}>{tag}</Text>
+                        <Text numberOfLines={1} style={styles.tagText}>{tag}</Text>
                       </View>
                     ))}
                   </View>
 
                   <View style={styles.postedPill}>
-                    <Text style={styles.postedText}>{item.posted}</Text>
+                    <Text style={styles.postedText}>{postedLabel(item)}</Text>
                   </View>
                 </View>
               </View>
@@ -451,6 +503,11 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.brandSoft,
     alignItems: "center",
     justifyContent: "center",
+    overflow: "hidden",
+  },
+  companyLogoImage: {
+    width: 36,
+    height: 36,
   },
   companyMarkText: {
     color: theme.colors.brand,
@@ -542,6 +599,11 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.brandSoft,
     alignItems: "center",
     justifyContent: "center",
+    overflow: "hidden",
+  },
+  matchLogoImage: {
+    width: 46,
+    height: 46,
   },
   matchLogoText: {
     color: theme.colors.brand,
