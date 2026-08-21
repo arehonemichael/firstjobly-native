@@ -1,4 +1,4 @@
-﻿import {
+import {
   PlusJakartaSans_400Regular,
   PlusJakartaSans_500Medium,
   PlusJakartaSans_600SemiBold,
@@ -16,7 +16,14 @@ export default function RootLayout() {
   const auth = useAuth();
   const authAny = auth as any;
   const [showLaunchSplash, setShowLaunchSplash] = useState(true);
-  const firstName = String(authAny?.user?.user_metadata?.full_name ?? authAny?.user?.user_metadata?.name ?? "").trim().split(/\s+/)[0] || null;
+  const firstName =
+    String(
+      authAny?.user?.user_metadata?.full_name ??
+        authAny?.user?.user_metadata?.name ??
+        "",
+    )
+      .trim()
+      .split(/\s+/)[0] || null;
   const authReady = !authAny?.loading;
   const finishLaunchSplash = useCallback(() => setShowLaunchSplash(false), []);
   const [fontsLoaded] = useFonts({
@@ -41,23 +48,26 @@ export default function RootLayout() {
       </>
     );
   }
-return (
+
+  return (
     <>
       <StatusBar style="dark" />
-
-      <Stack screenOptions={{ headerShown: false, animation: "slide_from_right" }}>
-        <Stack.Screen name="(tabs)" />
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          animation: "slide_from_right",
+          gestureEnabled: true,
+          gestureDirection: "horizontal",
+          animationMatchesGesture: true,
+        }}
+      >
+        <Stack.Screen name="(tabs)" options={{ animation: "none" }} />
         <Stack.Screen name="jobs/[id]" />
         <Stack.Screen
           name="auth"
-          options={{ presentation: "modal" }}
+          options={{ presentation: "card", animation: "slide_from_right" }}
         />
       </Stack>
     </>
   );
 }
-
-
-
-
-
