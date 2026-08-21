@@ -16,7 +16,13 @@ type CvAiResponse = {
   error?: string;
 };
 
+const CV_AI_URL = process.env.EXPO_PUBLIC_CV_AI_URL?.trim();
+
 export async function generateCvText(input: CvAiInput): Promise<string> {
+  if (!CV_AI_URL) {
+    throw new Error("AI Assist is not configured yet.");
+  }
+
   const { data: sessionData } = await supabase.auth.getSession();
   const token = sessionData.session?.access_token;
 
@@ -24,35 +30,37 @@ export async function generateCvText(input: CvAiInput): Promise<string> {
     throw new Error("Sign in to use AI Assist.");
   }
 
-  const { data, error } = await supabase.functions.invoke<CvAiResponse>("cv-ai", {
-    body: input,
+  const response = await fetch(CV_AI_URL, {
+    method: "POST",
     headers: {
+      "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
+    body: JSON.stringify(input),
   });
 
-  if (error) {
-    console.error("CV AI function error:", error);
-    const context = (error as { context?: Response }).context;
-    if (context) {
-      try {
-        const raw = await context.text();
-        console.log("CV AI raw response:", raw);
-        const payload = JSON.parse(raw) as CvAiResponse;
-        throw new Error(payload.error || "AI generation failed.");
-      } catch (parseError) {
-        if (parseError instanceof Error && parseError.message !== "AI generation failed.") {
-          throw parseError;
-        }
-      }
+  const raw = await response.text();
+  console.log("CV AI status:", response.status);
+
+  let payload: CvAiResponse | null = null;
+  try {
+    payload = raw ? (JSON.parse(raw) as CvAiResponse) : null;
+  } catch {
+    payload = null;
+  }
+
+  if (!response.ok || !payload?.text) {
+    if (response.status === 401) {
+      throw new Error("Sign in to use AI Assist.");
     }
-    throw new Error("AI generation failed. Please retry.");
+    if (response.status === 429) {
+      throw new Error("Too many requests. Try again shortly.");
+    }
+    if (response.status === 504) {
+      throw new Error("AI request timed out. Please retry.");
+    }
+    throw new Error(payload?.error || `AI generation failed (${response.status}).`);
   }
 
-  const text = data?.text?.trim();
-  if (!text) {
-    throw new Error(data?.error || "AI returned no text. Please retry.");
-  }
-
-  return text;
+  return payload.text.trim();
 }
