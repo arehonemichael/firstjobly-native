@@ -1,13 +1,16 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AppState, FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
+import { useIsFocused } from "@react-navigation/native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useAuth } from "../../hooks/use-auth";
 import { useScreenBottomPadding } from "../../hooks/use-screen-bottom-padding";
 import { supabase } from "../../lib/supabase";
 import { theme } from "../../constants/theme";
+
+const APPLICATIONS_STALE_MS = 7 * 60 * 1000;
 
 const STATUS_LABEL: Record<string, string> = {
   submitted: "Submitted",
@@ -69,42 +72,82 @@ function ApplicationSkeleton() {
 export default function ApplicationsScreen() {
   const bottomContentPadding = useScreenBottomPadding(false);
   const { userId, loading: authLoading } = useAuth();
+  const isFocused = useIsFocused();
   const [items, setItems] = useState<Application[]>([]);
   const [history, setHistory] = useState<History[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
+  const lastFetchedAt = useRef(0);
+  const inFlight = useRef(false);
+  const hasLoaded = useRef(false);
 
-  const load = useCallback(async () => {
-    if (authLoading) return;
+  const load = useCallback(async (force = false, manualRefresh = false) => {
+    if (authLoading || inFlight.current) return;
+    if (!force && Date.now() - lastFetchedAt.current < APPLICATIONS_STALE_MS) return;
+
     if (!userId) {
       setItems([]);
       setHistory([]);
       setLoading(false);
+      setRefreshing(false);
+      hasLoaded.current = true;
+      lastFetchedAt.current = Date.now();
       return;
     }
-    setLoading(true);
-    const [applicationsRes, historyRes] = await Promise.all([
-      supabase
-        .from("applications")
-        .select("*, jobs(id,slug,title,company_name)")
-        .eq("user_id", userId)
-        .order("applied_at", { ascending: false }),
-      supabase
-        .from("application_status_history")
-        .select("id,application_id,status,message,changed_by,changed_at")
-        .order("changed_at", { ascending: false }),
-    ]);
-    setLoading(false);
-    if (applicationsRes.error) {
-      console.error("Applications load failed:", applicationsRes.error);
-      return;
+
+    inFlight.current = true;
+    if (!hasLoaded.current) setLoading(true);
+    if (manualRefresh) setRefreshing(true);
+
+    try {
+      const [applicationsRes, historyRes] = await Promise.all([
+        supabase
+          .from("applications")
+          .select("*, jobs(id,slug,title,company_name)")
+          .eq("user_id", userId)
+          .order("applied_at", { ascending: false }),
+        supabase
+          .from("application_status_history")
+          .select("id,application_id,status,message,changed_by,changed_at")
+          .order("changed_at", { ascending: false }),
+      ]);
+
+      if (applicationsRes.error) {
+        console.error("Applications load failed:", applicationsRes.error);
+        return;
+      }
+      if (historyRes.error) console.error("Application history load failed:", historyRes.error);
+
+      setItems((applicationsRes.data ?? []) as Application[]);
+      setHistory((historyRes.data ?? []) as History[]);
+      lastFetchedAt.current = Date.now();
+    } finally {
+      inFlight.current = false;
+      hasLoaded.current = true;
+      setLoading(false);
+      setRefreshing(false);
     }
-    if (historyRes.error) console.error("Application history load failed:", historyRes.error);
-    setItems((applicationsRes.data ?? []) as Application[]);
-    setHistory((historyRes.data ?? []) as History[]);
   }, [authLoading, userId]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    lastFetchedAt.current = 0;
+    hasLoaded.current = false;
+    void load(true);
+  }, [authLoading, userId, load]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void load(false);
+    }, [load]),
+  );
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active" && isFocused) void load(false);
+    });
+    return () => subscription.remove();
+  }, [isFocused, load]);
 
   const historyByApplication = useMemo(() => {
     const grouped = new Map<string, History[]>();
@@ -156,8 +199,8 @@ export default function ApplicationsScreen() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={[styles.list, { paddingBottom: bottomContentPadding }]}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
-        refreshing={loading}
-        onRefresh={() => void load()}
+        refreshing={refreshing}
+        onRefresh={() => void load(true, true)}
         initialNumToRender={6}
         maxToRenderPerBatch={6}
         windowSize={7}
