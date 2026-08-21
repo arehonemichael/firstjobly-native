@@ -20,6 +20,7 @@ import { getJob } from "../../lib/job-api";
 import { useSavedJobs } from "../../hooks/use-saved-jobs";
 import { useAuth } from "../../hooks/use-auth";
 import { evaluateEasyApply } from "../../lib/apply-gate";
+import { trackApplyClick } from "../../lib/apply-clicks";
 import { maybeRequestReviewAfterSuccessfulApply } from "../../lib/rate-us";
 import { supabase } from "../../lib/supabase";
 import type { Job } from "../../lib/jobs";
@@ -125,11 +126,15 @@ export default function JobDetailsScreen() {
     if (job!.apply_type !== "easy_apply") {
       if (!job!.external_url) return;
       const canOpen = await Linking.canOpenURL(job!.external_url);
-      if (canOpen) await Linking.openURL(job!.external_url);
+      if (canOpen) {
+        await trackApplyClick(job!.id, userId);
+        await Linking.openURL(job!.external_url);
+      }
       return;
     }
 
     if (!userId) {
+      await trackApplyClick(job!.id, null);
       Alert.alert("Sign in to apply", "Sign in to use FirstJobly Easy Apply.", [
         { text: "Cancel", style: "cancel" },
         { text: "Sign in", onPress: () => router.push("/auth") },
@@ -141,6 +146,8 @@ export default function JobDetailsScreen() {
       Alert.alert("Already applied", `This application is currently marked as ${existingApplication.status ?? "submitted"}.`);
       return;
     }
+
+    await trackApplyClick(job!.id, userId);
 
     const [profileRes, experienceRes, documentsRes] = await Promise.all([
       supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
