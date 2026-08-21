@@ -6,11 +6,12 @@ import {
   PlusJakartaSans_800ExtraBold,
   useFonts,
 } from "@expo-google-fonts/plus-jakarta-sans";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { LaunchSplash } from "../components/launch-splash";
 import { useAuth } from "../hooks/use-auth";
+import { recordAppSession } from "../lib/rate-us";
 
 export default function RootLayout() {
   const auth = useAuth();
@@ -33,6 +34,10 @@ export default function RootLayout() {
     PlusJakartaSans_700Bold,
     PlusJakartaSans_800ExtraBold,
   });
+
+  useEffect(() => {
+    void recordAppSession();
+  }, []);
 
   if (!fontsLoaded) return null;
 
