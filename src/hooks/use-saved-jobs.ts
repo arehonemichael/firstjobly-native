@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState } from "react-native";
 import { useFocusEffect } from "expo-router";
+import { useIsFocused } from "@react-navigation/native";
 
 import { useAuth } from "./use-auth";
 import { supabase } from "../lib/supabase";
@@ -9,6 +10,7 @@ const SAVED_STALE_MS = 7 * 60 * 1000;
 
 export function useSavedJobs() {
   const { userId, loading: authLoading } = useAuth();
+  const isFocused = useIsFocused();
 
   const [savedIds, setSavedIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,10 +63,10 @@ export function useSavedJobs() {
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (state) => {
-      if (state === "active") void loadSaved(false);
+      if (state === "active" && isFocused) void loadSaved(false);
     });
     return () => subscription.remove();
-  }, [loadSaved]);
+  }, [isFocused, loadSaved]);
 
   const isSaved = useCallback(
     (jobId: string) => savedIds.includes(jobId),
