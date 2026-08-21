@@ -1,12 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  FlatList,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -14,6 +7,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../../hooks/use-auth";
 import { useScreenBottomPadding } from "../../hooks/use-screen-bottom-padding";
 import { supabase } from "../../lib/supabase";
+import { theme } from "../../constants/theme";
 
 const STATUS_LABEL: Record<string, string> = {
   submitted: "Submitted",
@@ -31,12 +25,7 @@ type Application = {
   cover_note: string | null;
   is_draft: boolean;
   status: string;
-  jobs: {
-    id: string;
-    slug: string | null;
-    title: string;
-    company_name: string;
-  } | null;
+  jobs: { id: string; slug: string | null; title: string; company_name: string } | null;
 };
 
 type History = {
@@ -49,11 +38,7 @@ type History = {
 };
 
 function formatDate(value: string) {
-  return new Date(value).toLocaleDateString("en-ZA", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+  return new Date(value).toLocaleDateString("en-ZA", { day: "numeric", month: "short", year: "numeric" });
 }
 
 function formatDateTime(value: string) {
@@ -76,16 +61,13 @@ export default function ApplicationsScreen() {
 
   const load = useCallback(async () => {
     if (authLoading) return;
-
     if (!userId) {
       setItems([]);
       setHistory([]);
       setLoading(false);
       return;
     }
-
     setLoading(true);
-
     const [applicationsRes, historyRes] = await Promise.all([
       supabase
         .from("applications")
@@ -97,43 +79,29 @@ export default function ApplicationsScreen() {
         .select("id,application_id,status,message,changed_by,changed_at")
         .order("changed_at", { ascending: false }),
     ]);
-
     setLoading(false);
-
     if (applicationsRes.error) {
       console.error("Applications load failed:", applicationsRes.error);
       return;
     }
-
-    if (historyRes.error) {
-      console.error("Application history load failed:", historyRes.error);
-    }
-
+    if (historyRes.error) console.error("Application history load failed:", historyRes.error);
     setItems((applicationsRes.data ?? []) as Application[]);
     setHistory((historyRes.data ?? []) as History[]);
   }, [authLoading, userId]);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  useEffect(() => { void load(); }, [load]);
 
   if (authLoading || loading) {
-    return (
-      <SafeAreaView style={styles.center}>
-        <ActivityIndicator color="#E1225F" />
-      </SafeAreaView>
-    );
+    return <SafeAreaView style={styles.center}><ActivityIndicator color={theme.colors.brand} /></SafeAreaView>;
   }
 
   if (!userId) {
     return (
       <SafeAreaView style={styles.page}>
-        <View style={styles.empty}>
-          <Ionicons name="briefcase-outline" size={45} color="#E1225F" />
+        <View style={styles.signedOutCard}>
+          <View style={styles.iconWrap}><Ionicons name="briefcase-outline" size={30} color={theme.colors.brand} /></View>
           <Text style={styles.emptyTitle}>Track your applications</Text>
-          <Text style={styles.emptyText}>
-            Sign in to see every FirstJobly application and its latest status.
-          </Text>
+          <Text style={styles.emptyText}>Sign in to see every FirstJobly application and its latest status.</Text>
           <TouchableOpacity style={styles.primary} onPress={() => router.push("/auth")}>
             <Text style={styles.primaryText}>Sign in</Text>
           </TouchableOpacity>
@@ -148,26 +116,25 @@ export default function ApplicationsScreen() {
         data={items}
         keyExtractor={(item) => item.id}
         contentContainerStyle={[styles.list, { paddingBottom: bottomContentPadding }]}
+        ItemSeparatorComponent={() => <View style={styles.separator} />}
         refreshing={loading}
         onRefresh={() => void load()}
         ListHeaderComponent={
           <View style={styles.header}>
             <View style={styles.headerRow}>
-              <TouchableOpacity style={styles.back} onPress={() => router.back()}>
-                <Ionicons name="arrow-back" size={22} color="#061A30" />
+              <TouchableOpacity style={styles.iconButton} onPress={() => router.back()}>
+                <Ionicons name="arrow-back" size={22} color={theme.colors.ink} />
               </TouchableOpacity>
-              <View>
+              <View style={styles.headerCopy}>
                 <Text style={styles.title}>My applications</Text>
-                <Text style={styles.subtitle}>
-                  Track jobs you applied for through FirstJobly.
-                </Text>
+                <Text style={styles.subtitle}>Track jobs you applied for through FirstJobly.</Text>
               </View>
             </View>
           </View>
         }
         ListEmptyComponent={
           <View style={styles.emptyList}>
-            <Ionicons name="briefcase-outline" size={38} color="#94A3B8" />
+            <View style={styles.iconWrap}><Ionicons name="briefcase-outline" size={28} color={theme.colors.brand} /></View>
             <Text style={styles.emptyListTitle}>No applications yet</Text>
             <TouchableOpacity style={styles.secondary} onPress={() => router.push("/jobs")}>
               <Text style={styles.secondaryText}>Search jobs</Text>
@@ -175,72 +142,42 @@ export default function ApplicationsScreen() {
           </View>
         }
         renderItem={({ item }) => {
-          const timeline = history.filter(
-            (entry) => entry.application_id === item.id
-          );
+          const timeline = history.filter((entry) => entry.application_id === item.id);
           const latestNote = timeline.find((entry) => entry.message);
           const expanded = openId === item.id;
+          const status = item.is_draft ? "Draft" : STATUS_LABEL[item.status] ?? item.status;
 
           return (
             <View style={styles.card}>
-              <TouchableOpacity
-                disabled={!item.jobs}
-                onPress={() => {
-                  if (!item.jobs) return;
-                  router.push({
-                    pathname: "/jobs/[id]",
-                    params: { id: item.jobs.id },
-                  });
-                }}
-              >
-                <Text style={styles.jobTitle}>
-                  {item.jobs?.title ?? "Listing removed"}
-                </Text>
-                <Text style={styles.company}>
-                  {item.jobs?.company_name ?? ""}
-                  {item.jobs ? " � " : ""}
-                  {formatDate(item.applied_at)}
-                </Text>
-              </TouchableOpacity>
-
-              <View style={styles.statusRow}>
-                <View style={[styles.badge, item.is_draft && styles.draftBadge]}>
-                  <Text style={styles.badgeText}>
-                    {item.is_draft
-                      ? "Draft"
-                      : STATUS_LABEL[item.status] ?? item.status}
-                  </Text>
+              <View style={styles.cardHeader}>
+                <View style={styles.jobMark}>
+                  <Text style={styles.jobMarkText}>{item.jobs?.company_name?.charAt(0).toUpperCase() || "F"}</Text>
                 </View>
+                <TouchableOpacity
+                  style={styles.jobCopy}
+                  disabled={!item.jobs}
+                  onPress={() => item.jobs && router.push({ pathname: "/jobs/[id]", params: { id: item.jobs.id } })}
+                >
+                  <View style={styles.companyStatusRow}>
+                    <Text numberOfLines={1} style={styles.company}>{item.jobs?.company_name ?? "Listing removed"}</Text>
+                    <View style={styles.badge}><Text style={styles.badgeText}>{status}</Text></View>
+                  </View>
+                  <Text numberOfLines={2} style={styles.jobTitle}>{item.jobs?.title ?? "Listing removed"}</Text>
+                  <Text style={styles.appliedDate}>Applied {formatDate(item.applied_at)}</Text>
+                </TouchableOpacity>
               </View>
 
               {latestNote?.message && !expanded ? (
                 <View style={styles.note}>
-                  <Ionicons
-                    name="chatbox-outline"
-                    size={15}
-                    color="#E1225F"
-                  />
-                  <Text style={styles.noteText} numberOfLines={2}>
-                    {latestNote.message}
-                  </Text>
+                  <Ionicons name="chatbox-outline" size={15} color={theme.colors.brand} />
+                  <Text style={styles.noteText} numberOfLines={2}>{latestNote.message}</Text>
                 </View>
               ) : null}
 
               {timeline.length > 0 ? (
-                <TouchableOpacity
-                  style={styles.historyButton}
-                  onPress={() => setOpenId(expanded ? null : item.id)}
-                >
-                  <Text style={styles.historyText}>
-                    {expanded
-                      ? "Hide status history"
-                      : `Status history (${timeline.length})`}
-                  </Text>
-                  <Ionicons
-                    name={expanded ? "chevron-up" : "chevron-down"}
-                    size={17}
-                    color="#E1225F"
-                  />
+                <TouchableOpacity style={styles.historyButton} onPress={() => setOpenId(expanded ? null : item.id)}>
+                  <Text style={styles.historyText}>{expanded ? "Hide status history" : `Status history (${timeline.length})`}</Text>
+                  <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={17} color={theme.colors.brand} />
                 </TouchableOpacity>
               ) : null}
 
@@ -250,20 +187,11 @@ export default function ApplicationsScreen() {
                     <View key={entry.id} style={styles.timelineItem}>
                       <View style={styles.dot} />
                       <View style={styles.timelineBody}>
-                        <Text style={styles.timelineStatus}>
-                          {STATUS_LABEL[entry.status] ?? entry.status}
-                        </Text>
+                        <Text style={styles.timelineStatus}>{STATUS_LABEL[entry.status] ?? entry.status}</Text>
                         <Text style={styles.timelineDate}>
-                          {formatDateTime(entry.changed_at)}
-                          {entry.changed_by === "employer"
-                            ? " � from the employer"
-                            : ""}
+                          {formatDateTime(entry.changed_at)}{entry.changed_by === "employer" ? " · from the employer" : ""}
                         </Text>
-                        {entry.message ? (
-                          <Text style={styles.timelineMessage}>
-                            {entry.message}
-                          </Text>
-                        ) : null}
+                        {entry.message ? <Text style={styles.timelineMessage}>{entry.message}</Text> : null}
                       </View>
                     </View>
                   ))}
@@ -278,143 +206,103 @@ export default function ApplicationsScreen() {
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: "#F6F7F9" },
-  center: {
-    flex: 1,
-    backgroundColor: "#F6F7F9",
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  page: { flex: 1, backgroundColor: theme.colors.background },
+  center: { flex: 1, backgroundColor: theme.colors.background, alignItems: "center", justifyContent: "center" },
   list: { padding: 16, paddingBottom: 110 },
+  separator: { height: 10 },
   header: { paddingTop: 4, paddingBottom: 16 },
-  headerRow: { flexDirection: "row", alignItems: "center" },
-  back: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+  headerRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  iconButton: {
+    width: 44,
+    height: 44,
+    borderRadius: theme.radius.pill,
+    borderWidth: 1,
+    borderColor: theme.colors.line,
+    backgroundColor: theme.colors.surface,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 6,
+    ...theme.shadow.card,
   },
-  title: { color: "#061A30", fontSize: 23, fontWeight: "800" },
-  subtitle: { color: "#556274", fontSize: 12, marginTop: 3 },
+  headerCopy: { flex: 1 },
+  title: { color: theme.colors.ink, fontSize: 23, lineHeight: 29, fontWeight: "800", letterSpacing: -0.3 },
+  subtitle: { color: theme.colors.inkSoft, fontSize: 12, lineHeight: 17, marginTop: 3 },
   card: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: theme.colors.surface,
     borderWidth: 1,
-    borderColor: "#E8EBF0",
-    borderRadius: 8,
-    padding: 15,
-    marginBottom: 11,
+    borderColor: theme.colors.line,
+    borderRadius: theme.radius.md,
+    padding: 12,
+    ...theme.shadow.card,
   },
-  jobTitle: { color: "#061A30", fontSize: 15, fontWeight: "800" },
-  company: { color: "#556274", fontSize: 12, marginTop: 4 },
-  statusRow: { flexDirection: "row", marginTop: 11 },
+  cardHeader: { flexDirection: "row", gap: 12 },
+  jobMark: {
+    width: 56,
+    height: 56,
+    borderRadius: theme.radius.sm,
+    backgroundColor: theme.colors.brandSoft,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  jobMarkText: { color: theme.colors.brand, fontSize: 24, fontWeight: "800" },
+  jobCopy: { flex: 1, minWidth: 0 },
+  companyStatusRow: { flexDirection: "row", alignItems: "center", gap: 7 },
+  company: { flex: 1, minWidth: 0, color: theme.colors.ink, fontSize: 15, lineHeight: 20, fontWeight: "700" },
   badge: {
-    borderRadius: 8,
-    backgroundColor: "#FDEEF3",
-    paddingHorizontal: 9,
-    paddingVertical: 5,
+    flexShrink: 0,
+    minHeight: 23,
+    paddingHorizontal: 7,
+    borderRadius: 7,
+    borderWidth: 1,
+    borderColor: theme.colors.selectedBorder,
+    backgroundColor: theme.colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  draftBadge: {
-    backgroundColor: "#F1F5F9",
-  },
-  badgeText: { color: "#556274", fontSize: 11, fontWeight: "700" },
+  badgeText: { color: theme.colors.brand, fontSize: 10, fontWeight: "600" },
+  jobTitle: { color: theme.colors.ink, fontSize: 14, lineHeight: 19, fontWeight: "600", marginTop: 4 },
+  appliedDate: { color: theme.colors.brand, fontSize: 10, lineHeight: 14, fontWeight: "500", marginTop: 7 },
   note: {
     marginTop: 12,
     padding: 11,
-    borderRadius: 9,
-    backgroundColor: "#F9FAFB",
+    borderRadius: theme.radius.sm,
+    backgroundColor: theme.colors.surfaceMuted,
     flexDirection: "row",
     gap: 7,
   },
-  noteText: {
-    flex: 1,
-    color: "#556274",
-    fontSize: 12,
-    lineHeight: 18,
-  },
-  historyButton: {
-    minHeight: 44,
-    marginTop: 8,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  historyText: { color: "#E1225F", fontSize: 12, fontWeight: "700" },
-  timeline: {
-    marginTop: 4,
-    borderLeftWidth: 1,
-    borderLeftColor: "#E8EBF0",
-    marginLeft: 5,
-  },
-  timelineItem: {
-    flexDirection: "row",
-    marginBottom: 15,
-  },
-  dot: {
-    width: 9,
-    height: 9,
-    borderRadius: 5,
-    backgroundColor: "#E1225F",
-    marginLeft: -5,
-    marginTop: 5,
-  },
+  noteText: { flex: 1, color: theme.colors.inkSoft, fontSize: 12, lineHeight: 18 },
+  historyButton: { minHeight: 44, marginTop: 8, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  historyText: { color: theme.colors.brand, fontSize: 12, fontWeight: "700" },
+  timeline: { marginTop: 4, borderLeftWidth: 1, borderLeftColor: theme.colors.line, marginLeft: 5 },
+  timelineItem: { flexDirection: "row", marginBottom: 15 },
+  dot: { width: 9, height: 9, borderRadius: 5, backgroundColor: theme.colors.brand, marginLeft: -5, marginTop: 5 },
   timelineBody: { flex: 1, marginLeft: 12 },
-  timelineStatus: { color: "#061A30", fontSize: 13, fontWeight: "700" },
-  timelineDate: { color: "#94A3B8", fontSize: 10, marginTop: 2 },
-  timelineMessage: {
-    color: "#556274",
-    fontSize: 12,
-    lineHeight: 18,
-    marginTop: 6,
-  },
-  empty: {
-    flex: 1,
-    padding: 28,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  emptyTitle: {
-    color: "#061A30",
-    fontSize: 20,
-    fontWeight: "800",
-    marginTop: 14,
-  },
-  emptyText: {
-    color: "#556274",
-    textAlign: "center",
-    lineHeight: 20,
-    marginTop: 7,
-  },
-  emptyList: { alignItems: "center", paddingTop: 80 },
-  emptyListTitle: {
-    color: "#061A30",
-    fontWeight: "800",
-    marginTop: 12,
-  },
-  primary: {
-    width: "100%",
-    height: 52,
-    borderRadius: 10,
-    backgroundColor: "#E1225F",
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 22,
-  },
-  primaryText: { color: "#FFFFFF", fontWeight: "800" },
-  secondary: {
-    height: 48,
-    paddingHorizontal: 22,
-    borderRadius: 9,
+  timelineStatus: { color: theme.colors.ink, fontSize: 13, fontWeight: "700" },
+  timelineDate: { color: theme.colors.textMuted, fontSize: 10, marginTop: 2 },
+  timelineMessage: { color: theme.colors.inkSoft, fontSize: 12, lineHeight: 18, marginTop: 6 },
+  signedOutCard: {
+    margin: 16,
+    padding: 24,
+    borderRadius: theme.radius.lg,
     borderWidth: 1,
-    borderColor: "#DFE4EC",
+    borderColor: theme.colors.line,
+    backgroundColor: theme.colors.surface,
+    alignItems: "center",
+    ...theme.shadow.card,
+  },
+  iconWrap: {
+    width: 58,
+    height: 58,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.brandSoft,
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 18,
   },
-  secondaryText: { color: "#061A30", fontWeight: "700" },
+  emptyTitle: { color: theme.colors.ink, fontSize: 20, fontWeight: "800", marginTop: 14 },
+  emptyText: { color: theme.colors.inkSoft, textAlign: "center", lineHeight: 20, marginTop: 7 },
+  emptyList: { alignItems: "center", paddingTop: 80 },
+  emptyListTitle: { color: theme.colors.ink, fontWeight: "800", marginTop: 12 },
+  primary: { width: "100%", height: 52, borderRadius: theme.radius.md, backgroundColor: theme.colors.brand, alignItems: "center", justifyContent: "center", marginTop: 22 },
+  primaryText: { color: theme.colors.primaryForeground, fontWeight: "800" },
+  secondary: { height: 48, paddingHorizontal: 22, borderRadius: theme.radius.md, borderWidth: 1, borderColor: theme.colors.line, backgroundColor: theme.colors.surface, alignItems: "center", justifyContent: "center", marginTop: 18 },
+  secondaryText: { color: theme.colors.ink, fontWeight: "700" },
 });
-
-
-
-
