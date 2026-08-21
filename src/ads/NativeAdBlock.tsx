@@ -8,6 +8,7 @@ import {
   NativeMediaView,
 } from "react-native-google-mobile-ads";
 
+import { theme } from "../constants/theme";
 import { AD_UNITS } from "./config";
 
 type NativeAdBlockProps = {
@@ -40,7 +41,9 @@ export function NativeAdBlock({ variant = "detail" }: NativeAdBlockProps) {
     };
   }, []);
 
-  if (!nativeAd) return null;
+  // Feed placements reserve the final card footprint while AdMob loads so the
+  // surrounding job cards do not jump when the native creative arrives.
+  if (!nativeAd) return compact ? <View style={styles.feedPlaceholder} /> : null;
 
   return (
     <View style={[styles.outer, compact && styles.feedOuter]}>
@@ -103,20 +106,28 @@ const styles = StyleSheet.create({
   },
   feedOuter: {
     paddingHorizontal: 0,
-    marginTop: 10,
-    marginBottom: 10,
+    marginTop: 0,
+    marginBottom: 0,
+  },
+  feedPlaceholder: {
+    minHeight: 250,
+    borderWidth: 1,
+    borderColor: theme.colors.line,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.surfaceMuted,
   },
   card: {
     borderWidth: 1,
-    borderColor: "#E4E7EC",
-    borderRadius: 16,
+    borderColor: theme.colors.line,
+    borderRadius: theme.radius.md,
     padding: 14,
-    backgroundColor: "#FAFAFA",
+    backgroundColor: theme.colors.background,
   },
   feedCard: {
-    borderRadius: 12,
+    minHeight: 250,
+    borderRadius: theme.radius.md,
     padding: 12,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: theme.colors.surface,
   },
   topRow: {
     flexDirection: "row",
@@ -139,7 +150,7 @@ const styles = StyleSheet.create({
   sponsored: {
     fontSize: 11,
     fontWeight: "800",
-    color: "#667085",
+    color: theme.colors.textMuted,
     textTransform: "uppercase",
     letterSpacing: 0.5,
     marginBottom: 4,
@@ -148,7 +159,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 21,
     fontWeight: "800",
-    color: "#0B1F30",
+    color: theme.colors.ink,
   },
   feedHeadline: {
     fontSize: 14,
@@ -168,7 +179,7 @@ const styles = StyleSheet.create({
   },
   body: {
     marginTop: 10,
-    color: "#475467",
+    color: theme.colors.inkSoft,
     fontSize: 14,
     lineHeight: 20,
   },
@@ -180,8 +191,8 @@ const styles = StyleSheet.create({
   cta: {
     marginTop: 12,
     alignSelf: "flex-start",
-    backgroundColor: "#0B1F30",
-    color: "#FFFFFF",
+    backgroundColor: theme.colors.ink,
+    color: theme.colors.primaryForeground,
     fontSize: 14,
     fontWeight: "800",
     paddingHorizontal: 14,
