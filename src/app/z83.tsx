@@ -20,6 +20,7 @@ import { useAuth } from "../hooks/use-auth";
 import { supabase } from "../lib/supabase";
 import { fillZ83 } from "../lib/z83/fill";
 import { savePdfToDownloads } from "../lib/save-pdf";
+import { useRewardedDocumentDownload } from "../ads/useRewardedDocumentDownload";
 import {
   SA_LANGUAGES,
   deriveInitials,
@@ -48,6 +49,7 @@ const sensitiveKeys: (keyof Z83Data)[] = [
 export default function Z83Screen() {
   const bottomContentPadding = useScreenBottomPadding(false);
   const { userId, isAuthenticated } = useAuth();
+  const { requestRewardedDownload } = useRewardedDocumentDownload();
   const [data, setData] = useState<Z83Data>(() => emptyZ83());
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -310,7 +312,7 @@ export default function Z83Screen() {
           </View>
         ) : null}
 
-        <TouchableOpacity style={s.primary} disabled={busy} onPress={() => void download()}>
+        <TouchableOpacity style={s.primary} disabled={busy} onPress={() => void requestRewardedDownload(download)}>
           {busy ? <ActivityIndicator color={theme.colors.primaryForeground} /> : <><Ionicons name="download-outline" size={20} color={theme.colors.primaryForeground} /><Text style={s.primaryText}>Download completed official Z83</Text></>}
         </TouchableOpacity>
         <TouchableOpacity
