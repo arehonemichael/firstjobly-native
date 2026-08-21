@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "api/cv-ai.js": {
+      "maxDuration": 30
+    }
+  }
+}
