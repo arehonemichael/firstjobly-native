@@ -20,6 +20,7 @@ import { useAuth } from "../hooks/use-auth";
 import { supabase } from "../lib/supabase";
 import { generateCvText } from "../lib/cv-ai";
 import { savePdfToDownloads } from "../lib/save-pdf";
+import { useRewardedDocumentDownload } from "../ads/useRewardedDocumentDownload";
 import {
   TEMPLATE_LIST,
   cvHtml,
@@ -41,6 +42,7 @@ const TEMPLATE_KEY = "firstjobly.cv.template.v1";
 export default function CvMakerScreen() {
   const bottomContentPadding = useScreenBottomPadding(false);
   const { userId, isAuthenticated } = useAuth();
+  const { requestRewardedDownload } = useRewardedDocumentDownload();
   const [data, setData] = useState<CvData>(() => emptyCv());
   const [templateId, setTemplateId] = useState<TemplateId>("classic");
   const [loaded, setLoaded] = useState(false);
@@ -267,7 +269,7 @@ export default function CvMakerScreen() {
           {!data.referencesOnRequest ? <Add label="Add reference" onPress={() => patch({ references: [...data.references, emptyReference()] })} /> : null}
         </Card>
 
-        <TouchableOpacity style={s.primary} disabled={busy} onPress={() => void createPdf()}>
+        <TouchableOpacity style={s.primary} disabled={busy} onPress={() => void requestRewardedDownload(createPdf)}>
           {busy ? <ActivityIndicator color={theme.colors.primaryForeground} /> : <><Ionicons name="download-outline" size={20} color={theme.colors.primaryForeground} /><Text style={s.primaryText}>Download PDF</Text></>}
         </TouchableOpacity>
 
