@@ -273,7 +273,7 @@ export default function ApplicationsScreen() {
                       <View style={styles.timelineBody}>
                         <Text style={styles.timelineStatus}>{STATUS_LABEL[entry.status] ?? entry.status}</Text>
                         <Text style={styles.timelineDate}>
-                          {formatDateTime(entry.changed_at)}{entry.changed_by === "employer" ? " Â· from the employer" : ""}
+                          {formatDateTime(entry.changed_at)}{entry.changed_by === "employer" ? " · from the employer" : ""}
                         </Text>
                         {entry.message ? <Text style={styles.timelineMessage}>{entry.message}</Text> : null}
                       </View>
