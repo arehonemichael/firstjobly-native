@@ -6,10 +6,13 @@ import { AD_UNITS } from "./config";
 
 type DownloadAction = () => void | Promise<void>;
 
+const MAX_UNAVAILABLE_ATTEMPTS_BEFORE_FALLBACK = 2;
+
 export function useRewardedDocumentDownload() {
   const pendingAction = useRef<DownloadAction | null>(null);
   const rewardEarned = useRef(false);
   const adInProgress = useRef(false);
+  const unavailableAttempts = useRef(0);
 
   const {
     isLoaded,
@@ -27,6 +30,10 @@ export function useRewardedDocumentDownload() {
   }, [load]);
 
   useEffect(() => {
+    if (isLoaded) unavailableAttempts.current = 0;
+  }, [isLoaded]);
+
+  useEffect(() => {
     if (isEarnedReward) rewardEarned.current = true;
   }, [isEarnedReward]);
 
@@ -41,6 +48,7 @@ export function useRewardedDocumentDownload() {
     adInProgress.current = false;
 
     if (earned && action) {
+      unavailableAttempts.current = 0;
       void Promise.resolve(action()).catch((actionError) => {
         console.error("Rewarded document action failed:", actionError);
       });
@@ -64,6 +72,28 @@ export function useRewardedDocumentDownload() {
 
       if (!isLoaded) {
         load();
+        unavailableAttempts.current += 1;
+
+        if (error && unavailableAttempts.current >= MAX_UNAVAILABLE_ATTEMPTS_BEFORE_FALLBACK) {
+          Alert.alert(
+            "Ad unavailable",
+            "We couldn't load a rewarded ad after multiple attempts. You can download your document now or try the ad again.",
+            [
+              { text: "Try again", onPress: () => load() },
+              {
+                text: "Download now",
+                onPress: () => {
+                  unavailableAttempts.current = 0;
+                  void Promise.resolve(action()).catch((actionError) => {
+                    console.error("Rewarded document fallback action failed:", actionError);
+                  });
+                },
+              },
+            ],
+          );
+          return;
+        }
+
         Alert.alert(
           "Ad still loading",
           error
@@ -74,6 +104,7 @@ export function useRewardedDocumentDownload() {
         return;
       }
 
+      unavailableAttempts.current = 0;
       rewardEarned.current = false;
       pendingAction.current = action;
       adInProgress.current = true;
