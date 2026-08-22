@@ -64,7 +64,7 @@ export function closingJobCountdown(job: Pick<Job, "closing_date">): string | nu
 export function jobDisplayTags(job: Pick<Job, "category" | "job_type" | "experience_level">): string[] {
   return [job.category, job.job_type, job.experience_level]
     .filter((value): value is string => Boolean(value?.trim()))
+    .map(formatCategoryLabel)
     .filter((value, index, list) => list.indexOf(value) === index)
-    .slice(0, 3)
-    .map(formatCategoryLabel);
+    .slice(0, 3);
 }
