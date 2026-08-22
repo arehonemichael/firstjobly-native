@@ -8,6 +8,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useIsFocused } from "../../hooks/use-is-focused";
 
 import { useAuth } from "../../hooks/use-auth";
+import { useSavedJobs } from "../../hooks/use-saved-jobs";
 import { useScreenBottomPadding } from "../../hooks/use-screen-bottom-padding";
 import { theme } from "../../constants/theme";
 import { JOB_MARKET_FACTS } from "../../constants/job-market-facts";
@@ -22,6 +23,9 @@ const HERO_IMAGES = [
   require("../../../assets/images/hero/hero-2.png"),
   require("../../../assets/images/hero/hero-3.png"),
   require("../../../assets/images/hero/hero-4.png"),
+  require("../../../assets/images/hero/hero-5.png"),
+  require("../../../assets/images/hero/hero-6.png"),
+  require("../../../assets/images/hero/hero-7.png"),
 ] as const;
 
 const HERO_HEADLINES = [
@@ -146,7 +150,15 @@ const TopOpportunityCard = memo(function TopOpportunityCard({ item }: { item: Jo
   );
 });
 
-const PersonalizedMatchCard = memo(function PersonalizedMatchCard({ item }: { item: Job }) {
+const PersonalizedMatchCard = memo(function PersonalizedMatchCard({
+  item,
+  saved,
+  onBookmark,
+}: {
+  item: Job;
+  saved: boolean;
+  onBookmark: (jobId: string) => void;
+}) {
   const salary = formatSalary(item);
   const closing = closingCountdown(item);
   const isNew = isJobNew(item);
@@ -163,7 +175,19 @@ const PersonalizedMatchCard = memo(function PersonalizedMatchCard({ item }: { it
           ) : isNew ? (
             <View style={styles.newStatusPill}><Text style={styles.newStatusText}>New</Text></View>
           ) : null}
-          <TouchableOpacity style={styles.bookmarkButton} activeOpacity={0.7}><Ionicons name="bookmark-outline" size={22} color={theme.colors.ink} /></TouchableOpacity>
+          <TouchableOpacity
+            style={styles.bookmarkButton}
+            activeOpacity={0.7}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={saved ? "Remove saved job" : "Save job"}
+            onPress={(event) => {
+              event.stopPropagation();
+              onBookmark(item.id);
+            }}
+          >
+            <Ionicons name={saved ? "bookmark" : "bookmark-outline"} size={22} color={saved ? theme.colors.brand : theme.colors.ink} />
+          </TouchableOpacity>
         </View>
         <Text numberOfLines={2} style={styles.matchTitle}>{item.title}</Text>
         <View style={styles.matchLocationRow}><Ionicons name="location-outline" size={14} color={theme.colors.inkSoft} /><Text numberOfLines={2} style={styles.matchLocation}>{formatLocation(item)}</Text></View>
@@ -194,6 +218,7 @@ function MatchSkeleton() {
 export default function HomeScreen() {
   const bottomContentPadding = useScreenBottomPadding(true);
   const { userId, user, loading: authLoading } = useAuth();
+  const { isSaved, toggleSave } = useSavedJobs();
   const isFocused = useIsFocused();
   const params = useLocalSearchParams<{ location?: string; role?: string; category?: string }>();
   const [topOpportunities, setTopOpportunities] = useState<Job[]>([]);
@@ -220,13 +245,18 @@ export default function HomeScreen() {
   }, [user?.user_metadata]);
   const greeting = useMemo(() => johannesburgGreeting(), []);
 
+  const handleBookmark = useCallback(async (jobId: string) => {
+    const result = await toggleSave(jobId);
+    if (!result.ok && result.reason === "not-signed-in") router.push("/auth");
+  }, [toggleSave]);
+
   const loadRecommendations = useCallback(async (force = false) => {
     if (authLoading || inFlight.current) return;
     if (!force && Date.now() - lastFetchedAt.current < HOME_STALE_MS) return;
 
     inFlight.current = true;
     if (!hasLoaded.current) setRecommendationsLoading(true);
-    console.info("[Home] recommendations:start", { userId: userId ?? "anonymous", filter, reason: force ? "forced" : "stale" });
+    if (__DEV__) console.info("[Home] recommendations:start", { userId: userId ?? "anonymous", filter, reason: force ? "forced" : "stale" });
 
     try {
       const [topResult, personalizedResult] = await Promise.allSettled([
@@ -236,10 +266,10 @@ export default function HomeScreen() {
       const top = topResult.status === "fulfilled" ? topResult.value : ([] as Job[]);
       const personalized = personalizedResult.status === "fulfilled" ? personalizedResult.value : ([] as Job[]);
 
-      if (topResult.status === "fulfilled") console.info("[Home] top opportunities:success", { count: top.length });
-      else console.error("[Home] top opportunities:failed", topResult.reason);
-      if (personalizedResult.status === "fulfilled") console.info("[Home] personalized matches:success", { count: personalized.length });
-      else console.error("[Home] personalized matches:failed", personalizedResult.reason);
+      if (__DEV__ && topResult.status === "fulfilled") console.info("[Home] top opportunities:success", { count: top.length });
+      else if (topResult.status === "rejected") console.error("[Home] top opportunities:failed", topResult.reason);
+      if (__DEV__ && personalizedResult.status === "fulfilled") console.info("[Home] personalized matches:success", { count: personalized.length });
+      else if (personalizedResult.status === "rejected") console.error("[Home] personalized matches:failed", personalizedResult.reason);
 
       if (topResult.status === "fulfilled" || personalizedResult.status === "fulfilled") {
         setTopOpportunities(top.length ? top : personalized.slice(0, 10));
@@ -279,7 +309,7 @@ export default function HomeScreen() {
 
         <View style={styles.heroWrap}>
           <ImageBackground key={`hero-${heroImageIndex}`} source={HERO_IMAGES[heroImageIndex]} resizeMode="cover" style={styles.heroImage} imageStyle={styles.heroImageRadius}>
-            <LinearGradient pointerEvents="none" colors={["rgba(23,33,43,0.50)", "rgba(23,33,43,0.72)", "rgba(23,33,43,0.94)"]} locations={[0, 0.5, 1]} style={styles.heroScrim} />
+            <LinearGradient pointerEvents="none" colors={[theme.colors.heroOverlaySoft, theme.colors.heroOverlayMedium, theme.colors.heroOverlayStrong]} locations={[0, 0.5, 1]} style={styles.heroScrim} />
             <View style={styles.heroContent}>
               <View style={styles.recommendedPill}><Ionicons name="sparkles" size={16} color={theme.colors.primaryForeground} /><Text style={styles.recommendedText}>{firstName ? `Recommended for ${firstName}` : "Recommended for you"}</Text></View>
               <Text style={styles.heroHeadline}>{heroHeadline}</Text>
@@ -301,7 +331,7 @@ export default function HomeScreen() {
             ? [0, 1, 2].map((key) => <MatchSkeleton key={key} />)
             : matches.map((item, index) => (
                 <Fragment key={item.id}>
-                  <PersonalizedMatchCard item={item} />
+                  <PersonalizedMatchCard item={item} saved={isSaved(item.id)} onBookmark={(jobId) => void handleBookmark(jobId)} />
                   {MATCH_AD_AFTER_INDEXES.has(index) ? <NativeAdBlock variant="feed" /> : null}
                 </Fragment>
               ))}
