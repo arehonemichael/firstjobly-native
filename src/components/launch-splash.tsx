@@ -75,14 +75,14 @@ export function LaunchSplash({
 
         <ActivityIndicator
           size="small"
-          color="#E1225F"
+          color={theme.colors.brand}
           style={styles.spinner}
         />
       </View>
 
       <View style={styles.factCard}>
         <View style={styles.factIcon}>
-          <Lightbulb size={18} color="#E1225F" strokeWidth={2} />
+          <Lightbulb size={18} color={theme.colors.brand} strokeWidth={2} />
         </View>
 
         <View style={styles.factContent}>
@@ -97,7 +97,7 @@ export function LaunchSplash({
 const styles = StyleSheet.create({
   page: {
     flex: 1,
-    backgroundColor: "#061A30",
+    backgroundColor: theme.colors.background,
     paddingHorizontal: 22,
     justifyContent: "space-between",
   },
@@ -116,7 +116,7 @@ const styles = StyleSheet.create({
     color: theme.colors.brandNavy,
   },
   greeting: {
-    color: "#FFFFFF",
+    color: theme.colors.ink,
     fontFamily: "PlusJakartaSans_800ExtraBold",
     fontWeight: "800",
     fontSize: 28,
@@ -124,7 +124,7 @@ const styles = StyleSheet.create({
     marginTop: 72,
   },
   subtext: {
-    color: "#94A3B8",
+    color: theme.colors.inkSoft,
     fontFamily: "PlusJakartaSans_500Medium",
     fontWeight: "500",
     fontSize: 13,
@@ -136,9 +136,9 @@ const styles = StyleSheet.create({
   },
   factCard: {
     flexDirection: "row",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: theme.colors.surface,
     borderWidth: 1,
-    borderColor: "#E8EBF0",
+    borderColor: theme.colors.line,
     borderRadius: 8,
     padding: 14,
     marginBottom: 18,
@@ -147,7 +147,7 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 6,
-    backgroundColor: "#FDEEF3",
+    backgroundColor: theme.colors.brandSoft,
     alignItems: "center",
     justifyContent: "center",
     marginRight: 11,
@@ -156,14 +156,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   factLabel: {
-    color: "#B0164A",
+    color: theme.colors.brand,
     fontFamily: "PlusJakartaSans_700Bold",
     fontWeight: "700",
     fontSize: 11,
     marginBottom: 4,
   },
   factText: {
-    color: "#556274",
+    color: theme.colors.inkSoft,
     fontFamily: "PlusJakartaSans_500Medium",
     fontWeight: "500",
     fontSize: 12,
