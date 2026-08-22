@@ -53,6 +53,7 @@ export const JOB_LIST_COLUMNS = [
   "salary_period",
   "closing_date",
   "posted_at",
+  "created_at",
   "apply_type",
   "external_url",
   "is_urgent",
