@@ -168,7 +168,7 @@ export default function JobDetailsScreen() {
     });
 
     if (!readiness.ok) {
-      const detail = readiness.missing.length > 0 ? `\n\nMissing:\nÃ¢â‚¬Â¢ ${readiness.missing.join("\nÃ¢â‚¬Â¢ ")}` : "";
+      const detail = readiness.missing.length > 0 ? `\n\nMissing:\n\u2022 ${readiness.missing.join("\n\u2022 ")}` : "";
       Alert.alert(
         "Complete your profile to apply",
         `Your profile is ${readiness.percent}% complete. Easy Apply needs at least 50%.${detail}`,
@@ -403,7 +403,7 @@ export default function JobDetailsScreen() {
             <View style={styles.modalHeader}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.modalTitle}>Easy Apply</Text>
-                <Text style={styles.modalSubtitle}>{job.title} Ã‚Â· {job.company_name}</Text>
+                <Text style={styles.modalSubtitle}>{job.title} {"\u00B7"} {job.company_name}</Text>
               </View>
               <TouchableOpacity style={styles.close} onPress={() => setApplyOpen(false)}>
                 <Ionicons name="close" size={22} color={theme.colors.ink} />
