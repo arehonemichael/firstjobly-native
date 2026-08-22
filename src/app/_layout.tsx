@@ -44,7 +44,7 @@ export default function RootLayout() {
   if (showLaunchSplash) {
     return (
       <>
-        <StatusBar style="light" />
+        <StatusBar style="dark" />
         <LaunchSplash
           firstName={firstName}
           ready={authReady}
