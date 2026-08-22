@@ -1,4 +1,4 @@
-﻿import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const TAB_BAR_VISUAL_HEIGHT = 56;
 const CONTENT_GUTTER = 16;

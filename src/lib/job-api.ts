@@ -1,4 +1,4 @@
-﻿import { getHotJobIds } from './apply-clicks';
+import { getHotJobIds } from './apply-clicks';
 import { JOB_LIST_COLUMNS, type Job } from './jobs';
 import { openClosingDateFilter } from './job-availability';
 import { supabase } from './supabase';

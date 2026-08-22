@@ -1,4 +1,4 @@
-﻿import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { Megaphone } from "lucide-react-native";
 
 export function SponsoredSlot() {

@@ -354,7 +354,7 @@ const styles = StyleSheet.create({
   heroWrap: { marginHorizontal: 16, borderRadius: theme.radius.lg, overflow: "hidden", backgroundColor: theme.colors.ink, ...theme.shadow.card },
   heroImage: { minHeight: 306, justifyContent: "space-between", backgroundColor: theme.colors.ink },
   heroImageRadius: { borderRadius: theme.radius.lg },
-  heroScrim: { ...StyleSheet.absoluteFillObject },
+  heroScrim: { ...StyleSheet.absoluteFill },
   heroContent: { minHeight: 306, paddingHorizontal: 20, paddingTop: 22, paddingBottom: 28, maxWidth: 350 },
   recommendedPill: { alignSelf: "flex-start", minHeight: 36, paddingHorizontal: 12, borderRadius: theme.radius.sm, backgroundColor: theme.colors.brand, flexDirection: "row", alignItems: "center", gap: 7, marginBottom: 14 },
   recommendedText: { color: theme.colors.primaryForeground, fontSize: 13, lineHeight: 18, fontWeight: "600" },

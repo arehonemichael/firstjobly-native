@@ -1,4 +1,4 @@
-﻿export type Job = {
+export type Job = {
   id: string;
   slug: string | null;
   title: string;

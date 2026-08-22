@@ -1,4 +1,4 @@
-﻿import {
+import {
   ActivityIndicator,
   Pressable,
   ScrollView,

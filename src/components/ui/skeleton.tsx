@@ -1,4 +1,4 @@
-﻿import {
+import {
   Animated,
   StyleSheet,
   View,

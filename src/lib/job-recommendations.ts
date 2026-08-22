@@ -294,10 +294,10 @@ async function loadJobsUncached(): Promise<JobRow[]> {
       .limit(180);
 
     if (fallback.error) throw fallback.error;
-    return (fallback.data ?? []) as JobRow[];
+    return (fallback.data ?? []) as unknown as JobRow[];
   }
 
-  return (data ?? []) as JobRow[];
+  return (data ?? []) as unknown as JobRow[];
 }
 
 async function loadJobs(limit = 120): Promise<JobRow[]> {

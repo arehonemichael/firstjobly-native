@@ -168,7 +168,7 @@ export default function JobDetailsScreen() {
     });
 
     if (!readiness.ok) {
-      const detail = readiness.missing.length > 0 ? `\n\nMissing:\n• ${readiness.missing.join("\n• ")}` : "";
+      const detail = readiness.missing.length > 0 ? `\n\nMissing:\nÃ¢â‚¬Â¢ ${readiness.missing.join("\nÃ¢â‚¬Â¢ ")}` : "";
       Alert.alert(
         "Complete your profile to apply",
         `Your profile is ${readiness.percent}% complete. Easy Apply needs at least 50%.${detail}`,
@@ -239,7 +239,7 @@ export default function JobDetailsScreen() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${sessionData.session?.access_token}`,
           },
-          body: JSON.stringify({ jobId: job.id, applicationId: data.id, origin: WEB_APP_URL }),
+          body: JSON.stringify({ jobId: job.id, applicationId: data!.id, origin: WEB_APP_URL }),
         });
       } catch (notifyError) {
         console.error("Employer notify failed:", notifyError);
@@ -403,7 +403,7 @@ export default function JobDetailsScreen() {
             <View style={styles.modalHeader}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.modalTitle}>Easy Apply</Text>
-                <Text style={styles.modalSubtitle}>{job.title} · {job.company_name}</Text>
+                <Text style={styles.modalSubtitle}>{job.title} Ã‚Â· {job.company_name}</Text>
               </View>
               <TouchableOpacity style={styles.close} onPress={() => setApplyOpen(false)}>
                 <Ionicons name="close" size={22} color={theme.colors.ink} />

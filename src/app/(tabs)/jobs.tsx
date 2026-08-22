@@ -484,7 +484,7 @@ const styles = StyleSheet.create({
   closingText: { flexShrink: 1, color: theme.colors.danger, fontSize: 10, lineHeight: 14, fontWeight: "700", marginTop: 3 },
   salaryText: { flexShrink: 1, color: theme.colors.brand, fontSize: 10, lineHeight: 14, fontWeight: "600", marginTop: 3 },
   modalRoot: { flex: 1, justifyContent: "flex-end" },
-  modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(23,33,43,0.45)" },
+  modalBackdrop: { ...StyleSheet.absoluteFill, backgroundColor: "rgba(23,33,43,0.45)" },
   sheet: { maxHeight: "88%", backgroundColor: theme.colors.surface, borderTopLeftRadius: theme.radius.lg, borderTopRightRadius: theme.radius.lg },
   sheetHeader: { padding: 18, borderBottomWidth: 1, borderBottomColor: theme.colors.line, flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   sheetTitle: { fontSize: 20, fontWeight: "800", color: theme.colors.ink },

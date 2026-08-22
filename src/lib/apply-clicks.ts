@@ -50,26 +50,34 @@ export async function getHotJobIds(force = false): Promise<Set<string>> {
   if (!force && hotJobsCache && hotJobsCache.expiresAt > now) return hotJobsCache.value;
   if (!force && hotJobsInFlight) return hotJobsInFlight;
 
-  const request = supabase
-    .rpc("get_hot_job_ids")
-    .then(({ data, error }) => {
+  const request: Promise<Set<string>> = (async () => {
+    try {
+      const { data, error } = await supabase.rpc("get_hot_job_ids");
+
       if (error) throw error;
+
       const ids = new Set<string>(
         (data ?? [])
           .map((row: { job_id?: string | null }) => row.job_id)
-          .filter((value: string | null | undefined): value is string => Boolean(value)),
+          .filter(
+            (value: string | null | undefined): value is string =>
+              Boolean(value),
+          ),
       );
-      hotJobsCache = { expiresAt: Date.now() + HOT_JOB_CACHE_MS, value: ids };
+
+      hotJobsCache = {
+        expiresAt: Date.now() + HOT_JOB_CACHE_MS,
+        value: ids,
+      };
+
       return ids;
-    })
-    .catch((error) => {
+    } catch (error: unknown) {
       console.warn("Hot job lookup failed:", error);
       return hotJobsCache?.value ?? new Set<string>();
-    })
-    .finally(() => {
+    } finally {
       hotJobsInFlight = null;
-    });
-
+    }
+  })();
   hotJobsInFlight = request;
   return request;
 }

@@ -1,4 +1,4 @@
-﻿import { useCallback, useState } from "react";
+import { useCallback, useState } from "react";
 import { useFocusEffect } from "expo-router";
 
 export function useIsFocused() {

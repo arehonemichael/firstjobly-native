@@ -1,4 +1,4 @@
-﻿import type { Job } from "./jobs";
+import type { Job } from "./jobs";
 
 export const PROVINCES = [
   "Eastern Cape",

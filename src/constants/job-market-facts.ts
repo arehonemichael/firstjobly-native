@@ -1,4 +1,4 @@
-﻿export type JobMarketFact = {
+export type JobMarketFact = {
   text: string;
 };
 
