@@ -30,6 +30,12 @@ export function AdMobLifecycle() {
   const cleanupRef = useRef<(() => void)[]>([]);
 
   useEffect(() => {
+    // Initialize the Mobile Ads SDK for banner/native/interstitial/rewarded units
+    // even when the optional app-open feature is disabled.
+    void initializeAdsOnce().catch((error) => {
+      if (__DEV__) console.warn("AdMob initialization failed", error);
+    });
+
     if (!AD_FEATURES.appOpen) return;
 
     let mounted = true;
