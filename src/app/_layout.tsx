@@ -9,6 +9,7 @@ import {
 import { useCallback, useEffect, useState } from "react";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import { AdMobLifecycle } from "../ads/AdMobLifecycle";
 import { LaunchSplash } from "../components/launch-splash";
 import { useAuth } from "../hooks/use-auth";
 import { recordAppSession } from "../lib/rate-us";
@@ -41,38 +42,34 @@ export default function RootLayout() {
 
   if (!fontsLoaded) return null;
 
-  if (showLaunchSplash) {
-    return (
-      <>
-        <StatusBar style="dark" />
+  return (
+    <>
+      <AdMobLifecycle />
+      <StatusBar style="dark" />
+      {showLaunchSplash ? (
         <LaunchSplash
           firstName={firstName}
           ready={authReady}
           onDone={finishLaunchSplash}
         />
-      </>
-    );
-  }
-
-  return (
-    <>
-      <StatusBar style="dark" />
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          animation: "slide_from_right",
-          gestureEnabled: true,
-          gestureDirection: "horizontal",
-          animationMatchesGesture: true,
-        }}
-      >
-        <Stack.Screen name="(tabs)" options={{ animation: "none" }} />
-        <Stack.Screen name="jobs/[id]" />
-        <Stack.Screen
-          name="auth"
-          options={{ presentation: "card", animation: "slide_from_right" }}
-        />
-      </Stack>
+      ) : (
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            animation: "slide_from_right",
+            gestureEnabled: true,
+            gestureDirection: "horizontal",
+            animationMatchesGesture: true,
+          }}
+        >
+          <Stack.Screen name="(tabs)" options={{ animation: "none" }} />
+          <Stack.Screen name="jobs/[id]" />
+          <Stack.Screen
+            name="auth"
+            options={{ presentation: "card", animation: "slide_from_right" }}
+          />
+        </Stack>
+      )}
     </>
   );
 }
