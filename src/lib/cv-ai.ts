@@ -36,7 +36,7 @@ export async function generateCvText(input: CvAiInput): Promise<string> {
   });
 
   const raw = await response.text();
-  console.log("CV AI status:", response.status);
+  if (__DEV__) console.log("CV AI status:", response.status);
 
   let payload: CvAiResponse | null = null;
   try {
