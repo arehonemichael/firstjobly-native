@@ -8,6 +8,18 @@ import { supabase } from "../lib/supabase";
 
 const SAVED_STALE_MS = 7 * 60 * 1000;
 
+type SavedMutation = {
+  userId: string;
+  jobId: string;
+  saved: boolean;
+};
+
+const savedMutationListeners = new Set<(mutation: SavedMutation) => void>();
+
+function publishSavedMutation(mutation: SavedMutation) {
+  savedMutationListeners.forEach((listener) => listener(mutation));
+}
+
 export function useSavedJobs() {
   const { userId, loading: authLoading } = useAuth();
   const isFocused = useIsFocused();
@@ -55,6 +67,26 @@ export function useSavedJobs() {
     void loadSaved(true);
   }, [userId, authLoading]);
 
+  useEffect(() => {
+    const listener = (mutation: SavedMutation) => {
+      if (!userId || mutation.userId !== userId) return;
+      setSavedIds((current) =>
+        mutation.saved
+          ? current.includes(mutation.jobId)
+            ? current
+            : [...current, mutation.jobId]
+          : current.filter((id) => id !== mutation.jobId),
+      );
+      lastFetchedAt.current = Date.now();
+      setLoading(false);
+    };
+
+    savedMutationListeners.add(listener);
+    return () => {
+      savedMutationListeners.delete(listener);
+    };
+  }, [userId]);
+
   useFocusEffect(
     useCallback(() => {
       void loadSaved(false);
@@ -83,8 +115,9 @@ export function useSavedJobs() {
       }
 
       const currentlySaved = savedIds.includes(jobId);
+      const nextSaved = !currentlySaved;
 
-      // Optimistic UI: reflect the user's tap immediately.
+      // Optimistic UI: reflect the user's tap immediately in this hook instance.
       setSavedIds((current) =>
         currentlySaved
           ? current.filter((id) => id !== jobId)
@@ -102,27 +135,24 @@ export function useSavedJobs() {
             .eq("job_id", jobId);
 
           if (error) throw error;
+        } else {
+          const { error } = await supabase
+            .from("saved_jobs")
+            .insert({
+              user_id: userId,
+              job_id: jobId,
+            });
 
-          lastFetchedAt.current = Date.now();
-          return {
-            ok: true as const,
-            saved: false as const,
-          };
+          if (error) throw error;
         }
 
-        const { error } = await supabase
-          .from("saved_jobs")
-          .insert({
-            user_id: userId,
-            job_id: jobId,
-          });
-
-        if (error) throw error;
-
         lastFetchedAt.current = Date.now();
+        // Keep Home, Job Detail and Saved in sync without bypassing the normal
+        // staleness window with another network request.
+        publishSavedMutation({ userId, jobId, saved: nextSaved });
         return {
           ok: true as const,
-          saved: true as const,
+          saved: nextSaved,
         };
       } catch (error) {
         // Roll back the optimistic state if persistence failed.
