@@ -1,4 +1,4 @@
-﻿{
+{
   "expo": {
     "name": "FirstJobly",
     "slug": "firstjobly-native",
@@ -43,7 +43,8 @@
           "androidAppId": "ca-app-pub-1505001993402465~7846151022"
         }
       ],
-      "expo-image"
+      "expo-image",
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true,
