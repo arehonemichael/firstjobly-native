@@ -22,13 +22,27 @@ export const AD_FEATURES = {
   nativeDetail: true,
   interstitial: true,
   rewardedDocument: true,
-  appOpen: false,
+  appOpen: true,
 } as const;
+
+export const AD_APP_OPEN_TRIGGERS = [1, 2, 4, 6] as const;
+export const AD_JOB_OPEN_TRIGGERS = [1, 2, 4, 6] as const;
+export const AD_CADENCE_CYCLE_LENGTH = 6;
+
+export function isAdCadenceTrigger(
+  count: number,
+  triggers: readonly number[],
+  cycleLength = AD_CADENCE_CYCLE_LENGTH,
+) {
+  if (count <= 0) return false;
+  const position = ((count - 1) % cycleLength) + 1;
+  return triggers.includes(position);
+}
 
 export const AD_LIMITS = {
   minJobDetailsBeforeInterstitial: 4,
   interstitialChance: 0.2,
-  interstitialCooldownMs: 20 * 60 * 1000,
-  minAppLaunchesBeforeAppOpen: 3,
-  appOpenCooldownMs: 4 * 60 * 60 * 1000,
+  interstitialCooldownMs: 45 * 1000,
+  minAppLaunchesBeforeAppOpen: 1,
+  appOpenCooldownMs: 45 * 1000,
 } as const;
