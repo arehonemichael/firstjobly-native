@@ -1,8 +1,8 @@
-{
+﻿{
   "expo": {
     "name": "FirstJobly",
     "slug": "firstjobly-native",
-    "version": "1.0.1",
+    "version": "1.0.22",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "firstjobly",
@@ -13,7 +13,7 @@
     },
     "android": {
       "package": "com.first.firstjobly",
-      "versionCode": 32,
+      "versionCode": 33,
       "adaptiveIcon": {
         "backgroundColor": "#061A30",
         "foregroundImage": "./assets/images/icon.png"
