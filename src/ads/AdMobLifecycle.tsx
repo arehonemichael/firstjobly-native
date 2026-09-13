@@ -6,10 +6,15 @@ import mobileAds, {
   AppOpenAd,
 } from "react-native-google-mobile-ads";
 
-import { AD_FEATURES, AD_LIMITS, AD_UNITS } from "./config";
+import {
+  AD_APP_OPEN_TRIGGERS,
+  AD_FEATURES,
+  AD_UNITS,
+  isAdCadenceTrigger,
+} from "./config";
+import { tryClaimInterstitialSlot } from "./interstitialGate";
 
 const LAUNCH_COUNT_KEY = "fj_admob_launch_count";
-const LAST_APP_OPEN_KEY = "fj_admob_last_app_open";
 
 let initializationPromise: Promise<unknown> | null = null;
 
@@ -24,14 +29,14 @@ function initializeAdsOnce() {
 export function AdMobLifecycle() {
   const appState = useRef<AppStateStatus>(AppState.currentState);
   const launchCount = useRef(0);
+  const handledLaunchCount = useRef(0);
+  const pendingShow = useRef(false);
   const loaded = useRef(false);
   const loadedAt = useRef(0);
   const adRef = useRef<ReturnType<typeof AppOpenAd.createForAdRequest> | null>(null);
   const cleanupRef = useRef<(() => void)[]>([]);
 
   useEffect(() => {
-    // Initialize the Mobile Ads SDK for banner/native/interstitial/rewarded units
-    // even when the optional app-open feature is disabled.
     void initializeAdsOnce().catch((error) => {
       if (__DEV__) console.warn("AdMob initialization failed", error);
     });
@@ -49,7 +54,47 @@ export function AdMobLifecycle() {
       loadedAt.current = 0;
     };
 
-    const createAndLoad = () => {
+    async function maybeShow() {
+      const currentLaunchCount = launchCount.current;
+      if (
+        currentLaunchCount <= 0 ||
+        handledLaunchCount.current === currentLaunchCount ||
+        !isAdCadenceTrigger(currentLaunchCount, AD_APP_OPEN_TRIGGERS)
+      ) {
+        return;
+      }
+
+      const now = Date.now();
+      const adAge = now - loadedAt.current;
+      if (loadedAt.current > 0 && adAge > 3.5 * 60 * 60 * 1000) {
+        pendingShow.current = true;
+        createAndLoad();
+        return;
+      }
+
+      if (!loaded.current || !adRef.current) {
+        pendingShow.current = true;
+        if (!adRef.current) createAndLoad();
+        return;
+      }
+
+      pendingShow.current = false;
+      handledLaunchCount.current = currentLaunchCount;
+
+      const claimed = await tryClaimInterstitialSlot();
+      if (!claimed || !mounted || !adRef.current) return;
+
+      loaded.current = false;
+
+      try {
+        await adRef.current.show();
+      } catch (error) {
+        if (__DEV__) console.warn("App-open ad show failed", error);
+        if (mounted) createAndLoad();
+      }
+    }
+
+    function createAndLoad() {
       disposeAd();
 
       const ad = AppOpenAd.createForAdRequest(AD_UNITS.appOpen, {
@@ -61,6 +106,7 @@ export function AdMobLifecycle() {
         ad.addAdEventListener(AdEventType.LOADED, () => {
           loaded.current = true;
           loadedAt.current = Date.now();
+          if (pendingShow.current) void maybeShow();
         }),
         ad.addAdEventListener(AdEventType.CLOSED, () => {
           loaded.current = false;
@@ -70,46 +116,26 @@ export function AdMobLifecycle() {
         ad.addAdEventListener(AdEventType.ERROR, () => {
           loaded.current = false;
           loadedAt.current = 0;
+          pendingShow.current = false;
         }),
       ];
 
       ad.load();
-    };
-
-    const maybeShow = async () => {
-      if (launchCount.current < AD_LIMITS.minAppLaunchesBeforeAppOpen) return;
-
-      const lastShownRaw = await AsyncStorage.getItem(LAST_APP_OPEN_KEY);
-      const lastShown = Number(lastShownRaw || 0);
-      const now = Date.now();
-
-      if (now - lastShown < AD_LIMITS.appOpenCooldownMs) return;
-
-      const adAge = now - loadedAt.current;
-      if (adAge > 3.5 * 60 * 60 * 1000) {
-        createAndLoad();
-        return;
-      }
-
-      if (!loaded.current || !adRef.current) {
-        createAndLoad();
-        return;
-      }
-
-      loaded.current = false;
-      await AsyncStorage.setItem(LAST_APP_OPEN_KEY, String(now));
-      await adRef.current.show();
-    };
+    }
 
     const bootstrap = async () => {
       await initializeAdsOnce();
       if (!mounted) return;
 
       const currentRaw = await AsyncStorage.getItem(LAUNCH_COUNT_KEY);
-      const nextCount = Number(currentRaw || 0) + 1;
+      const current = Number(currentRaw || 0);
+      const nextCount = (Number.isFinite(current) ? current : 0) + 1;
+
       launchCount.current = nextCount;
       await AsyncStorage.setItem(LAUNCH_COUNT_KEY, String(nextCount));
+
       createAndLoad();
+      void maybeShow();
     };
 
     void bootstrap();
