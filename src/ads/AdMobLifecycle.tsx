@@ -81,7 +81,7 @@ export function AdMobLifecycle() {
       pendingShow.current = false;
       handledLaunchCount.current = currentLaunchCount;
 
-      const claimed = await tryClaimInterstitialSlot();
+      const claimed = await tryClaimInterstitialSlot("app-open");
       if (!claimed || !mounted || !adRef.current) return;
 
       loaded.current = false;
