@@ -5,14 +5,11 @@ import { useJobInterstitialManager } from "./useJobInterstitial";
 
 type JobOpenContextValue = { openJob: (jobId: string) => Promise<void> };
 const JobOpenContext = createContext<JobOpenContextValue | null>(null);
+const originalPush = router.push.bind(router);
 
-type RouterHref = Parameters<typeof router.push>[0];
-type RouterOptions = Parameters<typeof router.push>[1];
-
-function jobIdFromHref(href: RouterHref): string | null {
-  if (!href || typeof href === "string") return null;
-  if (href.pathname !== "/jobs/[id]") return null;
-  const id = href.params && "id" in href.params ? href.params.id : null;
+function jobIdFromHref(href: any): string | null {
+  if (!href || typeof href === "string" || href.pathname !== "/jobs/[id]") return null;
+  const id = href.params?.id;
   return typeof id === "string" && id.length > 0 ? id : null;
 }
 
@@ -29,20 +26,20 @@ export function JobOpenProvider({ children }: { children: ReactNode }) {
     const navigate = router.navigate.bind(router);
     const replace = router.replace.bind(router);
 
-    (router as any).push = (href: RouterHref, options?: RouterOptions) => {
-      const jobId = jobIdFromHref(href);
-      if (jobId) return void openWithInterstitial(jobId, () => push(href, options));
-      return push(href, options);
+    (router as any).push = (...args: any[]) => {
+      const jobId = jobIdFromHref(args[0]);
+      if (jobId) return void openWithInterstitial(jobId, () => (push as any)(...args));
+      return (push as any)(...args);
     };
-    (router as any).navigate = (href: RouterHref, options?: RouterOptions) => {
-      const jobId = jobIdFromHref(href);
-      if (jobId) return void openWithInterstitial(jobId, () => navigate(href, options));
-      return navigate(href, options);
+    (router as any).navigate = (...args: any[]) => {
+      const jobId = jobIdFromHref(args[0]);
+      if (jobId) return void openWithInterstitial(jobId, () => (navigate as any)(...args));
+      return (navigate as any)(...args);
     };
-    (router as any).replace = (href: RouterHref, options?: RouterOptions) => {
-      const jobId = jobIdFromHref(href);
-      if (jobId) return void openWithInterstitial(jobId, () => replace(href, options));
-      return replace(href, options);
+    (router as any).replace = (...args: any[]) => {
+      const jobId = jobIdFromHref(args[0]);
+      if (jobId) return void openWithInterstitial(jobId, () => (replace as any)(...args));
+      return (replace as any)(...args);
     };
 
     return () => {
@@ -60,5 +57,3 @@ export function useJobOpen() {
   if (!context) throw new Error("useJobOpen must be used within JobOpenProvider");
   return context;
 }
-
-const originalPush = router.push.bind(router);
