@@ -26,7 +26,6 @@ export const AD_FEATURES = {
 } as const;
 
 export const AD_APP_OPEN_TRIGGERS = [1, 2, 4, 6] as const;
-export const AD_JOB_OPEN_TRIGGERS = [1, 2, 4, 6] as const;
 export const AD_CADENCE_CYCLE_LENGTH = 6;
 
 export function isAdCadenceTrigger(
@@ -40,9 +39,5 @@ export function isAdCadenceTrigger(
 }
 
 export const AD_LIMITS = {
-  minJobDetailsBeforeInterstitial: 4,
-  interstitialChance: 0.2,
-  interstitialCooldownMs: 45 * 1000,
-  minAppLaunchesBeforeAppOpen: 1,
-  appOpenCooldownMs: 45 * 1000,
+  interstitialCooldownMs: 8 * 1000,
 } as const;
