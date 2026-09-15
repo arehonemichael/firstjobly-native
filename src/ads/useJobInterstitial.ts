@@ -1,217 +1,102 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useInterstitialAd } from "react-native-google-mobile-ads";
 
-import {
-  AD_FEATURES,
-  AD_JOB_OPEN_TRIGGERS,
-  AD_UNITS,
-  isAdCadenceTrigger,
-} from "./config";
+import { AD_FEATURES, AD_UNITS } from "./config";
 import { tryClaimInterstitialSlot } from "./interstitialGate";
 
-const JOB_DETAIL_OPEN_COUNT_KEY = "fj_admob_job_detail_open_count";
+export const JOB_OPEN_COUNT_KEY = "fj_admob_job_open_count";
+const DOUBLE_TAP_WINDOW_MS = 750;
 
-let jobOpensThisSession = 0;
-let interstitialAttemptedThisSession = false;
+let jobOpenQueue: Promise<number> = Promise.resolve(0);
+let globalTapLock = false;
+let lastTap: { jobId: string; at: number } | null = null;
 
-export function useEarlyJobInterstitial() {
-  const pendingAction = useRef<(() => void) | null>(null);
+async function incrementJobOpenCount() {
+  const operation = jobOpenQueue.then(async () => {
+    const raw = await AsyncStorage.getItem(JOB_OPEN_COUNT_KEY);
+    const parsed = Number(raw || 0);
+    const current = Number.isFinite(parsed) && parsed >= 0 ? Math.floor(parsed) : 0;
+    const next = current + 1;
+    await AsyncStorage.setItem(JOB_OPEN_COUNT_KEY, String(next));
+    return next;
+  });
+  jobOpenQueue = operation.catch(() => 0);
+  return operation;
+}
 
-  const { isLoaded, isClosed, load, show } = useInterstitialAd(
-    AD_UNITS.interstitial,
-    { requestNonPersonalizedAdsOnly: true },
-  );
+export function useJobInterstitial() {
+  const pendingNavigation = useRef<(() => void) | null>(null);
+  const { isLoaded, isClosed, load, show } = useInterstitialAd(AD_UNITS.interstitial, {
+    requestNonPersonalizedAdsOnly: true,
+  });
 
   useEffect(() => {
     if (AD_FEATURES.interstitial) load();
   }, [load]);
 
   useEffect(() => {
-    if (!isClosed || !pendingAction.current) return;
-
-    const action = pendingAction.current;
-    pendingAction.current = null;
-    action();
+    if (!isClosed) return;
+    const action = pendingNavigation.current;
+    pendingNavigation.current = null;
+    if (action) action();
     load();
   }, [isClosed, load]);
 
-  const openJobWithEarlyInterstitial = useCallback(
-    async (action: () => void) => {
-      jobOpensThisSession += 1;
+  const openJob = useCallback(async (jobId: string, navigate: () => void) => {
+    if (!jobId || globalTapLock) return;
+    const now = Date.now();
+    if (lastTap?.jobId === jobId && now - lastTap.at < DOUBLE_TAP_WINDOW_MS) return;
+    lastTap = { jobId, at: now };
+    globalTapLock = true;
 
-      if (!AD_FEATURES.interstitial) {
-        action();
-        return;
-      }
-
-      // Preserve the existing Jobs-list opportunity: only the second job tap
-      // in an app session is eligible here. Job Detail has its own cadence.
-      if (jobOpensThisSession !== 2 || interstitialAttemptedThisSession) {
-        action();
-        return;
-      }
-
-      interstitialAttemptedThisSession = true;
-
-      if (!isLoaded) {
-        action();
-        load();
-        return;
-      }
-
-      const claimed = await tryClaimInterstitialSlot("jobs-early");
-      if (!claimed) {
-        action();
-        return;
-      }
-
-      pendingAction.current = action;
-
-      try {
-        await show();
-      } catch (error) {
-        console.info("[AdCadence][jobs-early] show failed", error);
-        pendingAction.current = null;
-        action();
-        load();
-      }
-    },
-    [isLoaded, load, show],
-  );
-
-  return { openJobWithEarlyInterstitial };
-}
-
-export function useJobInterstitial(jobId?: string) {
-  const countedJobId = useRef<string | null>(null);
-  const attemptedTriggerCount = useRef<number | null>(null);
-  const [pendingTriggerCount, setPendingTriggerCount] = useState<number | null>(null);
-
-  const { isLoaded, isClosed, load, show } = useInterstitialAd(
-    AD_UNITS.interstitial,
-    { requestNonPersonalizedAdsOnly: true },
-  );
-
-  useEffect(() => {
-    if (AD_FEATURES.interstitial) load();
-  }, [load]);
-
-  useEffect(() => {
-    if (isClosed) load();
-  }, [isClosed, load]);
-
-  // Count each Job Detail view independently of ad loading state. Keeping this
-  // effect dependent only on jobId prevents an ad load state change from
-  // cancelling the async storage read/write before the trigger is queued.
-  useEffect(() => {
-    if (!jobId || countedJobId.current === jobId) return;
-    countedJobId.current = jobId;
-
-    let active = true;
-
-    const countOpen = async () => {
-      try {
-        const currentRaw = await AsyncStorage.getItem(JOB_DETAIL_OPEN_COUNT_KEY);
-        const current = Number(currentRaw || 0);
-        const nextCount = (Number.isFinite(current) ? current : 0) + 1;
-        const shouldTrigger = isAdCadenceTrigger(nextCount, AD_JOB_OPEN_TRIGGERS);
-
-        await AsyncStorage.setItem(JOB_DETAIL_OPEN_COUNT_KEY, String(nextCount));
-
-        console.info("[AdCadence][job-detail] counter", {
-          key: JOB_DETAIL_OPEN_COUNT_KEY,
-          previous: currentRaw,
-          count: nextCount,
-          triggers: AD_JOB_OPEN_TRIGGERS,
-          shouldTrigger,
-          jobId,
-        });
-
-        if (!active) return;
-
-        if (shouldTrigger) {
-          attemptedTriggerCount.current = null;
-          setPendingTriggerCount(nextCount);
-          console.info("[AdCadence][job-detail] trigger queued", { count: nextCount, jobId });
-        } else {
-          setPendingTriggerCount(null);
-        }
-      } catch (error) {
-        console.info("[AdCadence][job-detail] counter read/write failed", {
-          key: JOB_DETAIL_OPEN_COUNT_KEY,
-          jobId,
-          error,
-        });
-      }
+    let navigated = false;
+    const navigateOnce = () => {
+      if (navigated) return;
+      navigated = true;
+      navigate();
+      setTimeout(() => { globalTapLock = false; }, DOUBLE_TAP_WINDOW_MS);
     };
 
-    void countOpen();
+    let count: number;
+    try {
+      count = await incrementJobOpenCount();
+    } catch (error) {
+      if (__DEV__) console.info("[JobAds] counter failed", error);
+      navigateOnce();
+      return;
+    }
 
-    return () => {
-      active = false;
-    };
-  }, [jobId]);
+    const eligible = count % 2 === 1;
+    if (__DEV__) console.info("[JobAds] job open", { count, eligible, isLoaded });
 
-  useEffect(() => {
-    if (
-      !AD_FEATURES.interstitial ||
-      pendingTriggerCount == null ||
-      attemptedTriggerCount.current === pendingTriggerCount
-    ) {
+    if (!AD_FEATURES.interstitial || !eligible) {
+      navigateOnce();
       return;
     }
 
     if (!isLoaded) {
-      console.info("[AdCadence][job-detail] eligible but ad not loaded yet", {
-        count: pendingTriggerCount,
-        jobId,
-      });
+      navigateOnce();
       load();
       return;
     }
 
-    attemptedTriggerCount.current = pendingTriggerCount;
-    const triggerCount = pendingTriggerCount;
+    const claimed = await tryClaimInterstitialSlot("job-open");
+    if (!claimed) {
+      navigateOnce();
+      return;
+    }
 
-    const showPendingInterstitial = async () => {
-      console.info("[AdCadence][job-detail] attempting show", {
-        count: triggerCount,
-        jobId,
-        isLoaded,
-      });
+    pendingNavigation.current = navigateOnce;
+    try {
+      await show();
+    } catch (error) {
+      if (__DEV__) console.info("[JobAds] show failed", error);
+      pendingNavigation.current = null;
+      navigateOnce();
+      load();
+    }
+  }, [isLoaded, load, show]);
 
-      const claimed = await tryClaimInterstitialSlot("job-detail");
-      if (!claimed) {
-        console.info("[AdCadence][job-detail] suppressed by shared cooldown", {
-          count: triggerCount,
-          jobId,
-        });
-        setPendingTriggerCount(null);
-        return;
-      }
-
-      try {
-        console.info("[AdCadence][job-detail] show reached", { count: triggerCount, jobId });
-        await show();
-      } catch (error) {
-        console.info("[AdCadence][job-detail] show failed", {
-          count: triggerCount,
-          jobId,
-          error,
-        });
-        load();
-      } finally {
-        setPendingTriggerCount(null);
-      }
-    };
-
-    void showPendingInterstitial();
-  }, [isLoaded, jobId, load, pendingTriggerCount, show]);
-
-  const continueWithOptionalAd = useCallback((action: () => void) => {
-    action();
-  }, []);
-
-  return { continueWithOptionalAd };
+  return { openJob };
 }
