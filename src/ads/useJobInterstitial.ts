@@ -25,7 +25,7 @@ async function incrementJobOpenCount() {
   return operation;
 }
 
-export function useJobInterstitial() {
+export function useJobInterstitialManager() {
   const pendingNavigation = useRef<(() => void) | null>(null);
   const { isLoaded, isClosed, load, show } = useInterstitialAd(AD_UNITS.interstitial, {
     requestNonPersonalizedAdsOnly: true,
@@ -97,22 +97,17 @@ export function useJobInterstitial() {
     }
   }, [isLoaded, load, show]);
 
-  const continueWithOptionalAd = useCallback((action: () => void) => action(), []);
-  return { openJob, continueWithOptionalAd };
+  return { openJob };
 }
 
-// Temporary compatibility for the Jobs screen until its call site is migrated.
-// It uses the same global counter and manager logic rather than the removed session cadence.
+// Legacy Job Detail compatibility only. It never counts, loads, or shows an ad.
+export function useJobInterstitial(_jobId?: string) {
+  const continueWithOptionalAd = useCallback((action: () => void) => action(), []);
+  return { continueWithOptionalAd };
+}
+
+// Legacy Jobs compatibility only. The global router interceptor handles the job opening.
 export function useEarlyJobInterstitial() {
-  const { openJob } = useJobInterstitial();
-  const openJobWithEarlyInterstitial = useCallback(
-    async (action: () => void) => {
-      // Legacy caller does not provide the id, so do not consume the new global counter here.
-      // The call site is migrated to JobOpenProvider in the same refactor.
-      action();
-    },
-    [],
-  );
-  void openJob;
+  const openJobWithEarlyInterstitial = useCallback(async (action: () => void) => action(), []);
   return { openJobWithEarlyInterstitial };
 }
