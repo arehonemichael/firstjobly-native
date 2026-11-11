@@ -7,7 +7,7 @@ These are source changes based on GitHub main, not an update ZIP. The pink/navy 
 - A compact Home/Menu dock replaces the seven mobile tabs. Six secondary destinations expand into an elliptical arc with circular buttons and visible labels. The launcher becomes a visible close control; Home remains accessible. Full labelled hit areas are sized separately from the circles so targets and text do not overlap on small screens.
 - Modal navigation supports a backdrop, selected states, keyboard focus management, Escape, focus restoration, native back requests, safe-area padding, keyboard hiding, and reduced motion. Desktop keeps a full navigation bar with arrow-key focus handling. Short-height browser windows can scroll the arc rather than clipping destinations.
 - Home leads with a real date and personal greeting, followed by a real draft application or profile-completion panel where available. Latest opportunities follow, with search integrated into that section and the first available job given a prominent card with separate save and detail actions.
-- A bundled, OFL-licensed Lora face supplies editorial headings; Plus Jakarta Sans remains the interface face. Main headings in existing jobs, saved jobs, applications, career tools, community, profile, and job details use the shared editorial token.
+- Bundled, OFL-licensed Lora regular and italic faces supply editorial headings and the personal name; Plus Jakarta Sans remains the interface face. Main headings in existing jobs, saved jobs, applications, career tools, community, profile, and job details use the shared editorial token.
 - No recommendation scores, salaries, company identity, or account data are fabricated. Failed personal-data requests remain unavailable. A failed saved-job query disables the save control with an unavailable state instead of claiming a known saved status. Company/account images retain their actual associations and have cached, sized fallbacks.
 - Normal sign-in/sign-up opens Home unless a supported internal return destination was provided. Contextual sign-in retains the job, saved-job, application, profile, community, CV-maker, or Z83 route. No global redirect overrides explicit launch links.
 
@@ -21,7 +21,11 @@ These screenshots contain isolated test fixtures, not real users, companies, acc
 
 ![Desktop Home with full navigation, using test fixtures](screenshots/editorial-home-desktop.png)
 
-**The prototype image was not attached.** The implementation follows the written hierarchy and interaction requirements. No exact image match is claimed or verified.
+The prototype supplied in chat was visually compared with the running mobile result. Its hierarchy now guides the compact brand header, greeting with an italic name and adjacent avatar, slim segmented-progress panel, two-surface job card, and dark pill labels beneath circular navigation controls. FirstJobly’s existing pink/navy colours remain unchanged.
+
+The reference contains five secondary controls and sample data. This app retains all six secondary destinations plus Home, so its arc uses a slightly denser, responsive arrangement. The header’s conversation button opens the existing Graduate Room; no unsupported direct-message destination was added. A search control remains in the header. The card uses “Latest opportunities,” actual completion, and available job fields; sample match scores, salaries, people, employers, and fake detail counts are not copied. The existing weighted completion calculation is shown as four partially filled segments rather than pretending to have the sample’s “2 of 4 details” calculation.
+
+Visual comparison establishes close structural alignment, not pixel-identical rendering across devices.
 
 ## Run
 
@@ -48,7 +52,7 @@ The script accepts `APP_URL`, `CHROMIUM_PATH` (default `/usr/bin/chromium`), `PL
 
 - TypeScript passes. The original source had two type errors: a potentially null application response and a missing CSS module declaration. A narrow null-response guard and CSS declarations fix those without changing backend operations.
 - Five unit tests cover normal Home routing, internal return destinations, rejected external/malformed destinations, the existing profile-completion contract, and non-overlapping arc geometry at 320–768px with multiple text scales.
-- Browser checks cover mobile/tablet widths of 320, 390, 430, and 768px, plus 1440px desktop. They verify labelled target geometry, viewport bounds, all destinations, focus cycles, expanded states, Escape, Home return, browser back, desktop keys, profile/error/empty states, save/unsave, draft resumption, default login, explicit returns, and job deep links. Screenshots were inspected at mobile and desktop sizes.
+- 211 browser assertions passed with isolated data. Browser checks cover mobile/tablet widths of 320, 390, 430, and 768px, plus 1440px desktop. They verify labelled target geometry, viewport bounds, all destinations, focus cycles, expanded states, Escape, Home return, browser back, desktop keys, profile/error/empty states, save/unsave, draft resumption, default login, explicit returns, and job deep links. Screenshots were inspected at mobile and desktop sizes.
 - Production web and Android bundle exports pass. JavaScript/Hermes export is not a native APK/IPA build or physical-device certification.
 - Targeted lint passes for the new navigation, Home, shared components, summary hook, routing/layout helpers, platform adapters, and test scripts.
 - Full-source ESLint under the same Expo rules reports 31 errors/36 warnings on the original GitHub source and 26 errors/29 warnings after this change. No new error signatures were introduced. Remaining failures are pre-existing hook-effect/ref/purity and unescaped-copy issues; they were not hidden with rule suppressions. ESLint and its Expo config were added as development dependencies so the repository's existing lint command is usable.

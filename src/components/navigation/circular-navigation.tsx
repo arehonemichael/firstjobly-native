@@ -112,7 +112,6 @@ export function CircularNavigation({ state, navigation }: TabBarProps) {
         <Animated.View nativeID="circular-navigation" accessibilityViewIsModal accessibilityLabel="Navigation menu" {...(Platform.OS === "web" ? { role: "dialog" as const, "aria-modal": true } : {})} pointerEvents="box-none" style={[styles.modalContent, { opacity: progress, transform: [{ translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }] }]}>
           <ScrollView style={styles.arcScroll} contentContainerStyle={styles.arcContent} showsVerticalScrollIndicator={false}>
             <View pointerEvents="box-none" style={{ width: layout.width }}>
-              <Text accessibilityRole="header" style={styles.menuHeading}>Where to next?</Text>
               <View pointerEvents="box-none" style={{ height: layout.height }}>{visible.filter((item) => item.name !== "index").map((item, index) => itemControl(item, index, true))}</View>
             </View>
           </ScrollView>
@@ -127,7 +126,7 @@ export function CircularNavigation({ state, navigation }: TabBarProps) {
 }
 const styles = StyleSheet.create({
   bar: { backgroundColor: Colors.background, paddingTop: Space.sm, paddingHorizontal: Space.lg, alignItems: "center", borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: Colors.border },
-  dock: { flexDirection: "row", alignItems: "center", padding: 5, width: "100%", maxWidth: 260, backgroundColor: Colors.surface, borderRadius: Radius.pill, borderWidth: 1, borderColor: Colors.border },
+  dock: { flexDirection: "row", alignItems: "center", padding: 5, width: "100%", maxWidth: 230, backgroundColor: Colors.surface, borderRadius: Radius.pill, borderWidth: 1, borderColor: Colors.border },
   home: { minHeight: 50, flex: 1, flexDirection: "row", gap: Space.sm, alignItems: "center", justifyContent: "center", borderRadius: Radius.pill, paddingHorizontal: Space.md },
   menu: { minHeight: 50, flex: 1, flexDirection: "row", gap: Space.sm, alignItems: "center", paddingHorizontal: Space.sm, borderRadius: Radius.pill },
   menuCircle: { width: 38, height: 38, borderRadius: Radius.pill, backgroundColor: Colors.primary, alignItems: "center", justifyContent: "center" },
@@ -138,16 +137,16 @@ const styles = StyleSheet.create({
   activeLabel: { color: Colors.primaryPressed },
   selected: { backgroundColor: Colors.primarySoft },
   feedback: { opacity: 0.76 },
-  overlay: { flex: 1, backgroundColor: "rgba(6,26,48,0.30)", alignItems: "center", justifyContent: "flex-end" },
+  overlay: { flex: 1, backgroundColor: "rgba(6,26,48,0.18)", alignItems: "center", justifyContent: "flex-end" },
   modalContent: { flex: 1, width: "100%", alignItems: "center", justifyContent: "flex-end" },
   arcScroll: { width: "100%", flex: 1 },
   arcContent: { flexGrow: 1, justifyContent: "flex-end", alignItems: "center", paddingBottom: Space.sm },
-  menuHeading: { fontFamily: Fonts.editorial, fontSize: 23, color: Colors.foreground, textAlign: "center", marginBottom: Space.lg, paddingVertical: Space.md, alignSelf: "center", paddingHorizontal: Space.lg, backgroundColor: Colors.surface, borderRadius: Radius.pill },
-  radialItem: { position: "absolute", alignItems: "center", gap: Space.sm, borderRadius: Radius.sm },
-  circle: { width: 52, height: 52, borderRadius: 26, backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border, alignItems: "center", justifyContent: "center" },
+
+  radialItem: { position: "absolute", alignItems: "center", gap: 6, borderRadius: Radius.sm },
+  circle: { width: 48, height: 48, borderRadius: 24, backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border, alignItems: "center", justifyContent: "center" },
   activeCircle: { backgroundColor: Colors.primarySoft, borderColor: Colors.primary },
   selectedMark: { position: "absolute", right: -1, top: -1, width: 16, height: 16, borderRadius: 8, backgroundColor: Colors.primaryPressed, alignItems: "center", justifyContent: "center" },
-  radialLabel: { fontFamily: Fonts.semibold, fontSize: 12, lineHeight: 17, color: Colors.foreground, textAlign: "center", backgroundColor: Colors.surface, paddingHorizontal: 5, paddingVertical: 2, borderRadius: 5 },
+  radialLabel: { fontFamily: Fonts.medium, fontSize: 11, lineHeight: 15, color: Colors.surface, textAlign: "center", backgroundColor: Colors.foreground, paddingHorizontal: 8, paddingVertical: 3, borderRadius: Radius.pill },
   menuFooter: { width: "100%", minHeight: 98, alignItems: "center", paddingTop: Space.sm },
   close: { width: 76, minHeight: 82, alignItems: "center", gap: Space.sm, borderRadius: Radius.sm },
   closeCircle: { width: 56, height: 56, borderRadius: 28, backgroundColor: Colors.primary, alignItems: "center", justifyContent: "center" },

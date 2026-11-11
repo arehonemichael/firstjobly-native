@@ -43,6 +43,7 @@ export const Radius = {
 
 export const Fonts = {
   editorial: "FirstJoblyEditorial",
+  editorialItalic: "FirstJoblyEditorialItalic",
   regular: "PlusJakartaSans_400Regular",
   medium: "PlusJakartaSans_500Medium",
   semibold: "PlusJakartaSans_600SemiBold",
