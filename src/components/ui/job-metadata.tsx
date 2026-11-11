@@ -4,7 +4,7 @@ import { Colors, Fonts } from "../../constants/theme";
 import type { Job } from "../../lib/jobs";
 
 const currency = (value: number) => `R${value.toLocaleString("en-ZA")}`;
-export function JobMetadata({ job }: { job: Job }) {
+export function JobMetadata({ job, showJobType = true }: { job: Job; showJobType?: boolean }) {
   const min = job.salary_min;
   const max = job.salary_max;
   const salary =
@@ -24,7 +24,7 @@ export function JobMetadata({ job }: { job: Job }) {
           {job.salary_period ? ` / ${job.salary_period}` : ""}
         </Text>
       )}
-      {job.job_type && (
+      {showJobType && job.job_type && (
         <Text style={styles.meta}>{job.job_type.replace(/_/g, " ")}</Text>
       )}
       {!Number.isNaN(posted.getTime()) && (

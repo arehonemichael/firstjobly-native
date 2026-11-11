@@ -24,6 +24,7 @@ export default function RootLayout() {
   const finishLaunchSplash = useCallback(() => setShowLaunchSplash(false), []);
   const [fontsLoaded] = useFonts({
     FirstJoblyEditorial: require("../../assets/fonts/Lora-Variable.ttf"),
+    FirstJoblyEditorialItalic: require("../../assets/fonts/Lora-Italic-Variable.ttf"),
     PlusJakartaSans_400Regular,
     PlusJakartaSans_500Medium,
     PlusJakartaSans_600SemiBold,

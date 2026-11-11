@@ -93,7 +93,7 @@ function check(value, label) { assert.ok(value,label); console.log(`PASS ${label
   if(variant==='draft') { await page.getByText('Continue application',{exact:true}).click();await page.waitForURL('**/jobs/fixture-job');check(true,'draft resumes correct job'); }
   if(variant==='failure') { await page.getByText('Some of your overview couldn’t load.',{exact:true}).waitFor();check(await page.getByRole('progressbar').count()===0,'failed profile has no fabricated completion'); }
   if(variant==='empty') { await page.getByText('No opportunities yet',{exact:true}).waitFor();check(true,'empty jobs state'); }
-  if(variant!=='draft') await page.screenshot({path:`${screenshotDir}/home-${variant}-fixture.png`});
+  if(variant!=='draft') {await page.locator('#home-scroll').evaluate(el=>el.scrollTo(0,0));await page.waitForTimeout(100);await page.screenshot({path:`${screenshotDir}/home-${variant}-fixture.png`});}
   check(errors.length===0,`${variant} profile has no runtime exceptions`);await context.close();
  }
  // Authenticate against isolated responses: default Home and explicit returns.
