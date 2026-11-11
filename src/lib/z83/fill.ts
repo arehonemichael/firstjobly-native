@@ -4,7 +4,7 @@ import {
   rgb,
   type PDFFont,
   type PDFPage,
-} from "pdf-lib";
+} from "./pdf-lib";
 import {
   A,
   B,
@@ -59,7 +59,7 @@ function drawText(
   pages: PDFPage[],
   font: PDFFont,
   box: TextBox,
-  value: string
+  value: string,
 ) {
   const text = (value ?? "").trim();
   if (!text) return;
@@ -75,14 +75,10 @@ function drawText(
   }
   lines.slice(0, maxLines).forEach((line, i) => {
     const width = font.widthOfTextAtSize(line, size);
-    const x =
-      box.align === "center" ? box.x + (box.w - width) / 2 : box.x;
+    const x = box.align === "center" ? box.x + (box.w - width) / 2 : box.x;
     page.drawText(line, {
       x,
-      y:
-        Z83_PAGE_HEIGHT -
-        (box.y + i * (box.lineHeight ?? size + 2)) -
-        size,
+      y: Z83_PAGE_HEIGHT - (box.y + i * (box.lineHeight ?? size + 2)) - size,
       size,
       font,
       color: INK,
@@ -90,11 +86,7 @@ function drawText(
   });
 }
 
-function drawTick(
-  pages: PDFPage[],
-  font: PDFFont,
-  tick: TickBox | undefined
-) {
+function drawTick(pages: PDFPage[], font: PDFFont, tick: TickBox | undefined) {
   if (!tick) return;
   pages[tick.page]?.drawText("X", {
     x: tick.x,
@@ -105,12 +97,7 @@ function drawTick(
   });
 }
 
-function yesNo(
-  pages: PDFPage[],
-  font: PDFFont,
-  row: YesNoRow,
-  value: string
-) {
+function yesNo(pages: PDFPage[], font: PDFFont, row: YesNoRow, value: string) {
   if (value !== "yes" && value !== "no") return;
   drawTick(pages, font, {
     page: 0,
@@ -123,7 +110,7 @@ function chars(
   pages: PDFPage[],
   font: PDFFont,
   boxes: TextBox[],
-  value: string
+  value: string,
 ) {
   (value ?? "")
     .replace(/\s+/g, "")
@@ -134,7 +121,7 @@ function chars(
 
 export async function fillZ83(
   data: Z83Data,
-  templateBytes: ArrayBuffer | Uint8Array
+  templateBytes: ArrayBuffer | Uint8Array,
 ) {
   const pdf = await PDFDocument.load(templateBytes);
   const font = await pdf.embedFont(StandardFonts.Helvetica);
@@ -156,85 +143,35 @@ export async function fillZ83(
   yesNo(pages, bold, "saCitizen", data.saCitizen);
   drawText(pages, font, B.nationality, data.nationality);
   yesNo(pages, bold, "workPermit", data.workPermit);
-  yesNo(
-    pages,
-    bold,
-    "criminalConviction",
-    data.criminalConviction
-  );
+  yesNo(pages, bold, "criminalConviction", data.criminalConviction);
   drawText(pages, font, B.criminalDetail, data.criminalDetail);
   yesNo(pages, bold, "pendingCriminal", data.pendingCriminal);
-  drawText(
-    pages,
-    font,
-    B.pendingCriminalDetail,
-    data.pendingCriminalDetail
-  );
-  yesNo(
-    pages,
-    bold,
-    "dismissedForMisconduct",
-    data.dismissedForMisconduct
-  );
+  drawText(pages, font, B.pendingCriminalDetail, data.pendingCriminalDetail);
+  yesNo(pages, bold, "dismissedForMisconduct", data.dismissedForMisconduct);
   drawText(pages, font, B.dismissedDetail, data.dismissedDetail);
-  yesNo(
-    pages,
-    bold,
-    "pendingDisciplinary",
-    data.pendingDisciplinary
-  );
+  yesNo(pages, bold, "pendingDisciplinary", data.pendingDisciplinary);
   drawText(
     pages,
     font,
     B.pendingDisciplinaryDetail,
-    data.pendingDisciplinaryDetail
+    data.pendingDisciplinaryDetail,
   );
   yesNo(
     pages,
     bold,
     "resignedPendingDisciplinary",
-    data.resignedPendingDisciplinary
+    data.resignedPendingDisciplinary,
   );
   drawText(pages, font, B.resignedDetail, data.resignedDetail);
-  yesNo(
-    pages,
-    bold,
-    "dischargedIllHealth",
-    data.dischargedIllHealth
-  );
-  yesNo(
-    pages,
-    bold,
-    "businessWithState",
-    data.businessWithState
-  );
-  yesNo(
-    pages,
-    bold,
-    "relinquishBusiness",
-    data.relinquishBusiness
-  );
+  yesNo(pages, bold, "dischargedIllHealth", data.dischargedIllHealth);
+  yesNo(pages, bold, "businessWithState", data.businessWithState);
+  yesNo(pages, bold, "relinquishBusiness", data.relinquishBusiness);
   drawText(pages, font, B.yearsPrivate, data.yearsPrivate);
   drawText(pages, font, B.yearsPublic, data.yearsPublic);
-  drawText(
-    pages,
-    font,
-    B.registrationDate,
-    data.registrationDate
-  );
-  drawText(
-    pages,
-    font,
-    B.registrationNumber,
-    data.registrationNumber
-  );
+  drawText(pages, font, B.registrationDate, data.registrationDate);
+  drawText(pages, font, B.registrationNumber, data.registrationNumber);
 
-  drawText(
-    pages,
-    font,
-    C.preferredLanguage,
-    data.preferredLanguage
-  );
+  drawText(pages, font, C.preferredLanguage, data.preferredLanguage);
   drawTick(pages, bold, METHOD_TICKS[data.method]);
   drawText(pages, font, C.contactDetails, data.contactDetails);
 
@@ -266,12 +203,7 @@ export async function fillZ83(
     drawTick(pages, bold, F_PREV_CONDITION.yes);
   if (data.prevPublicServiceCondition === "no")
     drawTick(pages, bold, F_PREV_CONDITION.no);
-  drawText(
-    pages,
-    font,
-    F_PREV_CONDITION.detail,
-    data.prevPublicServiceDetail
-  );
+  drawText(pages, font, F_PREV_CONDITION.detail, data.prevPublicServiceDetail);
 
   data.references.slice(0, 3).forEach((r, i) => {
     const row = G_ROWS[i]!;
@@ -280,10 +212,7 @@ export async function fillZ83(
     drawText(pages, font, row.phone, r.phone);
   });
 
-  if (
-    data.signMode === "digital" &&
-    data.signature.startsWith("data:image")
-  ) {
+  if (data.signMode === "digital" && data.signature.startsWith("data:image")) {
     const png = await pdf.embedPng(data.signature);
     const slot = DECLARATION.signatureImage;
     const scale = Math.min(slot.w / png.width, slot.h / png.height);
@@ -300,15 +229,13 @@ export async function fillZ83(
       pages,
       font,
       DECLARATION.signaturePrintNote,
-      "(sign by hand after printing)"
+      "(sign by hand after printing)",
     );
   }
 
   drawText(pages, font, DECLARATION.date, data.declarationDate);
   if (data.initials.trim()) {
-    INITIALS.forEach((box) =>
-      drawText(pages, font, box, data.initials)
-    );
+    INITIALS.forEach((box) => drawText(pages, font, box, data.initials));
   }
 
   return pdf.save();

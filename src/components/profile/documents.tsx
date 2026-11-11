@@ -1,14 +1,17 @@
-﻿import { useCallback, useEffect, useState } from "react";
+import {
+  AppText as Text,
+  AppTouchableOpacity as TouchableOpacity,
+} from "../ui/primitives";
+import { Colors, Fonts, Radius } from "../../constants/theme";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Linking,
   StyleSheet,
-  Text,
-  TouchableOpacity,
   View,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Icon as Ionicons } from "../ui/icon";
 import * as DocumentPicker from "expo-document-picker";
 
 import { supabase } from "../../lib/supabase";
@@ -112,7 +115,7 @@ export function DocumentsSection({
     if (!allowedExtensions.includes(ext)) {
       Alert.alert(
         "Unsupported file",
-        "Please upload a PDF, Word document, JPG or PNG."
+        "Please upload a PDF, Word document, JPG or PNG.",
       );
       return;
     }
@@ -146,18 +149,16 @@ export function DocumentsSection({
 
       if (uploadError) throw uploadError;
 
-      const { error: rowError } = await supabase
-        .from("user_documents")
-        .upsert(
-          {
-            user_id: userId,
-            kind,
-            file_path: path,
-            file_name: asset.name.slice(0, 160),
-            file_size: asset.size,
-          },
-          { onConflict: "user_id,kind" }
-        );
+      const { error: rowError } = await supabase.from("user_documents").upsert(
+        {
+          user_id: userId,
+          kind,
+          file_path: path,
+          file_name: asset.name.slice(0, 160),
+          file_size: asset.size,
+        },
+        { onConflict: "user_id,kind" },
+      );
 
       if (rowError) {
         await supabase.storage.from("documents").remove([path]);
@@ -165,9 +166,7 @@ export function DocumentsSection({
       }
 
       if (existing) {
-        await supabase.storage
-          .from("documents")
-          .remove([existing.file_path]);
+        await supabase.storage.from("documents").remove([existing.file_path]);
       }
 
       await load();
@@ -196,9 +195,7 @@ export function DocumentsSection({
             .eq("user_id", userId);
 
           if (!error) {
-            await supabase.storage
-              .from("documents")
-              .remove([doc.file_path]);
+            await supabase.storage.from("documents").remove([doc.file_path]);
           }
 
           setBusyKind(null);
@@ -228,7 +225,12 @@ export function DocumentsSection({
   }
 
   if (loading) {
-    return <ActivityIndicator color="#E1225F" style={{ marginVertical: 16 }} />;
+    return (
+      <ActivityIndicator
+        color={Colors.primary}
+        style={{ marginVertical: 16 }}
+      />
+    );
   }
 
   return (
@@ -251,7 +253,7 @@ export function DocumentsSection({
                   <Ionicons
                     name="checkmark-circle"
                     size={17}
-                    color="#E1225F"
+                    color={Colors.primary}
                   />
                 ) : null}
               </View>
@@ -268,13 +270,15 @@ export function DocumentsSection({
                 onPress={() => void choose(kind.key)}
               >
                 {busy ? (
-                  <ActivityIndicator color={doc ? "#061A30" : "#FFFFFF"} />
+                  <ActivityIndicator
+                    color={doc ? Colors.foreground : Colors.surface}
+                  />
                 ) : (
                   <>
                     <Ionicons
                       name="cloud-upload-outline"
                       size={17}
-                      color={doc ? "#061A30" : "#FFFFFF"}
+                      color={doc ? Colors.foreground : Colors.surface}
                     />
                     <Text style={doc ? styles.outlineText : styles.uploadText}>
                       {doc ? "Replace" : "Upload"}
@@ -286,13 +290,14 @@ export function DocumentsSection({
               {doc ? (
                 <>
                   <TouchableOpacity
+                    accessibilityLabel="Open action"
                     style={styles.iconButton}
                     onPress={() => void open(doc)}
                   >
                     <Ionicons
                       name="open-outline"
                       size={18}
-                      color="#061A30"
+                      color={Colors.foreground}
                     />
                   </TouchableOpacity>
 
@@ -304,7 +309,7 @@ export function DocumentsSection({
                     <Ionicons
                       name="trash-outline"
                       size={18}
-                      color="#DC2626"
+                      color={Colors.error}
                     />
                   </TouchableOpacity>
                 </>
@@ -315,7 +320,8 @@ export function DocumentsSection({
       })}
 
       <Text style={styles.private}>
-        Your documents are private. They are only shared when you apply for a job.
+        Your documents are private. They are only shared when you apply for a
+        job.
       </Text>
     </View>
   );
@@ -324,46 +330,62 @@ export function DocumentsSection({
 const styles = StyleSheet.create({
   row: {
     borderWidth: 1,
-    borderColor: "#E8EBF0",
-    borderRadius: 12,
+    borderColor: Colors.border,
+    borderRadius: Radius.md,
     padding: 14,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
     marginBottom: 10,
   },
   header: { flex: 1 },
   titleRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  title: { color: "#061A30", fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800", fontSize: 14 },
-  required: { color: "#DC2626", fontSize: 10, fontFamily: "PlusJakartaSans_700Bold", fontWeight: "700" },
-  hint: { color: "#556274", fontSize: 12, marginTop: 4 },
+  title: {
+    color: Colors.foreground,
+    fontFamily: Fonts.bold,
+    fontWeight: "700",
+    fontSize: 14,
+  },
+  required: {
+    color: Colors.error,
+    fontSize: 11,
+    fontFamily: Fonts.bold,
+    fontWeight: "700",
+  },
+  hint: { color: Colors.muted, fontSize: 12, marginTop: 4 },
   actions: { flexDirection: "row", gap: 7, marginTop: 12 },
   upload: {
     flex: 1,
     height: 42,
-    backgroundColor: "#E1225F",
-    borderRadius: 9,
+    backgroundColor: Colors.primary,
+    borderRadius: Radius.sm,
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
     gap: 6,
   },
-  uploadText: { color: "#FFFFFF", fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800" },
-  outlineText: { color: "#061A30", fontFamily: "PlusJakartaSans_700Bold", fontWeight: "700" },
+  uploadText: {
+    color: Colors.surface,
+    fontFamily: Fonts.bold,
+    fontWeight: "700",
+  },
+  outlineText: {
+    color: Colors.foreground,
+    fontFamily: Fonts.bold,
+    fontWeight: "700",
+  },
   iconButton: {
     width: 44,
     height: 42,
     borderWidth: 1,
-    borderColor: "#DFE4EC",
-    borderRadius: 9,
+    borderColor: Colors.input,
+    borderRadius: Radius.sm,
     alignItems: "center",
     justifyContent: "center",
   },
   disabled: { opacity: 0.55 },
   private: {
-    color: "#556274",
+    color: Colors.muted,
     fontSize: 11,
     lineHeight: 17,
     marginTop: 3,
   },
 });
-
-

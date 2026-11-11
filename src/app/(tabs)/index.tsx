@@ -1,21 +1,31 @@
+import {
+  AppText as Text,
+  AppTouchableOpacity as TouchableOpacity,
+} from "../../components/ui/primitives";
+import { Colors, Fonts, Radius } from "../../constants/theme";
 import { useEffect, useState } from "react";
 import {
   Image,
+  useWindowDimensions,
   ScrollView,
   StyleSheet,
-  Text,
-  TouchableOpacity,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
+import { Icon as Ionicons } from "../../components/ui/icon";
 import { router } from "expo-router";
 
 import { getJobs } from "../../lib/job-api";
 import type { Job } from "../../lib/jobs";
 import { useScreenBottomPadding } from "../../hooks/use-screen-bottom-padding";
 import { useAuth } from "../../hooks/use-auth";
-import { SkeletonJobCard } from "../../components/ui/app-ui";
+import { JobMetadata } from "../../components/ui/job-metadata";
+import { categoryLabel } from "../../lib/job-filters";
+import {
+  EmptyState,
+  InlineErrorState,
+  SkeletonJobCard,
+} from "../../components/ui/app-ui";
 import { useEarlyJobInterstitial } from "../../ads/useJobInterstitial";
 
 const categories = [
@@ -46,6 +56,7 @@ const categories = [
 ];
 
 export default function HomeScreen() {
+  const wide = useWindowDimensions().width >= 760;
   const auth = useAuth();
   const authAny = auth as any;
   const { openJobWithEarlyInterstitial } = useEarlyJobInterstitial();
@@ -53,18 +64,14 @@ export default function HomeScreen() {
   const firstName = String(
     authAny?.user?.user_metadata?.full_name ??
       authAny?.user?.user_metadata?.name ??
-      ""
+      "",
   )
     .trim()
     .split(/\s+/)[0];
 
   const hour = new Date().getHours();
   const dayGreeting =
-    hour < 12
-      ? "Good morning"
-      : hour < 18
-        ? "Good afternoon"
-        : "Good evening";
+    hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
 
   const greetingLabel = firstName
     ? `${dayGreeting}, ${firstName}`
@@ -74,12 +81,32 @@ export default function HomeScreen() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const [error, setError] = useState<string | null>(null);
+
+  const [reload, setReload] = useState(0);
+  function loadJobs() {
+    setLoading(true);
+    setError(null);
+    setReload((value) => value + 1);
+  }
+
   useEffect(() => {
+    let active = true;
     getJobs(0)
-      .then((data) => setJobs(data.slice(0, 6)))
-      .catch((error) => console.error("Home jobs failed:", error))
-      .finally(() => setLoading(false));
-  }, []);
+      .then((data) => {
+        if (active) setJobs(data.slice(0, 6));
+      })
+      .catch(() => {
+        if (active)
+          setError("We couldn’t load opportunities. Please try again.");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [reload]);
 
   return (
     <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
@@ -99,11 +126,15 @@ export default function HomeScreen() {
             <Text style={styles.tagline}>Opportunity, made personal.</Text>
           </View>
 
-          <TouchableOpacity style={styles.notification} activeOpacity={0.78}>
+          <TouchableOpacity
+            style={styles.notification}
+            accessibilityLabel="Open profile"
+            onPress={() => router.push("/profile")}
+          >
             <Ionicons
-              name="notifications-outline"
-              size={22}
-              color="#061A30"
+              name="person-circle-outline"
+              size={24}
+              color={Colors.foreground}
             />
           </TouchableOpacity>
         </View>
@@ -112,8 +143,7 @@ export default function HomeScreen() {
           <Text style={styles.heroEyebrow}>YOUR NEXT MOVE</Text>
           <Text style={styles.heroTitle}>{greetingLabel}</Text>
           <Text style={styles.heroText}>
-            Discover opportunities that match where you are and where you want
-            to go.
+            Find jobs, learnerships and internships. Take your next step.
           </Text>
 
           <TouchableOpacity
@@ -121,33 +151,33 @@ export default function HomeScreen() {
             activeOpacity={0.82}
             onPress={() => router.push("/jobs")}
           >
-            <Ionicons name="search" size={20} color="#556274" />
+            <Ionicons name="search" size={20} color={Colors.muted} />
             <Text style={styles.searchText}>Search jobs or companies</Text>
-            <Ionicons name="arrow-forward" size={18} color="#061A30" />
+            <Ionicons
+              name="arrow-forward"
+              size={18}
+              color={Colors.foreground}
+            />
           </TouchableOpacity>
-
-          <View style={styles.trustRow}>
-            <Ionicons name="sparkles-outline" size={15} color="#F8C5D6" />
-            <Text style={styles.trustText}>
-              Fresh opportunities added regularly
-            </Text>
-          </View>
         </View>
 
         <View style={styles.sectionHeader}>
           <View>
             <Text style={styles.sectionTitle}>Find your fit</Text>
-            <Text style={styles.sectionSubtitle}>
-              Browse the opportunity types people use most
-            </Text>
+            <Text style={styles.sectionSubtitle}>Choose a starting point</Text>
           </View>
         </View>
 
-        <View style={styles.categoryList}>
+        <View
+          style={[
+            styles.categoryList,
+            wide && { flexDirection: "row", flexWrap: "wrap" },
+          ]}
+        >
           {categories.map((category) => (
             <TouchableOpacity
               key={category.name}
-              style={styles.category}
+              style={[styles.category, wide && { width: "48%", flexGrow: 1 }]}
               activeOpacity={0.78}
               onPress={() =>
                 router.push({
@@ -160,21 +190,19 @@ export default function HomeScreen() {
                 <Ionicons
                   name={category.icon as any}
                   size={21}
-                  color="#E1225F"
+                  color={Colors.primary}
                 />
               </View>
 
               <View style={styles.categoryCopy}>
                 <Text style={styles.categoryText}>{category.name}</Text>
-                <Text style={styles.categorySubtitle} numberOfLines={1}>
-                  {category.subtitle}
-                </Text>
+                <Text style={styles.categorySubtitle}>{category.subtitle}</Text>
               </View>
 
               <Ionicons
                 name="chevron-forward"
                 size={20}
-                color="#94A3B8"
+                color={Colors.mutedSubtle}
               />
             </TouchableOpacity>
           ))}
@@ -182,9 +210,9 @@ export default function HomeScreen() {
 
         <View style={styles.sectionHeaderJobs}>
           <View style={styles.sectionHeadingCopy}>
-            <Text style={styles.sectionTitle}>Recommended for you</Text>
+            <Text style={styles.sectionTitle}>Latest opportunities</Text>
             <Text style={styles.sectionSubtitle}>
-              New opportunities worth a look
+              Recently posted jobs to explore
             </Text>
           </View>
 
@@ -202,6 +230,15 @@ export default function HomeScreen() {
             <SkeletonJobCard />
             <SkeletonJobCard />
           </View>
+        ) : error ? (
+          <InlineErrorState message={error} onRetry={loadJobs} />
+        ) : jobs.length === 0 ? (
+          <EmptyState
+            title="No opportunities yet"
+            message="Check back soon or explore job search."
+            actionLabel="Search jobs"
+            onAction={() => router.push("/jobs")}
+          />
         ) : (
           <View style={styles.jobsList}>
             {jobs.map((job) => (
@@ -214,7 +251,7 @@ export default function HomeScreen() {
                     router.push({
                       pathname: "/jobs/[id]",
                       params: { id: job.id },
-                    })
+                    }),
                   )
                 }
               >
@@ -233,9 +270,7 @@ export default function HomeScreen() {
                 )}
 
                 <View style={styles.jobContent}>
-                  <Text style={styles.jobTitle} numberOfLines={2}>
-                    {job.title}
-                  </Text>
+                  <Text style={styles.jobTitle}>{job.title}</Text>
 
                   <Text style={styles.company}>{job.company_name}</Text>
 
@@ -243,18 +278,19 @@ export default function HomeScreen() {
                     <Ionicons
                       name="location-outline"
                       size={14}
-                      color="#556274"
+                      color={Colors.muted}
                     />
                     <Text style={styles.metaText} numberOfLines={1}>
-                      {job.city
-                        ? `${job.city}, ${job.province}`
-                        : job.province}
+                      {job.city ? `${job.city}, ${job.province}` : job.province}
                     </Text>
                   </View>
 
+                  <JobMetadata job={job} />
                   <View style={styles.badges}>
                     <View style={styles.badge}>
-                      <Text style={styles.badgeText}>{job.category}</Text>
+                      <Text style={styles.badgeText}>
+                        {categoryLabel(job.category)}
+                      </Text>
                     </View>
 
                     {job.is_urgent && (
@@ -268,7 +304,7 @@ export default function HomeScreen() {
                 <Ionicons
                   name="chevron-forward"
                   size={20}
-                  color="#94A3B8"
+                  color={Colors.mutedSubtle}
                   style={styles.jobChevron}
                 />
               </TouchableOpacity>
@@ -283,7 +319,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: "#F6F7F9",
+    backgroundColor: Colors.background,
   },
   container: {
     flex: 1,
@@ -304,67 +340,69 @@ const styles = StyleSheet.create({
     paddingRight: 12,
   },
   logo: {
-    color: "#E1225F",
-    fontSize: 27,
+    color: Colors.primary,
+    fontSize: 26,
     lineHeight: 32,
-    fontFamily: "PlusJakartaSans_800ExtraBold",
-    fontWeight: "800",
+    fontFamily: Fonts.bold,
+    fontWeight: "700",
   },
   logoDark: {
-    color: "#061A30",
+    color: Colors.foreground,
   },
   tagline: {
     marginTop: 3,
-    color: "#556274",
+    color: Colors.muted,
     fontSize: 12,
-    fontFamily: "PlusJakartaSans_500Medium",
+    fontFamily: Fonts.medium,
   },
   notification: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "#E8EBF0",
+    borderColor: Colors.border,
   },
   hero: {
     marginHorizontal: 16,
-    backgroundColor: "#061A30",
-    borderRadius: 24,
+    backgroundColor: Colors.secondary,
+    borderRadius: Radius.md,
     padding: 24,
   },
   heroEyebrow: {
-    color: "#E1225F",
+    color: Colors.primary,
     fontSize: 12,
     lineHeight: 16,
     letterSpacing: 0.9,
-    fontFamily: "PlusJakartaSans_700Bold",
+    fontFamily: Fonts.bold,
     fontWeight: "700",
   },
   heroTitle: {
-    color: "#FFFFFF",
-    fontSize: 31,
-    lineHeight: 38,
+    color: Colors.foreground,
+    fontSize: 26,
+    lineHeight: 34,
     marginTop: 9,
     letterSpacing: -0.5,
-    fontFamily: "PlusJakartaSans_800ExtraBold",
-    fontWeight: "800",
+    fontFamily: Fonts.bold,
+    fontWeight: "700",
   },
   heroText: {
-    color: "#DFE4EC",
+    color: Colors.muted,
     marginTop: 10,
     lineHeight: 21,
     fontSize: 14,
-    maxWidth: 300,
-    fontFamily: "PlusJakartaSans_400Regular",
+    maxWidth: 560,
+    fontFamily: Fonts.regular,
   },
   search: {
     marginTop: 24,
     minHeight: 54,
-    borderRadius: 16,
-    backgroundColor: "#FFFFFF",
+    borderRadius: Radius.sm,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.input,
     paddingHorizontal: 16,
     flexDirection: "row",
     alignItems: "center",
@@ -373,8 +411,8 @@ const styles = StyleSheet.create({
   searchText: {
     flex: 1,
     fontSize: 14,
-    color: "#556274",
-    fontFamily: "PlusJakartaSans_500Medium",
+    color: Colors.muted,
+    fontFamily: Fonts.medium,
   },
   trustRow: {
     marginTop: 16,
@@ -383,9 +421,9 @@ const styles = StyleSheet.create({
     gap: 7,
   },
   trustText: {
-    color: "#F8C5D6",
+    color: Colors.primaryBorder,
     fontSize: 11,
-    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontFamily: Fonts.semibold,
   },
   sectionHeader: {
     marginTop: 30,
@@ -407,25 +445,25 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 21,
     lineHeight: 27,
-    fontFamily: "PlusJakartaSans_800ExtraBold",
-    fontWeight: "800",
-    color: "#061A30",
+    fontFamily: Fonts.bold,
+    fontWeight: "700",
+    color: Colors.foreground,
   },
   sectionSubtitle: {
     marginTop: 3,
-    color: "#556274",
+    color: Colors.muted,
     fontSize: 12,
     lineHeight: 17,
-    fontFamily: "PlusJakartaSans_400Regular",
+    fontFamily: Fonts.regular,
   },
   seeAllButton: {
-    minHeight: 36,
+    minHeight: 44,
     justifyContent: "center",
     paddingHorizontal: 4,
   },
   viewAll: {
-    color: "#E1225F",
-    fontFamily: "PlusJakartaSans_700Bold",
+    color: Colors.primary,
+    fontFamily: Fonts.bold,
     fontWeight: "700",
     fontSize: 13,
   },
@@ -436,18 +474,18 @@ const styles = StyleSheet.create({
   category: {
     minHeight: 70,
     padding: 12,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#E8EBF0",
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.sm,
+    borderBottomWidth: 1,
+    borderColor: Colors.border,
     flexDirection: "row",
     alignItems: "center",
   },
   categoryIcon: {
     width: 42,
     height: 42,
-    borderRadius: 12,
-    backgroundColor: "#FDEEF3",
+    borderRadius: Radius.md,
+    backgroundColor: Colors.primarySoft,
     alignItems: "center",
     justifyContent: "center",
     marginRight: 12,
@@ -457,16 +495,16 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   categoryText: {
-    color: "#061A30",
-    fontFamily: "PlusJakartaSans_700Bold",
+    color: Colors.foreground,
+    fontFamily: Fonts.bold,
     fontWeight: "700",
     fontSize: 14,
     lineHeight: 19,
   },
   categorySubtitle: {
     marginTop: 2,
-    color: "#556274",
-    fontFamily: "PlusJakartaSans_400Regular",
+    color: Colors.muted,
+    fontFamily: Fonts.regular,
     fontSize: 11,
     lineHeight: 16,
   },
@@ -476,32 +514,32 @@ const styles = StyleSheet.create({
   jobCard: {
     marginHorizontal: 16,
     minHeight: 124,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    padding: 12,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.sm,
+    padding: 16,
     flexDirection: "row",
     alignItems: "flex-start",
     borderWidth: 1,
-    borderColor: "#E8EBF0",
-    shadowColor: "#061A30",
+    borderColor: Colors.border,
+    shadowColor: Colors.foreground,
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.06,
+    shadowOpacity: 0,
     shadowRadius: 12,
-    elevation: 2,
+    elevation: 0,
   },
   companyLogo: {
     width: 48,
     height: 48,
-    borderRadius: 12,
-    backgroundColor: "#F1F5F9",
+    borderRadius: Radius.md,
+    backgroundColor: Colors.secondary,
     alignItems: "center",
     justifyContent: "center",
   },
   companyLetter: {
-    fontFamily: "PlusJakartaSans_800ExtraBold",
-    fontWeight: "800",
+    fontFamily: Fonts.bold,
+    fontWeight: "700",
     fontSize: 19,
-    color: "#061A30",
+    color: Colors.foreground,
   },
   jobContent: {
     flex: 1,
@@ -510,18 +548,18 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   jobTitle: {
-    color: "#061A30",
+    color: Colors.foreground,
     fontSize: 15,
     lineHeight: 21,
-    fontFamily: "PlusJakartaSans_700Bold",
+    fontFamily: Fonts.bold,
     fontWeight: "700",
   },
   company: {
-    color: "#556274",
+    color: Colors.muted,
     marginTop: 3,
     fontSize: 13,
     lineHeight: 18,
-    fontFamily: "PlusJakartaSans_400Regular",
+    fontFamily: Fonts.regular,
   },
   jobMeta: {
     marginTop: 7,
@@ -530,11 +568,11 @@ const styles = StyleSheet.create({
   },
   metaText: {
     flex: 1,
-    color: "#556274",
+    color: Colors.muted,
     fontSize: 11,
     lineHeight: 16,
     marginLeft: 4,
-    fontFamily: "PlusJakartaSans_400Regular",
+    fontFamily: Fonts.regular,
   },
   badges: {
     flexDirection: "row",
@@ -543,27 +581,27 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   badge: {
-    backgroundColor: "#F1F5F9",
+    backgroundColor: Colors.secondary,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 7,
   },
   badgeText: {
-    color: "#556274",
-    fontSize: 10,
-    fontFamily: "PlusJakartaSans_600SemiBold",
+    color: Colors.muted,
+    fontSize: 11,
+    fontFamily: Fonts.semibold,
     fontWeight: "600",
   },
   urgentBadge: {
-    backgroundColor: "#FDEEF3",
+    backgroundColor: Colors.primarySoft,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 7,
   },
   urgentText: {
-    color: "#E1225F",
-    fontSize: 10,
-    fontFamily: "PlusJakartaSans_700Bold",
+    color: Colors.primary,
+    fontSize: 11,
+    fontFamily: Fonts.bold,
     fontWeight: "700",
   },
   jobChevron: {

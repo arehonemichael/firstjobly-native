@@ -1,12 +1,10 @@
-﻿import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import {
+  AppPressable as Pressable,
+  AppText as Text,
+  AppTextInput as TextInput,
+} from "../../components/ui/primitives";
+import { Colors, Fonts, Radius } from "../../constants/theme";
+import { ActivityIndicator, ScrollView, StyleSheet, View } from "react-native";
 import { useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
@@ -56,8 +54,12 @@ export default function NewGraduateRoomPost() {
   return (
     <SafeAreaView style={s.page} edges={["top", "bottom"]}>
       <View style={s.header}>
-        <Pressable style={s.icon44} onPress={() => router.back()}>
-          <ArrowLeft size={22} color="#061A30" />
+        <Pressable
+          accessibilityLabel="Go back"
+          style={s.icon44}
+          onPress={() => router.back()}
+        >
+          <ArrowLeft size={22} color={Colors.foreground} />
         </Pressable>
         <Text style={s.headerTitle}>New discussion</Text>
         <View style={s.icon44} />
@@ -72,6 +74,7 @@ export default function NewGraduateRoomPost() {
           {POST_TYPES.map((type) => (
             <Pressable
               key={type.value}
+              accessibilityState={{ selected: postType === type.value }}
               style={[
                 s.typeOption,
                 postType === type.value && s.typeOptionActive,
@@ -97,7 +100,7 @@ export default function NewGraduateRoomPost() {
           onChangeText={setTitle}
           maxLength={140}
           placeholder="What do you want to ask or share?"
-          placeholderTextColor="#94A3B8"
+          placeholderTextColor={Colors.mutedSubtle}
           style={s.input}
         />
         <Text style={s.counter}>{title.length}/140</Text>
@@ -110,7 +113,7 @@ export default function NewGraduateRoomPost() {
           multiline
           textAlignVertical="top"
           placeholder="Share enough detail for other graduates to help."
-          placeholderTextColor="#94A3B8"
+          placeholderTextColor={Colors.mutedSubtle}
           style={[s.input, s.bodyInput]}
         />
         <Text style={s.counter}>{body.length}/5000</Text>
@@ -127,14 +130,14 @@ export default function NewGraduateRoomPost() {
           onPress={() => setAnonymous((value) => !value)}
         >
           <View style={[s.checkbox, anonymous && s.checkboxActive]}>
-            {anonymous ? <Check size={15} color="#FFFFFF" /> : null}
+            {anonymous ? <Check size={15} color={Colors.surface} /> : null}
           </View>
-          <EyeOff size={19} color="#556274" />
+          <EyeOff size={19} color={Colors.muted} />
           <View style={{ flex: 1 }}>
             <Text style={s.anonTitle}>Post anonymously</Text>
             <Text style={s.anonText}>
-              Your name and institution stay hidden from members. Moderators
-              can still trace content if community rules are broken.
+              Your name and institution stay hidden from members. Moderators can
+              still trace content if community rules are broken.
             </Text>
           </View>
         </Pressable>
@@ -154,7 +157,7 @@ export default function NewGraduateRoomPost() {
           onPress={() => void publish()}
         >
           {busy ? (
-            <ActivityIndicator color="#FFFFFF" />
+            <ActivityIndicator color={Colors.surface} />
           ) : (
             <Text style={s.publishText}>Publish post</Text>
           )}
@@ -165,97 +168,121 @@ export default function NewGraduateRoomPost() {
 }
 
 const s = StyleSheet.create({
-  page: { flex: 1, backgroundColor: "#F6F7F9" },
+  page: { flex: 1, backgroundColor: Colors.background },
   header: {
     height: 58,
     flexDirection: "row",
     alignItems: "center",
     borderBottomWidth: 1,
-    borderBottomColor: "#E8EBF0",
-    backgroundColor: "#FFFFFF",
+    borderBottomColor: Colors.border,
+    backgroundColor: Colors.surface,
   },
-  icon44: { width: 52, height: 52, alignItems: "center", justifyContent: "center" },
+  icon44: {
+    width: 52,
+    height: 52,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   headerTitle: {
     flex: 1,
     textAlign: "center",
-    color: "#061A30",
+    color: Colors.foreground,
     fontSize: 16,
-    fontFamily: "PlusJakartaSans_700Bold",
+    fontFamily: Fonts.bold,
     fontWeight: "700",
   },
-  content: { padding: 16, paddingBottom: 40 },
+  content: {
+    width: "100%",
+    maxWidth: 800,
+    alignSelf: "center",
+    padding: 16,
+    paddingBottom: 40,
+  },
   label: {
-    color: "#061A30",
+    color: Colors.foreground,
     fontSize: 12,
     marginTop: 14,
     marginBottom: 7,
-    fontFamily: "PlusJakartaSans_700Bold",
+    fontFamily: Fonts.bold,
     fontWeight: "700",
   },
   typeGrid: { gap: 8 },
   typeOption: {
     padding: 12,
     borderWidth: 1,
-    borderColor: "#E8EBF0",
-    borderRadius: 8,
-    backgroundColor: "#FFFFFF",
+    borderColor: Colors.border,
+    borderRadius: Radius.sm,
+    backgroundColor: Colors.surface,
   },
-  typeOptionActive: { borderColor: "#E1225F", backgroundColor: "#FDEEF3" },
+  typeOptionActive: {
+    borderColor: Colors.primary,
+    backgroundColor: Colors.primarySoft,
+  },
   typeLabel: {
-    color: "#061A30",
+    color: Colors.foreground,
     fontSize: 13,
-    fontFamily: "PlusJakartaSans_700Bold",
+    fontFamily: Fonts.bold,
     fontWeight: "700",
   },
-  typeLabelActive: { color: "#B0164A" },
-  typeHint: { color: "#556274", fontSize: 11, lineHeight: 16, marginTop: 2 },
+  typeLabelActive: { color: Colors.primaryPressed },
+  typeHint: { color: Colors.muted, fontSize: 11, lineHeight: 16, marginTop: 2 },
   input: {
     minHeight: 48,
     borderWidth: 1,
-    borderColor: "#DFE4EC",
-    borderRadius: 8,
-    backgroundColor: "#FFFFFF",
+    borderColor: Colors.input,
+    borderRadius: Radius.sm,
+    backgroundColor: Colors.surface,
     paddingHorizontal: 13,
-    color: "#061A30",
+    color: Colors.foreground,
     fontSize: 13,
   },
   bodyInput: { minHeight: 150, paddingTop: 12 },
-  counter: { color: "#94A3B8", fontSize: 10, textAlign: "right", marginTop: 4 },
+  counter: {
+    color: Colors.mutedSubtle,
+    fontSize: 11,
+    textAlign: "right",
+    marginTop: 4,
+  },
   anonRow: {
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 9,
     marginTop: 18,
     padding: 13,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
     borderWidth: 1,
-    borderColor: "#E8EBF0",
-    borderRadius: 8,
+    borderColor: Colors.border,
+    borderRadius: Radius.sm,
   },
-  anonRowActive: { backgroundColor: "#FDEEF3", borderColor: "#E1225F" },
+  anonRowActive: {
+    backgroundColor: Colors.primarySoft,
+    borderColor: Colors.primary,
+  },
   checkbox: {
     width: 22,
     height: 22,
     borderWidth: 1,
-    borderColor: "#DFE4EC",
+    borderColor: Colors.input,
     borderRadius: 5,
     alignItems: "center",
     justifyContent: "center",
   },
-  checkboxActive: { backgroundColor: "#E1225F", borderColor: "#E1225F" },
-  anonTitle: { color: "#061A30", fontSize: 13, fontWeight: "700" },
-  anonText: { color: "#556274", fontSize: 11, lineHeight: 17, marginTop: 3 },
-  error: { color: "#DC2626", fontSize: 12, lineHeight: 18, marginTop: 14 },
-  helper: { color: "#556274", fontSize: 11, lineHeight: 17, marginTop: 14 },
+  checkboxActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  anonTitle: { color: Colors.foreground, fontSize: 13, fontWeight: "700" },
+  anonText: { color: Colors.muted, fontSize: 11, lineHeight: 17, marginTop: 3 },
+  error: { color: Colors.error, fontSize: 12, lineHeight: 18, marginTop: 14 },
+  helper: { color: Colors.muted, fontSize: 11, lineHeight: 17, marginTop: 14 },
   publish: {
     minHeight: 50,
     marginTop: 18,
-    borderRadius: 8,
-    backgroundColor: "#E1225F",
+    borderRadius: Radius.sm,
+    backgroundColor: Colors.primary,
     alignItems: "center",
     justifyContent: "center",
   },
   disabled: { opacity: 0.45 },
-  publishText: { color: "#FFFFFF", fontSize: 14, fontWeight: "700" },
+  publishText: { color: Colors.surface, fontSize: 14, fontWeight: "700" },
 });
-

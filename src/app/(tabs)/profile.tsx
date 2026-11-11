@@ -1,15 +1,18 @@
 import {
+  AppText as Text,
+  AppTextInput as TextInput,
+  AppTouchableOpacity as TouchableOpacity,
+} from "../../components/ui/primitives";
+import { Colors, Fonts, Radius } from "../../constants/theme";
+import {
   ActivityIndicator,
   Alert,
   ScrollView,
   StyleSheet,
   Switch,
-  Text,
-  TextInput,
-  TouchableOpacity,
   View,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Icon as Ionicons } from "../../components/ui/icon";
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -32,10 +35,10 @@ import { DocumentsSection } from "../../components/profile/documents";
 import { useScreenBottomPadding } from "../../hooks/use-screen-bottom-padding";
 import { InlineErrorState, SectionCard } from "../../components/ui/app-ui";
 
-const PINK = "#E1225F";
-const NAVY = "#061A30";
-const BORDER = "#E8EBF0";
-const MUTED = "#556274";
+const PINK = Colors.primary;
+const NAVY = Colors.foreground;
+const BORDER = Colors.border;
+const MUTED = Colors.muted;
 
 type Draft = {
   first_name: string;
@@ -168,7 +171,6 @@ export default function ProfileScreen() {
     };
   }, [user?.id, user?.email]);
 
-
   const completion = useMemo(
     () =>
       computeProfileCompletion(
@@ -207,11 +209,9 @@ export default function ProfileScreen() {
         city: draft.city.trim().slice(0, 80) || null,
         address: draft.address.trim().slice(0, 200) || null,
         about: draft.about.trim().slice(0, 800) || null,
-        highest_qualification:
-          draft.highest_qualification.trim() || null,
+        highest_qualification: draft.highest_qualification.trim() || null,
         institution: draft.institution.trim().slice(0, 120) || null,
-        field_of_study:
-          draft.field_of_study.trim().slice(0, 120) || null,
+        field_of_study: draft.field_of_study.trim().slice(0, 120) || null,
         year_completed: draft.year_completed
           ? Number(draft.year_completed)
           : null,
@@ -220,8 +220,7 @@ export default function ProfileScreen() {
         languages: list(draft.languages).slice(0, 15),
         preferred_job_types: list(draft.preferred_job_types),
         preferred_province: draft.preferred_province.trim() || null,
-        preferred_city:
-          draft.preferred_city.trim().slice(0, 80) || null,
+        preferred_city: draft.preferred_city.trim().slice(0, 80) || null,
         available_immediately: draft.available_immediately,
         willing_to_relocate: draft.willing_to_relocate,
         updated_at: new Date().toISOString(),
@@ -232,9 +231,7 @@ export default function ProfileScreen() {
 
     Alert.alert(
       error ? "Profile" : "Saved",
-      error
-        ? "Could not save your profile."
-        : "Your profile has been updated."
+      error ? "Could not save your profile." : "Your profile has been updated.",
     );
   }
 
@@ -250,11 +247,7 @@ export default function ProfileScreen() {
     return (
       <SafeAreaView style={styles.page}>
         <View style={styles.loggedOut}>
-          <Ionicons
-            name="person-circle-outline"
-            size={72}
-            color={PINK}
-          />
+          <Ionicons name="person-circle-outline" size={72} color={PINK} />
           <Text style={styles.heading}>Your FirstJobly account</Text>
           <Text style={styles.muted}>
             Sign in to save jobs, track applications and manage your profile.
@@ -273,16 +266,18 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={styles.page} edges={["top", "bottom"]}>
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingBottom: bottomContentPadding }]}
+        contentContainerStyle={[
+          styles.content,
+          { paddingBottom: bottomContentPadding },
+        ]}
         keyboardShouldPersistTaps="handled"
       >
         <Text style={styles.heading}>My profile</Text>
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>
-            {[draft.first_name, draft.last_name]
-              .filter(Boolean)
-              .join(" ") || "FirstJobly account"}
+            {[draft.first_name, draft.last_name].filter(Boolean).join(" ") ||
+              "FirstJobly account"}
           </Text>
           <Text style={styles.muted}>{user.email}</Text>
         </View>
@@ -293,9 +288,7 @@ export default function ProfileScreen() {
             <Text style={styles.percent}>{completion}%</Text>
           </View>
           <View style={styles.track}>
-            <View
-              style={[styles.fill, { width: `${completion}%` }]}
-            />
+            <View style={[styles.fill, { width: `${completion}%` }]} />
           </View>
           <Text style={styles.muted}>
             A complete profile makes Easy Apply faster and improves your
@@ -314,11 +307,7 @@ export default function ProfileScreen() {
             value={draft.last_name}
             onChangeText={(v) => set("last_name", v)}
           />
-          <Field
-            label="Email address"
-            value={draft.email}
-            editable={false}
-          />
+          <Field label="Email address" value={draft.email} editable={false} />
           <Field
             label="Phone number"
             value={draft.phone}
@@ -447,10 +436,7 @@ export default function ProfileScreen() {
         </Section>
 
         <Section title="Documents">
-          <DocumentsSection
-            userId={user.id}
-            onChanged={onDocumentsChanged}
-          />
+          <DocumentsSection userId={user.id} onChanged={onDocumentsChanged} />
         </Section>
 
         <TouchableOpacity
@@ -459,7 +445,7 @@ export default function ProfileScreen() {
           onPress={() => void save()}
         >
           {busy ? (
-            <ActivityIndicator color="#FFFFFF" />
+            <ActivityIndicator color={Colors.surface} />
           ) : (
             <Text style={styles.buttonText}>Save profile</Text>
           )}
@@ -468,20 +454,16 @@ export default function ProfileScreen() {
         <TouchableOpacity
           style={styles.signOut}
           onPress={() => {
-            Alert.alert(
-              "Sign out",
-              "Do you want to sign out of FirstJobly?",
-              [
-                { text: "Cancel", style: "cancel" },
-                {
-                  text: "Sign out",
-                  style: "destructive",
-                  onPress: async () => {
-                    await supabase.auth.signOut();
-                  },
+            Alert.alert("Sign out", "Do you want to sign out of FirstJobly?", [
+              { text: "Cancel", style: "cancel" },
+              {
+                text: "Sign out",
+                style: "destructive",
+                onPress: async () => {
+                  await supabase.auth.signOut();
                 },
-              ]
-            );
+              },
+            ]);
           }}
         >
           <Text style={styles.signOutText}>Sign out</Text>
@@ -518,9 +500,10 @@ function Field({
     <View style={styles.field}>
       <Text style={styles.label}>{label}</Text>
       <TextInput
+        accessibilityLabel={label}
         {...props}
         multiline={multiline}
-        placeholderTextColor="#94A3B8"
+        placeholderTextColor={Colors.mutedSubtle}
         style={[
           styles.input,
           multiline && styles.multiline,
@@ -546,20 +529,20 @@ function Toggle({
       <Switch
         value={value === true}
         onValueChange={onValueChange}
-        trackColor={{ false: "#DFE4EC", true: "#F6A8C4" }}
-        thumbColor={value ? PINK : "#FFFFFF"}
+        trackColor={{ false: Colors.input, true: Colors.primaryBorder }}
+        thumbColor={value ? PINK : Colors.surface}
       />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: "#F6F7F9" },
+  page: { flex: 1, backgroundColor: Colors.background },
   center: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F6F7F9",
+    backgroundColor: Colors.background,
   },
   loggedOut: {
     flex: 1,
@@ -568,28 +551,38 @@ const styles = StyleSheet.create({
     padding: 28,
   },
   content: {
+    width: "100%",
+    maxWidth: 800,
+    alignSelf: "center",
     paddingHorizontal: 16,
     paddingTop: 18,
     paddingBottom: 40,
   },
   heading: {
     color: NAVY,
-    fontSize: 24,
-    fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800",
+    fontSize: 26,
+    fontFamily: Fonts.bold,
+    fontWeight: "700",
     marginBottom: 14,
   },
   card: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
     borderWidth: 1,
     borderColor: BORDER,
-    borderRadius: 8,
+    borderRadius: Radius.sm,
     padding: 16,
     marginBottom: 12,
   },
-  cardTitle: { color: NAVY, fontFamily: "PlusJakartaSans_700Bold", fontWeight: "700", fontSize: 15 },
+  cardTitle: {
+    color: NAVY,
+    fontFamily: Fonts.bold,
+    fontWeight: "700",
+    fontSize: 15,
+  },
   sectionTitle: {
     color: NAVY,
-    fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800",
+    fontFamily: Fonts.bold,
+    fontWeight: "700",
     fontSize: 16,
     marginBottom: 4,
   },
@@ -604,10 +597,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
-  percent: { color: PINK, fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800" },
+  percent: { color: PINK, fontFamily: Fonts.bold, fontWeight: "700" },
   track: {
     height: 9,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: Colors.secondary,
     borderRadius: 99,
     overflow: "hidden",
     marginVertical: 10,
@@ -615,33 +608,34 @@ const styles = StyleSheet.create({
   fill: { height: "100%", backgroundColor: PINK, borderRadius: 99 },
   field: { marginTop: 12 },
   label: {
-    color: "#556274",
+    color: Colors.muted,
     fontSize: 13,
-    fontFamily: "PlusJakartaSans_600SemiBold", fontWeight: "600",
+    fontFamily: Fonts.semibold,
+    fontWeight: "600",
     marginBottom: 6,
   },
   input: {
     minHeight: 48,
     borderWidth: 1,
-    borderColor: "#DFE4EC",
-    borderRadius: 8,
+    borderColor: Colors.input,
+    borderRadius: Radius.sm,
     paddingHorizontal: 12,
     color: NAVY,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
   },
   multiline: {
     minHeight: 90,
     paddingTop: 12,
     textAlignVertical: "top",
   },
-  disabled: { backgroundColor: "#F9FAFB", color: MUTED },
+  disabled: { backgroundColor: Colors.background, color: MUTED },
   helper: { color: MUTED, fontSize: 11, marginTop: 6 },
   toggle: {
     minHeight: 54,
     marginTop: 12,
     borderWidth: 1,
     borderColor: BORDER,
-    borderRadius: 8,
+    borderRadius: Radius.sm,
     paddingHorizontal: 12,
     flexDirection: "row",
     alignItems: "center",
@@ -650,29 +644,27 @@ const styles = StyleSheet.create({
   button: {
     height: 52,
     backgroundColor: PINK,
-    borderRadius: 8,
+    borderRadius: Radius.sm,
     alignItems: "center",
     justifyContent: "center",
     marginTop: 8,
     width: "100%",
   },
-  buttonText: { color: "#FFFFFF", fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800", fontSize: 15 },
+  buttonText: {
+    color: Colors.surface,
+    fontFamily: Fonts.bold,
+    fontWeight: "700",
+    fontSize: 15,
+  },
   signOut: {
     height: 50,
     borderWidth: 1,
     borderColor: BORDER,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 8,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.sm,
     alignItems: "center",
     justifyContent: "center",
     marginTop: 10,
   },
-  signOutText: { color: PINK, fontFamily: "PlusJakartaSans_700Bold", fontWeight: "700" },
+  signOutText: { color: PINK, fontFamily: Fonts.bold, fontWeight: "700" },
 });
-
-
-
-
-
-
-
