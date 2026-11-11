@@ -1,4 +1,6 @@
-﻿import {
+import { useReducedMotion } from "../../hooks/use-reduced-motion";
+import { Colors, Radius } from "../../constants/theme";
+import {
   Animated,
   StyleSheet,
   View,
@@ -10,21 +12,21 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useRef,
+  useState,
   type ReactNode,
 } from "react";
 
-const SkeletonOpacityContext =
-  createContext<Animated.Value | null>(null);
+const SkeletonOpacityContext = createContext<Animated.Value | null>(null);
 
-export function SkeletonGroup({
-  children,
-}: {
-  children: ReactNode;
-}) {
-  const opacity = useRef(new Animated.Value(0.52)).current;
+export function SkeletonGroup({ children }: { children: ReactNode }) {
+  const reducedMotion = useReducedMotion();
+  const [opacity] = useState(() => new Animated.Value(0.52));
 
   useEffect(() => {
+    if (reducedMotion) {
+      opacity.setValue(0.7);
+      return;
+    }
     const animation = Animated.loop(
       Animated.sequence([
         Animated.timing(opacity, {
@@ -37,12 +39,12 @@ export function SkeletonGroup({
           duration: 650,
           useNativeDriver: true,
         }),
-      ])
+      ]),
     );
 
     animation.start();
     return () => animation.stop();
-  }, [opacity]);
+  }, [opacity, reducedMotion]);
 
   return (
     <SkeletonOpacityContext.Provider value={opacity}>
@@ -64,11 +66,16 @@ export function Skeleton({
   circle?: boolean;
   style?: ViewStyle;
 }) {
+  const reducedMotion = useReducedMotion();
   const inheritedOpacity = useContext(SkeletonOpacityContext);
-  const ownOpacity = useRef(new Animated.Value(0.58)).current;
+  const [ownOpacity] = useState(() => new Animated.Value(0.58));
 
   useEffect(() => {
     if (inheritedOpacity) return;
+    if (reducedMotion) {
+      ownOpacity.setValue(0.7);
+      return;
+    }
 
     const animation = Animated.loop(
       Animated.sequence([
@@ -82,12 +89,12 @@ export function Skeleton({
           duration: 650,
           useNativeDriver: true,
         }),
-      ])
+      ]),
     );
 
     animation.start();
     return () => animation.stop();
-  }, [inheritedOpacity, ownOpacity]);
+  }, [inheritedOpacity, ownOpacity, reducedMotion]);
 
   const opacity = inheritedOpacity ?? ownOpacity;
 
@@ -97,7 +104,7 @@ export function Skeleton({
       height,
       borderRadius: circle ? height / 2 : radius,
     }),
-    [circle, height, radius, width]
+    [circle, height, radius, width],
   );
 
   return (
@@ -116,11 +123,7 @@ export function JobSkeletonCard() {
 
       <View style={styles.jobBody}>
         <Skeleton width="82%" height={13} />
-        <Skeleton
-          width="52%"
-          height={10}
-          style={styles.lineGap}
-        />
+        <Skeleton width="52%" height={10} style={styles.lineGap} />
 
         <View style={styles.metaRow}>
           <Skeleton width={14} height={14} circle />
@@ -136,11 +139,7 @@ export function JobSkeletonCard() {
   );
 }
 
-export function JobListSkeleton({
-  count = 5,
-}: {
-  count?: number;
-}) {
+export function JobListSkeleton({ count = 5 }: { count?: number }) {
   return (
     <SkeletonGroup>
       <View>
@@ -157,11 +156,7 @@ export function JobDetailSkeleton() {
     <SkeletonGroup>
       <View style={styles.detail}>
         <Skeleton width={72} height={72} radius={8} />
-        <Skeleton
-          width="88%"
-          height={22}
-          style={styles.detailTitle}
-        />
+        <Skeleton width="88%" height={22} style={styles.detailTitle} />
         <Skeleton width="52%" height={12} />
         <Skeleton
           width="100%"
@@ -170,17 +165,9 @@ export function JobDetailSkeleton() {
           style={styles.detailBlock}
         />
         <Skeleton width="42%" height={16} />
-        <Skeleton
-          width="100%"
-          height={11}
-          style={styles.detailLine}
-        />
+        <Skeleton width="100%" height={11} style={styles.detailLine} />
         <Skeleton width="94%" height={11} />
-        <Skeleton
-          width="86%"
-          height={11}
-          style={styles.detailLine}
-        />
+        <Skeleton width="86%" height={11} style={styles.detailLine} />
         <Skeleton
           width="100%"
           height={52}
@@ -200,11 +187,7 @@ export function ProfileSkeleton() {
           <Skeleton width={48} height={48} circle />
           <View style={styles.profileCopy}>
             <Skeleton width="56%" height={13} />
-            <Skeleton
-              width="74%"
-              height={10}
-              style={styles.lineGap}
-            />
+            <Skeleton width="74%" height={10} style={styles.lineGap} />
           </View>
         </View>
 
@@ -227,16 +210,16 @@ export function ProfileSkeleton() {
 
 const styles = StyleSheet.create({
   base: {
-    backgroundColor: "#F1F5F9",
+    backgroundColor: Colors.secondary,
   },
   jobCard: {
     minHeight: 112,
     flexDirection: "row",
     alignItems: "flex-start",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
     borderWidth: 1,
-    borderColor: "#E8EBF0",
-    borderRadius: 8,
+    borderColor: Colors.border,
+    borderRadius: Radius.sm,
     padding: 14,
     marginBottom: 10,
   },

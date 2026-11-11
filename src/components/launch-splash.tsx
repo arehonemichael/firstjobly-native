@@ -1,10 +1,7 @@
-﻿import { useEffect, useMemo, useState } from "react";
-import {
-  ActivityIndicator,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { AppText as Text } from "./ui/primitives";
+import { Colors, Fonts, Radius } from "../constants/theme";
+import { useEffect, useMemo, useState } from "react";
+import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { Lightbulb } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -16,14 +13,10 @@ type LaunchSplashProps = {
   onDone: () => void;
 };
 
-const MIN_MS = 1500;
+const MIN_MS = 600;
 const MAX_MS = 5000;
 
-export function LaunchSplash({
-  firstName,
-  ready,
-  onDone,
-}: LaunchSplashProps) {
+export function LaunchSplash({ firstName, ready, onDone }: LaunchSplashProps) {
   const [minimumElapsed, setMinimumElapsed] = useState(false);
 
   const greeting = useMemo(() => {
@@ -35,9 +28,7 @@ export function LaunchSplash({
           ? "Good afternoon"
           : "Good evening";
 
-    return firstName
-      ? `${dayGreeting}, ${firstName}`
-      : "Welcome to FirstJobly";
+    return firstName ? `${dayGreeting}, ${firstName}` : "Welcome to FirstJobly";
   }, [firstName]);
 
   useEffect(() => {
@@ -74,14 +65,14 @@ export function LaunchSplash({
 
         <ActivityIndicator
           size="small"
-          color="#E1225F"
+          color={Colors.primary}
           style={styles.spinner}
         />
       </View>
 
       <View style={styles.factCard}>
         <View style={styles.factIcon}>
-          <Lightbulb size={18} color="#E1225F" strokeWidth={2} />
+          <Lightbulb size={18} color={Colors.primary} strokeWidth={2} />
         </View>
 
         <View style={styles.factContent}>
@@ -96,7 +87,7 @@ export function LaunchSplash({
 const styles = StyleSheet.create({
   page: {
     flex: 1,
-    backgroundColor: "#061A30",
+    backgroundColor: Colors.background,
     paddingHorizontal: 22,
     justifyContent: "space-between",
   },
@@ -105,26 +96,26 @@ const styles = StyleSheet.create({
   },
   wordmark: {
     fontSize: 28,
-    fontFamily: "PlusJakartaSans_800ExtraBold",
-    fontWeight: "800",
+    fontFamily: Fonts.bold,
+    fontWeight: "700",
   },
   first: {
-    color: "#E1225F",
+    color: Colors.primary,
   },
   jobly: {
-    color: "#FFFFFF",
+    color: Colors.foreground,
   },
   greeting: {
-    color: "#FFFFFF",
-    fontFamily: "PlusJakartaSans_800ExtraBold",
-    fontWeight: "800",
+    color: Colors.foreground,
+    fontFamily: Fonts.bold,
+    fontWeight: "700",
     fontSize: 28,
     lineHeight: 34,
     marginTop: 72,
   },
   subtext: {
-    color: "#94A3B8",
-    fontFamily: "PlusJakartaSans_500Medium",
+    color: Colors.mutedSubtle,
+    fontFamily: Fonts.medium,
     fontWeight: "500",
     fontSize: 13,
     marginTop: 7,
@@ -135,10 +126,10 @@ const styles = StyleSheet.create({
   },
   factCard: {
     flexDirection: "row",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
     borderWidth: 1,
-    borderColor: "#E8EBF0",
-    borderRadius: 8,
+    borderColor: Colors.border,
+    borderRadius: Radius.sm,
     padding: 14,
     marginBottom: 18,
   },
@@ -146,7 +137,7 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 6,
-    backgroundColor: "#FDEEF3",
+    backgroundColor: Colors.primarySoft,
     alignItems: "center",
     justifyContent: "center",
     marginRight: 11,
@@ -155,15 +146,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   factLabel: {
-    color: "#B0164A",
-    fontFamily: "PlusJakartaSans_700Bold",
+    color: Colors.primaryPressed,
+    fontFamily: Fonts.bold,
     fontWeight: "700",
     fontSize: 11,
     marginBottom: 4,
   },
   factText: {
-    color: "#556274",
-    fontFamily: "PlusJakartaSans_500Medium",
+    color: Colors.muted,
+    fontFamily: Fonts.medium,
     fontWeight: "500",
     fontSize: 12,
     lineHeight: 18,

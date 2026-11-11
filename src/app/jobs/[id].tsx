@@ -1,3 +1,9 @@
+import {
+  AppText as Text,
+  AppTextInput as TextInput,
+  AppTouchableOpacity as TouchableOpacity,
+} from "../../components/ui/primitives";
+import { Colors, Fonts, Radius } from "../../constants/theme";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -7,13 +13,10 @@ import {
   Modal,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
+import { Icon as Ionicons } from "../../components/ui/icon";
 import { router, useLocalSearchParams } from "expo-router";
 
 import { getJob } from "../../lib/job-api";
@@ -30,7 +33,11 @@ import { NativeAdBlock } from "../../ads/NativeAdBlock";
 
 const WEB_APP_URL = "https://firstjobly.co.za";
 
-import { InlineErrorState, SectionCard, SkeletonJobCard } from "../../components/ui/app-ui";
+import {
+  InlineErrorState,
+  SectionCard,
+  SkeletonJobCard,
+} from "../../components/ui/app-ui";
 
 function formatDate(value: string | null) {
   if (!value) return null;
@@ -112,7 +119,7 @@ export default function JobDetailsScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.center}>
-        <ActivityIndicator size="large" color="#E1225F" />
+        <ActivityIndicator size="large" color={Colors.primary} />
       </SafeAreaView>
     );
   }
@@ -120,18 +127,23 @@ export default function JobDetailsScreen() {
   if (error || !job) {
     return (
       <SafeAreaView style={styles.center}>
-        <Ionicons name="alert-circle-outline" size={45} color="#E1225F" />
+        <Ionicons
+          name="alert-circle-outline"
+          size={45}
+          color={Colors.primary}
+        />
         <Text style={styles.errorTitle}>This opportunity is unavailable</Text>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.back()}
+        >
           <Text style={styles.backButtonText}>Go back</Text>
         </TouchableOpacity>
       </SafeAreaView>
     );
   }
 
-  const location = job.city
-    ? `${job.city}, ${job.province}`
-    : job.province;
+  const location = job.city ? `${job.city}, ${job.province}` : job.province;
 
   const salaryLabel = salary(job);
 
@@ -156,21 +168,15 @@ export default function JobDetailsScreen() {
         "Already applied",
         `This application is currently marked as ${
           existingApplication.status ?? "submitted"
-        }.`
+        }.`,
       );
       return;
     }
 
     const [profileRes, experienceRes, documentsRes] = await Promise.all([
       supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
-      supabase
-        .from("work_experience")
-        .select("user_id")
-        .eq("user_id", userId),
-      supabase
-        .from("user_documents")
-        .select("kind")
-        .eq("user_id", userId),
+      supabase.from("work_experience").select("user_id").eq("user_id", userId),
+      supabase.from("user_documents").select("kind").eq("user_id", userId),
     ]);
 
     if (profileRes.error || experienceRes.error || documentsRes.error) {
@@ -188,7 +194,7 @@ export default function JobDetailsScreen() {
     if (!readiness.ok) {
       const detail =
         readiness.missing.length > 0
-          ? `\n\nMissing:\n� ${readiness.missing.join("\n� ")}`
+          ? `\n\nMissing:\n· ${readiness.missing.join("\n· ")}`
           : "";
 
       Alert.alert(
@@ -200,7 +206,7 @@ export default function JobDetailsScreen() {
             text: "Open Profile",
             onPress: () => router.push("/profile"),
           },
-        ]
+        ],
       );
       return;
     }
@@ -220,10 +226,7 @@ export default function JobDetailsScreen() {
           .from("work_experience")
           .select("user_id")
           .eq("user_id", userId),
-        supabase
-          .from("user_documents")
-          .select("kind")
-          .eq("user_id", userId),
+        supabase.from("user_documents").select("kind").eq("user_id", userId),
       ]);
 
       const readiness = evaluateEasyApply({
@@ -238,7 +241,7 @@ export default function JobDetailsScreen() {
         setApplyOpen(false);
         Alert.alert(
           "Profile changed",
-          "Your profile no longer meets the Easy Apply requirements. Please review it and try again."
+          "Your profile no longer meets the Easy Apply requirements. Please review it and try again.",
         );
         return;
       }
@@ -255,14 +258,14 @@ export default function JobDetailsScreen() {
           cover_note: coverNote.trim() || null,
           updated_at: new Date().toISOString(),
         },
-        { onConflict: "user_id,job_id" }
+        { onConflict: "user_id,job_id" },
       )
       .select("id,is_draft,status,cover_note")
       .maybeSingle();
 
     setSubmitting(false);
 
-    if (applyError) {
+    if (applyError || !data) {
       console.error("Easy Apply failed:", applyError);
       Alert.alert("Easy Apply", "Could not save your application.");
       return;
@@ -277,9 +280,13 @@ export default function JobDetailsScreen() {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${sessionData.session?.access_token}`,
+            Authorization: `Bearer ${sessionData.session?.access_token}`,
           },
-          body: JSON.stringify({ jobId: job.id, applicationId: data.id, origin: WEB_APP_URL }),
+          body: JSON.stringify({
+            jobId: job.id,
+            applicationId: data.id,
+            origin: WEB_APP_URL,
+          }),
         });
       } catch (notifyError) {
         console.error("Employer notify failed:", notifyError);
@@ -299,7 +306,7 @@ export default function JobDetailsScreen() {
           onPress: () => router.push("/applications"),
         },
         { text: "Done", style: "cancel" },
-      ]
+      ],
     );
   }
 
@@ -307,15 +314,18 @@ export default function JobDetailsScreen() {
     <SafeAreaView style={styles.page} edges={["top", "bottom"]}>
       <View style={styles.header}>
         <TouchableOpacity
+          accessibilityLabel="Go back"
           style={styles.iconButton}
           onPress={() => void continueWithOptionalAd(() => router.back())}
         >
-          <Ionicons name="arrow-back" size={23} color="#061A30" />
+          <Ionicons name="arrow-back" size={23} color={Colors.foreground} />
         </TouchableOpacity>
 
         <Text style={styles.headerTitle}>Job Details</Text>
 
         <TouchableOpacity
+          accessibilityLabel={isSaved(job.id) ? "Unsave job" : "Save job"}
+          accessibilityState={{ selected: isSaved(job.id) }}
           style={styles.iconButton}
           onPress={async () => {
             const result = await toggleSave(job.id);
@@ -327,13 +337,16 @@ export default function JobDetailsScreen() {
           <Ionicons
             name={isSaved(job.id) ? "bookmark" : "bookmark-outline"}
             size={22}
-            color={isSaved(job.id) ? "#E1225F" : "#061A30"}
+            color={isSaved(job.id) ? Colors.primary : Colors.foreground}
           />
         </TouchableOpacity>
       </View>
 
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingBottom: bottomContentPadding + 90 }]}
+        contentContainerStyle={[
+          styles.content,
+          { paddingBottom: bottomContentPadding + 90 },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         {job.company_logo_url ? (
@@ -373,27 +386,35 @@ export default function JobDetailsScreen() {
 
         <View style={styles.metaBlock}>
           <View style={styles.metaRow}>
-            <Ionicons name="location-outline" size={18} color="#556274" />
+            <Ionicons name="location-outline" size={18} color={Colors.muted} />
             <Text style={styles.metaText}>{location}</Text>
           </View>
 
           {job.job_type ? (
             <View style={styles.metaRow}>
-              <Ionicons name="briefcase-outline" size={18} color="#556274" />
+              <Ionicons
+                name="briefcase-outline"
+                size={18}
+                color={Colors.muted}
+              />
               <Text style={styles.metaText}>{job.job_type}</Text>
             </View>
           ) : null}
 
           {salaryLabel ? (
             <View style={styles.metaRow}>
-              <Ionicons name="cash-outline" size={18} color="#556274" />
+              <Ionicons name="cash-outline" size={18} color={Colors.muted} />
               <Text style={styles.metaText}>{salaryLabel}</Text>
             </View>
           ) : null}
 
           {job.closing_date ? (
             <View style={styles.metaRow}>
-              <Ionicons name="calendar-outline" size={18} color="#556274" />
+              <Ionicons
+                name="calendar-outline"
+                size={18}
+                color={Colors.muted}
+              />
               <Text style={styles.metaText}>
                 Closes {formatDate(job.closing_date)}
               </Text>
@@ -444,78 +465,82 @@ export default function JobDetailsScreen() {
           </>
         ) : null}
 
-      <NativeAdBlock />
+        <NativeAdBlock />
 
-      <View style={styles.footer}>
-        <TouchableOpacity
-          style={[
-            styles.applyButton,
-            job.apply_type !== "easy_apply" &&
-              !job.external_url &&
-              styles.disabledButton,
-          ]}
-          disabled={
-            job.apply_type !== "easy_apply" && !job.external_url
-          }
-          onPress={() => void openApply()}
-        >
-          <Text style={styles.applyText}>
-            {job.apply_type === "easy_apply"
-              ? existingApplication?.is_draft
-                ? "Continue application"
-                : existingApplication
-                  ? "Application submitted"
-                  : "Easy Apply"
-              : job.external_url
-                ? "Apply now"
-                : "Application unavailable"}
-          </Text>
+        <View style={styles.footer}>
+          <TouchableOpacity
+            style={[
+              styles.applyButton,
+              job.apply_type !== "easy_apply" &&
+                !job.external_url &&
+                styles.disabledButton,
+            ]}
+            disabled={job.apply_type !== "easy_apply" && !job.external_url}
+            onPress={() => void openApply()}
+          >
+            <Text style={styles.applyText}>
+              {job.apply_type === "easy_apply"
+                ? existingApplication?.is_draft
+                  ? "Continue application"
+                  : existingApplication
+                    ? "Application submitted"
+                    : "Easy Apply"
+                : job.external_url
+                  ? "Apply now"
+                  : "Application unavailable"}
+            </Text>
 
-          <Ionicons
-            name={
-              job.apply_type === "easy_apply"
-                ? "flash-outline"
-                : "arrow-forward"
-            }
-            size={19}
-            color="#FFFFFF"
-          />
-        </TouchableOpacity>
+            <Ionicons
+              name={
+                job.apply_type === "easy_apply"
+                  ? "flash-outline"
+                  : "arrow-forward"
+              }
+              size={19}
+              color={Colors.surface}
+            />
+          </TouchableOpacity>
         </View>
       </ScrollView>
 
       <Modal
+        accessibilityViewIsModal
         visible={applyOpen}
         animationType="slide"
         transparent
         onRequestClose={() => setApplyOpen(false)}
       >
         <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
+          <ScrollView
+            style={[styles.modalCard, { maxHeight: "92%", flexGrow: 0 }]}
+            keyboardShouldPersistTaps="handled"
+          >
             <View style={styles.modalHeader}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.modalTitle}>Easy Apply</Text>
                 <Text style={styles.modalSubtitle}>
-                  {job.title} � {job.company_name}
+                  {job.title} · {job.company_name}
                 </Text>
               </View>
 
               <TouchableOpacity
+                accessibilityLabel="Close"
                 style={styles.close}
                 onPress={() => setApplyOpen(false)}
               >
-                <Ionicons name="close" size={22} color="#061A30" />
+                <Ionicons name="close" size={22} color={Colors.foreground} />
               </TouchableOpacity>
             </View>
 
             <Text style={styles.noteLabel}>Cover note (optional)</Text>
             <TextInput
+              accessibilityLabel="Cover note (optional)"
               value={coverNote}
               onChangeText={setCoverNote}
               multiline
               maxLength={1000}
               placeholder="Tell the employer briefly why you're interested."
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor={Colors.mutedSubtle}
               style={styles.noteInput}
             />
 
@@ -530,7 +555,7 @@ export default function JobDetailsScreen() {
               onPress={() => void saveApplication(false)}
             >
               {submitting ? (
-                <ActivityIndicator color="#FFFFFF" />
+                <ActivityIndicator color={Colors.surface} />
               ) : (
                 <Text style={styles.submitText}>Submit application</Text>
               )}
@@ -543,7 +568,7 @@ export default function JobDetailsScreen() {
             >
               <Text style={styles.draftText}>Save as draft</Text>
             </TouchableOpacity>
-          </View>
+          </ScrollView>
         </View>
       </Modal>
     </SafeAreaView>
@@ -551,10 +576,10 @@ export default function JobDetailsScreen() {
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: "#FFFFFF" },
+  page: { flex: 1, backgroundColor: Colors.surface },
   center: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
     alignItems: "center",
     justifyContent: "center",
     padding: 25,
@@ -566,9 +591,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     borderBottomWidth: 1,
-    borderBottomColor: "#E8EBF0",
+    borderBottomColor: Colors.border,
   },
-  headerTitle: { fontSize: 16, fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800", color: "#061A30" },
+  headerTitle: {
+    fontSize: 16,
+    fontFamily: Fonts.bold,
+    fontWeight: "700",
+    color: Colors.foreground,
+  },
   iconButton: {
     width: 42,
     height: 42,
@@ -576,51 +606,74 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  content: { padding: 20, paddingBottom: 120 },
+  content: {
+    width: "100%",
+    maxWidth: 800,
+    alignSelf: "center",
+    padding: 20,
+    paddingBottom: 120,
+  },
   logo: {
     width: 72,
     height: 72,
-    borderRadius: 8,
-    backgroundColor: "#F1F5F9",
+    borderRadius: Radius.sm,
+    backgroundColor: Colors.secondary,
     alignItems: "center",
     justifyContent: "center",
   },
-  logoLetter: { color: "#E1225F", fontSize: 28, fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800" },
+  logoLetter: {
+    color: Colors.primary,
+    fontSize: 26,
+    fontFamily: Fonts.bold,
+    fontWeight: "700",
+  },
   badgeRow: { flexDirection: "row", gap: 7, marginTop: 15 },
   easyBadge: {
-    backgroundColor: "#FDEEF3",
+    backgroundColor: Colors.primarySoft,
     borderRadius: 7,
     paddingHorizontal: 8,
     paddingVertical: 5,
   },
-  easyBadgeText: { color: "#E1225F", fontSize: 11, fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800" },
+  easyBadgeText: {
+    color: Colors.primary,
+    fontSize: 11,
+    fontFamily: Fonts.bold,
+    fontWeight: "700",
+  },
   appliedBadge: {
-    backgroundColor: "#F1F5F9",
+    backgroundColor: Colors.secondary,
     borderRadius: 7,
     paddingHorizontal: 8,
     paddingVertical: 5,
   },
-  appliedBadgeText: { color: "#556274", fontSize: 11, fontFamily: "PlusJakartaSans_700Bold", fontWeight: "700" },
+  appliedBadgeText: {
+    color: Colors.muted,
+    fontSize: 11,
+    fontFamily: Fonts.bold,
+    fontWeight: "700",
+  },
   title: {
     fontSize: 26,
     lineHeight: 33,
-    fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800",
-    color: "#061A30",
+    fontFamily: Fonts.bold,
+    fontWeight: "700",
+    color: Colors.foreground,
     marginTop: 15,
   },
-  company: { color: "#556274", fontSize: 16, marginTop: 6 },
+  company: { color: Colors.muted, fontSize: 16, marginTop: 6 },
   metaBlock: { marginTop: 20, gap: 11 },
   metaRow: { flexDirection: "row", alignItems: "center" },
-  metaText: { color: "#556274", marginLeft: 8, fontSize: 14 },
-  divider: { height: 1, backgroundColor: "#E8EBF0", marginVertical: 26 },
+  metaText: { color: Colors.muted, marginLeft: 8, fontSize: 14 },
+  divider: { height: 1, backgroundColor: Colors.border, marginVertical: 26 },
   heading: {
-    color: "#061A30",
+    color: Colors.foreground,
     fontSize: 18,
-    fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800",
+    fontFamily: Fonts.bold,
+    fontWeight: "700",
     marginTop: 20,
     marginBottom: 11,
   },
-  body: { color: "#556274", fontSize: 15, lineHeight: 24 },
+  body: { color: Colors.muted, fontSize: 15, lineHeight: 24 },
   bulletRow: {
     flexDirection: "row",
     alignItems: "flex-start",
@@ -630,59 +683,77 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: "#E1225F",
+    backgroundColor: Colors.primary,
     marginTop: 8,
     marginRight: 10,
   },
-  bulletText: { flex: 1, color: "#556274", fontSize: 15, lineHeight: 22 },
+  bulletText: { flex: 1, color: Colors.muted, fontSize: 15, lineHeight: 22 },
   footer: {
     marginTop: 24,
     padding: 16,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
     borderTopWidth: 1,
-    borderTopColor: "#E8EBF0",
+    borderTopColor: Colors.border,
   },
   applyButton: {
     height: 56,
-    borderRadius: 8,
-    backgroundColor: "#E1225F",
+    borderRadius: Radius.sm,
+    backgroundColor: Colors.primary,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
   },
-  disabledButton: { backgroundColor: "#94A3B8" },
-  applyText: { color: "#FFFFFF", fontSize: 16, fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800" },
+  disabledButton: { backgroundColor: Colors.mutedSubtle },
+  applyText: {
+    color: Colors.surface,
+    fontSize: 16,
+    fontFamily: Fonts.bold,
+    fontWeight: "700",
+  },
   errorTitle: {
-    color: "#061A30",
+    color: Colors.foreground,
     fontSize: 19,
-    fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800",
+    fontFamily: Fonts.bold,
+    fontWeight: "700",
     marginTop: 15,
     textAlign: "center",
   },
   backButton: {
-    backgroundColor: "#E1225F",
-    borderRadius: 8,
+    backgroundColor: Colors.primary,
+    borderRadius: Radius.sm,
     paddingHorizontal: 24,
     paddingVertical: 13,
     marginTop: 20,
   },
-  backButtonText: { color: "#FFFFFF", fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800" },
+  backButtonText: {
+    color: Colors.surface,
+    fontFamily: Fonts.bold,
+    fontWeight: "700",
+  },
   modalBackdrop: {
     flex: 1,
     backgroundColor: "rgba(11,31,48,0.38)",
     justifyContent: "flex-end",
   },
   modalCard: {
-    backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    width: "100%",
+    maxWidth: 640,
+    alignSelf: "center",
+    backgroundColor: Colors.surface,
+    borderTopLeftRadius: Radius.lg,
+    borderTopRightRadius: Radius.lg,
     padding: 20,
     paddingBottom: 30,
   },
   modalHeader: { flexDirection: "row", alignItems: "flex-start" },
-  modalTitle: { color: "#061A30", fontSize: 21, fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800" },
-  modalSubtitle: { color: "#556274", fontSize: 12, marginTop: 4 },
+  modalTitle: {
+    color: Colors.foreground,
+    fontSize: 21,
+    fontFamily: Fonts.bold,
+    fontWeight: "700",
+  },
+  modalSubtitle: { color: Colors.muted, fontSize: 12, marginTop: 4 },
   close: {
     width: 38,
     height: 38,
@@ -691,57 +762,54 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   noteLabel: {
-    color: "#556274",
+    color: Colors.muted,
     fontSize: 13,
-    fontFamily: "PlusJakartaSans_700Bold", fontWeight: "700",
+    fontFamily: Fonts.bold,
+    fontWeight: "700",
     marginTop: 20,
     marginBottom: 7,
   },
   noteInput: {
     minHeight: 110,
     borderWidth: 1,
-    borderColor: "#DFE4EC",
-    borderRadius: 8,
+    borderColor: Colors.input,
+    borderRadius: Radius.sm,
     padding: 12,
-    color: "#061A30",
+    color: Colors.foreground,
     textAlignVertical: "top",
   },
   modalHint: {
-    color: "#556274",
+    color: Colors.muted,
     fontSize: 11,
     lineHeight: 17,
     marginTop: 10,
   },
   submitButton: {
     height: 52,
-    backgroundColor: "#E1225F",
-    borderRadius: 11,
+    backgroundColor: Colors.primary,
+    borderRadius: Radius.md,
     alignItems: "center",
     justifyContent: "center",
     marginTop: 18,
   },
-  submitText: { color: "#FFFFFF", fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800", fontSize: 15 },
+  submitText: {
+    color: Colors.surface,
+    fontFamily: Fonts.bold,
+    fontWeight: "700",
+    fontSize: 15,
+  },
   draftButton: {
     height: 50,
     borderWidth: 1,
-    borderColor: "#DFE4EC",
-    borderRadius: 11,
+    borderColor: Colors.input,
+    borderRadius: Radius.md,
     alignItems: "center",
     justifyContent: "center",
     marginTop: 9,
   },
-  draftText: { color: "#061A30", fontFamily: "PlusJakartaSans_700Bold", fontWeight: "700" },
+  draftText: {
+    color: Colors.foreground,
+    fontFamily: Fonts.bold,
+    fontWeight: "700",
+  },
 });
-
-
-
-
-
-
-
-
-
-
-
-
-

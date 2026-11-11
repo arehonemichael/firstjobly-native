@@ -1,11 +1,13 @@
-﻿import { StyleSheet, Text, View } from "react-native";
+import { AppText as Text } from "../ui/primitives";
+import { Colors, Fonts, Radius } from "../../constants/theme";
+import { StyleSheet, View } from "react-native";
 import { Megaphone } from "lucide-react-native";
 
 export function SponsoredSlot() {
   return (
     <View style={styles.card}>
       <View style={styles.iconWrap}>
-        <Megaphone size={17} color="#E1225F" strokeWidth={2} />
+        <Megaphone size={17} color={Colors.primary} strokeWidth={2} />
       </View>
 
       <View style={styles.copy}>
@@ -22,10 +24,10 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
     borderWidth: 1,
-    borderColor: "#E8EBF0",
-    borderRadius: 8,
+    borderColor: Colors.border,
+    borderRadius: Radius.sm,
     padding: 14,
     minHeight: 76,
   },
@@ -33,7 +35,7 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 6,
-    backgroundColor: "#FDEEF3",
+    backgroundColor: Colors.primarySoft,
     alignItems: "center",
     justifyContent: "center",
     marginRight: 11,
@@ -42,15 +44,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   label: {
-    color: "#B0164A",
-    fontFamily: "PlusJakartaSans_700Bold",
+    color: Colors.primaryPressed,
+    fontFamily: Fonts.bold,
     fontWeight: "700",
     fontSize: 11,
     marginBottom: 3,
   },
   text: {
-    color: "#556274",
-    fontFamily: "PlusJakartaSans_500Medium",
+    color: Colors.muted,
+    fontFamily: Fonts.medium,
     fontWeight: "500",
     fontSize: 12,
     lineHeight: 18,

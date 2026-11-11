@@ -1,13 +1,16 @@
 import {
+  AppPressable as Pressable,
+  AppText as Text,
+  AppTextInput as TextInput,
+} from "../../components/ui/primitives";
+import { Colors, Fonts, Radius } from "../../constants/theme";
+import {
   ActivityIndicator,
   FlatList,
   Modal,
-  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   View,
 } from "react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -38,34 +41,29 @@ import {
   type VerificationState,
 } from "../../lib/graduateroom";
 
-const PINK = "#E1225F";
-const NAVY = "#061A30";
-const MUTED = "#556274";
-const BORDER = "#E8EBF0";
-const SURFACE = "#F6F7F9";
+const PINK = Colors.primary;
+const NAVY = Colors.foreground;
+const MUTED = Colors.muted;
+const BORDER = Colors.border;
+const SURFACE = Colors.background;
 
-const TYPE_ACCENTS: Record<string, { bg: string; fg: string }> = {
-  question: { bg: "#EEF2FF", fg: "#4338CA" },
-  cv_review: { bg: "#FDEEF3", fg: "#B0164A" },
-  interview_experience: { bg: "#ECFDF5", fg: "#047857" },
-  referral_request: { bg: "#FFF7ED", fg: "#C2410C" },
-  company_review: { bg: "#F0F9FF", fg: "#0369A1" },
-  success_story: { bg: "#FEFCE8", fg: "#A16207" },
-};
-
-const AVATAR_PALETTE = [
-  "#E1225F",
-  "#7057FF",
-  "#0369A1",
-  "#047857",
-  "#C2410C",
-  "#A16207",
-  "#4338CA",
-];
+const TYPE_ACCENTS: Record<string, { bg: string; fg: string }> =
+  Object.fromEntries(
+    [
+      "question",
+      "cv_review",
+      "interview_experience",
+      "referral_request",
+      "company_review",
+      "success_story",
+    ].map((type) => [type, { bg: Colors.secondary, fg: Colors.muted }]),
+  );
+const AVATAR_PALETTE = [Colors.foreground, Colors.muted, Colors.primaryPressed];
 
 function avatarColor(seed: string) {
   let hash = 0;
-  for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
+  for (let i = 0; i < seed.length; i++)
+    hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
   return AVATAR_PALETTE[hash % AVATAR_PALETTE.length];
 }
 
@@ -142,10 +140,7 @@ function PostCard({
         </View>
 
         <View style={[s.typeBadge, { backgroundColor: accent.bg }]}>
-          <Text
-            style={[s.typeText, { color: accent.fg }]}
-            numberOfLines={1}
-          >
+          <Text style={[s.typeText, { color: accent.fg }]} numberOfLines={1}>
             {POST_TYPE_LABELS[post.postType]}
           </Text>
         </View>
@@ -168,10 +163,7 @@ function PostCard({
             onVote(post.id);
           }}
         >
-          <ChevronUp
-            size={17}
-            color={post.viewerVoted ? PINK : MUTED}
-          />
+          <ChevronUp size={17} color={post.viewerVoted ? PINK : MUTED} />
           <Text style={[s.actionText, post.viewerVoted && s.actionTextActive]}>
             {post.upvoteCount}
           </Text>
@@ -196,7 +188,7 @@ function PostCard({
           <Bookmark
             size={16}
             color={post.viewerSaved ? PINK : MUTED}
-            fill={post.viewerSaved ? "#FDEEF3" : "transparent"}
+            fill={post.viewerSaved ? Colors.primarySoft : "transparent"}
           />
           <Text style={[s.actionText, post.viewerSaved && s.actionTextActive]}>
             {post.viewerSaved ? "Saved" : "Save"}
@@ -211,8 +203,9 @@ export default function GraduateRoom() {
   const { userId, loading: authLoading, isAuthenticated } = useAuth();
   const bottom = useScreenBottomPadding(true);
 
-  const [verification, setVerification] =
-    useState<VerificationState | null>(null);
+  const [verification, setVerification] = useState<VerificationState | null>(
+    null,
+  );
   const [posts, setPosts] = useState<CommunityPost[]>([]);
   const [scope, setScope] = useState<PostScope>("all");
   const [postType, setPostType] = useState("");
@@ -231,9 +224,8 @@ export default function GraduateRoom() {
     if (!userId) return;
     try {
       setError("");
-      const state = await graduateRoomApi<VerificationState>(
-        "verification-state",
-      );
+      const state =
+        await graduateRoomApi<VerificationState>("verification-state");
       setVerification(state);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not load GraduateRoom.");
@@ -252,8 +244,7 @@ export default function GraduateRoom() {
     [institution, postType, scope, search],
   );
 
-  const activeFilterCount =
-    (postType ? 1 : 0) + (institution ? 1 : 0);
+  const activeFilterCount = (postType ? 1 : 0) + (institution ? 1 : 0);
 
   const loadPosts = useCallback(
     async (refresh = false) => {
@@ -393,7 +384,7 @@ export default function GraduateRoom() {
                 style={({ pressed }) => [s.newButton, pressed && s.pressed]}
                 onPress={() => router.push("/graduateroom/new")}
               >
-                <Plus size={17} color="#FFFFFF" />
+                <Plus size={17} color={Colors.surface} />
                 <Text style={s.newButtonText}>Post</Text>
               </Pressable>
             </View>
@@ -406,7 +397,7 @@ export default function GraduateRoom() {
                   onChangeText={setSearchDraft}
                   onSubmitEditing={() => setSearch(searchDraft)}
                   placeholder="Search discussions"
-                  placeholderTextColor="#94A3B8"
+                  placeholderTextColor={Colors.mutedSubtle}
                   style={s.searchInput}
                   returnKeyType="search"
                 />
@@ -418,7 +409,7 @@ export default function GraduateRoom() {
                       setSearch("");
                     }}
                   >
-                    <X size={16} color="#94A3B8" />
+                    <X size={16} color={Colors.mutedSubtle} />
                   </Pressable>
                 ) : null}
               </View>
@@ -428,6 +419,7 @@ export default function GraduateRoom() {
                   activeFilterCount > 0 && s.filterButtonActive,
                   pressed && s.pressed,
                 ]}
+                accessibilityLabel="Filter discussions"
                 onPress={() => setFilterOpen(true)}
               >
                 <Filter
@@ -448,6 +440,7 @@ export default function GraduateRoom() {
                 return (
                   <Pressable
                     key={item.value}
+                    accessibilityState={{ selected: active }}
                     style={[s.segment, active && s.segmentActive]}
                     onPress={() => setScope(item.value)}
                   >
@@ -487,6 +480,7 @@ export default function GraduateRoom() {
       />
 
       <Modal
+        accessibilityViewIsModal
         visible={filterOpen}
         transparent
         animationType="slide"
@@ -496,7 +490,11 @@ export default function GraduateRoom() {
           <View style={s.sheet}>
             <View style={s.sheetHeader}>
               <Text style={s.sheetTitle}>Filter discussions</Text>
-              <Pressable style={s.icon44} onPress={() => setFilterOpen(false)}>
+              <Pressable
+                accessibilityLabel="Close filters"
+                style={s.icon44}
+                onPress={() => setFilterOpen(false)}
+              >
                 <X size={20} color={NAVY} />
               </Pressable>
             </View>
@@ -512,7 +510,8 @@ export default function GraduateRoom() {
                 </Text>
               </Pressable>
               {POST_TYPES.map((type) => {
-                const accent = TYPE_ACCENTS[type.value] ?? TYPE_ACCENTS.question;
+                const accent =
+                  TYPE_ACCENTS[type.value] ?? TYPE_ACCENTS.question;
                 const active = postType === type.value;
                 return (
                   <Pressable
@@ -523,9 +522,7 @@ export default function GraduateRoom() {
                     <View
                       style={[s.optionDot, { backgroundColor: accent.fg }]}
                     />
-                    <Text
-                      style={[s.optionText, active && s.optionTextActive]}
-                    >
+                    <Text style={[s.optionText, active && s.optionTextActive]}>
                       {type.label}
                     </Text>
                   </Pressable>
@@ -583,31 +580,31 @@ const s = StyleSheet.create({
     color: NAVY,
     fontSize: 25,
     lineHeight: 31,
-    fontFamily: "PlusJakartaSans_800ExtraBold",
-    fontWeight: "800",
+    fontFamily: Fonts.bold,
+    fontWeight: "700",
   },
   subtitle: {
     color: MUTED,
     fontSize: 12,
     lineHeight: 18,
     marginTop: 2,
-    fontFamily: "PlusJakartaSans_500Medium",
+    fontFamily: Fonts.medium,
     fontWeight: "500",
   },
   newButton: {
-    minHeight: 42,
+    minHeight: 44,
     flexDirection: "row",
     gap: 6,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 15,
-    borderRadius: 10,
+    borderRadius: Radius.sm,
     backgroundColor: PINK,
   },
   newButtonText: {
-    color: "#FFFFFF",
+    color: Colors.surface,
     fontSize: 13,
-    fontFamily: "PlusJakartaSans_700Bold",
+    fontFamily: Fonts.bold,
     fontWeight: "700",
   },
   searchRow: { flexDirection: "row", gap: 8, marginBottom: 12 },
@@ -618,76 +615,79 @@ const s = StyleSheet.create({
     alignItems: "center",
     gap: 9,
     paddingHorizontal: 13,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
     borderWidth: 1,
     borderColor: BORDER,
-    borderRadius: 10,
+    borderRadius: Radius.sm,
   },
   searchInput: {
     flex: 1,
     color: NAVY,
     fontSize: 14,
-    fontFamily: "PlusJakartaSans_500Medium",
+    fontFamily: Fonts.medium,
     fontWeight: "500",
   },
   filterButton: {
     width: 46,
     height: 46,
-    borderRadius: 10,
+    borderRadius: Radius.sm,
     borderWidth: 1,
     borderColor: BORDER,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
     alignItems: "center",
     justifyContent: "center",
   },
-  filterButtonActive: { backgroundColor: "#FDEEF3", borderColor: PINK },
+  filterButtonActive: {
+    backgroundColor: Colors.primarySoft,
+    borderColor: PINK,
+  },
   filterCount: {
     position: "absolute",
     top: -4,
     right: -4,
     minWidth: 16,
     height: 16,
-    borderRadius: 8,
+    borderRadius: Radius.sm,
     paddingHorizontal: 3,
     backgroundColor: PINK,
     alignItems: "center",
     justifyContent: "center",
   },
-  filterCountText: { color: "#FFFFFF", fontSize: 9, fontWeight: "800" },
+  filterCountText: { color: Colors.surface, fontSize: 11, fontWeight: "700" },
   segmented: {
     flexDirection: "row",
-    backgroundColor: "#EEF0F3",
-    borderRadius: 10,
+    backgroundColor: Colors.secondary,
+    borderRadius: Radius.sm,
     padding: 3,
     marginBottom: 14,
   },
   segment: {
     flex: 1,
-    minHeight: 36,
+    minHeight: 44,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 8,
+    borderRadius: Radius.sm,
   },
   segmentActive: {
-    backgroundColor: "#FFFFFF",
-    shadowColor: "#000000",
-    shadowOpacity: 0.06,
+    backgroundColor: Colors.surface,
+    shadowColor: Colors.foreground,
+    shadowOpacity: 0,
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 1 },
-    elevation: 1,
+    elevation: 0,
   },
   segmentText: {
     color: MUTED,
     fontSize: 12,
-    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontFamily: Fonts.semibold,
     fontWeight: "600",
   },
   segmentTextActive: { color: NAVY },
   postCard: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
     borderWidth: 1,
     borderColor: BORDER,
-    borderRadius: 12,
+    borderRadius: Radius.md,
     padding: 14,
     marginBottom: 10,
   },
@@ -700,24 +700,29 @@ const s = StyleSheet.create({
     justifyContent: "center",
   },
   avatarText: {
-    color: "#FFFFFF",
+    color: Colors.surface,
     fontSize: 13,
-    fontFamily: "PlusJakartaSans_700Bold",
+    fontFamily: Fonts.bold,
     fontWeight: "700",
   },
   authorCopy: { flex: 1, minWidth: 0, marginLeft: 10, marginRight: 8 },
-  authorNameRow: { flexDirection: "row", alignItems: "center", gap: 4 },
+  authorNameRow: {
+    flexWrap: "wrap",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
   authorName: {
     color: NAVY,
     fontSize: 12.5,
-    fontFamily: "PlusJakartaSans_700Bold",
+    fontFamily: Fonts.bold,
     fontWeight: "700",
   },
   authorMeta: {
-    color: "#94A3B8",
-    fontSize: 10,
+    color: Colors.mutedSubtle,
+    fontSize: 11,
     marginTop: 2,
-    fontFamily: "PlusJakartaSans_500Medium",
+    fontFamily: Fonts.medium,
     fontWeight: "500",
   },
   typeBadge: {
@@ -728,7 +733,7 @@ const s = StyleSheet.create({
   },
   typeText: {
     fontSize: 9.5,
-    fontFamily: "PlusJakartaSans_700Bold",
+    fontFamily: Fonts.bold,
     fontWeight: "700",
   },
   postTitle: {
@@ -736,7 +741,7 @@ const s = StyleSheet.create({
     fontSize: 15.5,
     lineHeight: 21,
     marginTop: 12,
-    fontFamily: "PlusJakartaSans_700Bold",
+    fontFamily: Fonts.bold,
     fontWeight: "700",
   },
   postBody: {
@@ -744,7 +749,7 @@ const s = StyleSheet.create({
     fontSize: 13,
     lineHeight: 19.5,
     marginTop: 5,
-    fontFamily: "PlusJakartaSans_400Regular",
+    fontFamily: Fonts.regular,
     fontWeight: "400",
   },
   actionRow: {
@@ -756,26 +761,26 @@ const s = StyleSheet.create({
     borderTopColor: BORDER,
   },
   action: {
-    minHeight: 34,
+    minHeight: 44,
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
     paddingHorizontal: 9,
     borderRadius: 7,
   },
-  actionActive: { backgroundColor: "#FDEEF3" },
+  actionActive: { backgroundColor: Colors.primarySoft },
   actionText: {
     color: MUTED,
     fontSize: 11,
-    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontFamily: Fonts.semibold,
     fontWeight: "600",
   },
-  actionTextActive: { color: "#B0164A" },
+  actionTextActive: { color: Colors.primaryPressed },
   gateIcon: {
     width: 52,
     height: 52,
-    borderRadius: 12,
-    backgroundColor: "#FDEEF3",
+    borderRadius: Radius.md,
+    backgroundColor: Colors.primarySoft,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -784,8 +789,8 @@ const s = StyleSheet.create({
     fontSize: 21,
     textAlign: "center",
     marginTop: 16,
-    fontFamily: "PlusJakartaSans_800ExtraBold",
-    fontWeight: "800",
+    fontFamily: Fonts.bold,
+    fontWeight: "700",
   },
   gateText: {
     color: MUTED,
@@ -794,7 +799,7 @@ const s = StyleSheet.create({
     textAlign: "center",
     marginTop: 7,
     maxWidth: 330,
-    fontFamily: "PlusJakartaSans_500Medium",
+    fontFamily: Fonts.medium,
     fontWeight: "500",
   },
   primary: {
@@ -803,7 +808,7 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: PINK,
-    borderRadius: 10,
+    borderRadius: Radius.sm,
     marginTop: 18,
   },
   primarySmall: {
@@ -812,12 +817,12 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: PINK,
-    borderRadius: 10,
+    borderRadius: Radius.sm,
   },
   primaryText: {
-    color: "#FFFFFF",
+    color: Colors.surface,
     fontSize: 13,
-    fontFamily: "PlusJakartaSans_700Bold",
+    fontFamily: Fonts.bold,
     fontWeight: "700",
   },
   secondary: {
@@ -825,23 +830,23 @@ const s = StyleSheet.create({
     paddingHorizontal: 18,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
     borderWidth: 1,
     borderColor: BORDER,
-    borderRadius: 10,
+    borderRadius: Radius.sm,
   },
   secondaryText: {
     color: NAVY,
     fontSize: 13,
-    fontFamily: "PlusJakartaSans_700Bold",
+    fontFamily: Fonts.bold,
     fontWeight: "700",
   },
   error: {
-    color: "#DC2626",
+    color: Colors.error,
     fontSize: 12,
     lineHeight: 18,
     marginBottom: 10,
-    fontFamily: "PlusJakartaSans_500Medium",
+    fontFamily: Fonts.medium,
     fontWeight: "500",
   },
   empty: {
@@ -853,7 +858,7 @@ const s = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 14,
-    backgroundColor: "#FDEEF3",
+    backgroundColor: Colors.primarySoft,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -861,7 +866,7 @@ const s = StyleSheet.create({
     color: NAVY,
     fontSize: 16,
     marginTop: 14,
-    fontFamily: "PlusJakartaSans_700Bold",
+    fontFamily: Fonts.bold,
     fontWeight: "700",
   },
   emptyText: {
@@ -878,7 +883,10 @@ const s = StyleSheet.create({
     backgroundColor: "rgba(6,26,48,0.28)",
   },
   sheet: {
-    backgroundColor: "#FFFFFF",
+    width: "100%",
+    maxWidth: 640,
+    alignSelf: "center",
+    backgroundColor: Colors.surface,
     padding: 16,
     paddingBottom: 28,
     borderTopLeftRadius: 14,
@@ -893,7 +901,7 @@ const s = StyleSheet.create({
   sheetTitle: {
     color: NAVY,
     fontSize: 18,
-    fontFamily: "PlusJakartaSans_700Bold",
+    fontFamily: Fonts.bold,
     fontWeight: "700",
   },
   icon44: {
@@ -907,7 +915,7 @@ const s = StyleSheet.create({
     fontSize: 12,
     marginTop: 12,
     marginBottom: 6,
-    fontFamily: "PlusJakartaSans_700Bold",
+    fontFamily: Fonts.bold,
     fontWeight: "700",
   },
   option: {
@@ -916,12 +924,12 @@ const s = StyleSheet.create({
     alignItems: "center",
     gap: 9,
     paddingHorizontal: 12,
-    borderRadius: 8,
+    borderRadius: Radius.sm,
   },
-  optionActive: { backgroundColor: "#FDEEF3" },
+  optionActive: { backgroundColor: Colors.primarySoft },
   optionDot: { width: 8, height: 8, borderRadius: 4 },
   optionText: { color: MUTED, fontSize: 13 },
-  optionTextActive: { color: "#B0164A", fontWeight: "700" },
+  optionTextActive: { color: Colors.primaryPressed, fontWeight: "700" },
   sheetActions: {
     flexDirection: "row",
     justifyContent: "flex-end",
@@ -931,8 +939,8 @@ const s = StyleSheet.create({
   skeletonWrap: { paddingVertical: 8, paddingHorizontal: 16 },
   skeletonCard: {
     height: 164,
-    borderRadius: 12,
-    backgroundColor: "#FFFFFF",
+    borderRadius: Radius.md,
+    backgroundColor: Colors.surface,
     borderWidth: 1,
     borderColor: BORDER,
     padding: 14,
@@ -941,20 +949,20 @@ const s = StyleSheet.create({
   skeletonLineShort: {
     width: "35%",
     height: 10,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: Colors.secondary,
     borderRadius: 4,
   },
   skeletonTitle: {
     width: "78%",
     height: 17,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: Colors.secondary,
     borderRadius: 4,
     marginTop: 22,
   },
   skeletonLine: {
     width: "94%",
     height: 11,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: Colors.secondary,
     borderRadius: 4,
     marginTop: 10,
   },

@@ -1,12 +1,10 @@
-﻿import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import {
+  AppPressable as Pressable,
+  AppText as Text,
+  AppTextInput as TextInput,
+} from "../../components/ui/primitives";
+import { Colors, Radius } from "../../constants/theme";
+import { ActivityIndicator, ScrollView, StyleSheet, View } from "react-native";
 import { useCallback, useEffect, useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
@@ -16,10 +14,7 @@ import { ArrowLeft, BadgeCheck, FileUp, Mail } from "lucide-react-native";
 import { useAuth } from "../../hooks/use-auth";
 import { InstitutionPicker } from "../../components/graduateroom/institution-picker";
 import { supabase } from "../../lib/supabase";
-import {
-  VerificationState,
-  graduateRoomApi,
-} from "../../lib/graduateroom";
+import { VerificationState, graduateRoomApi } from "../../lib/graduateroom";
 
 export default function GraduateRoomVerify() {
   const { userId } = useAuth();
@@ -34,9 +29,8 @@ export default function GraduateRoomVerify() {
 
   const load = useCallback(async () => {
     try {
-      const next = await graduateRoomApi<VerificationState>(
-        "verification-state",
-      );
+      const next =
+        await graduateRoomApi<VerificationState>("verification-state");
       setState(next);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not load verification.");
@@ -176,9 +170,9 @@ export default function GraduateRoomVerify() {
     return (
       <SafeAreaView style={s.center} edges={["top", "bottom"]}>
         <View style={s.iconBox}>
-          <BadgeCheck size={28} color="#16A34A" />
+          <BadgeCheck size={28} color={Colors.success} />
         </View>
-        <Text style={s.title}>You're verified</Text>
+        <Text style={s.title}>You’re verified</Text>
         <Text style={s.text}>
           Your GraduateRoom access is active
           {state.institutionName ? ` for ${state.institutionName}` : ""}.
@@ -196,8 +190,12 @@ export default function GraduateRoomVerify() {
   return (
     <SafeAreaView style={s.page} edges={["top", "bottom"]}>
       <View style={s.header}>
-        <Pressable style={s.icon44} onPress={() => router.back()}>
-          <ArrowLeft size={22} color="#061A30" />
+        <Pressable
+          accessibilityLabel="Go back"
+          style={s.icon44}
+          onPress={() => router.back()}
+        >
+          <ArrowLeft size={22} color={Colors.foreground} />
         </Pressable>
         <Text style={s.headerTitle}>GraduateRoom verification</Text>
         <View style={s.icon44} />
@@ -237,7 +235,10 @@ export default function GraduateRoomVerify() {
             style={[s.tab, path === "email" && s.tabActive]}
             onPress={() => setPath("email")}
           >
-            <Mail size={18} color={path === "email" ? "#B0164A" : "#556274"} />
+            <Mail
+              size={18}
+              color={path === "email" ? Colors.primaryPressed : Colors.muted}
+            />
             <Text style={[s.tabText, path === "email" && s.tabTextActive]}>
               Institution email
             </Text>
@@ -248,7 +249,7 @@ export default function GraduateRoomVerify() {
           >
             <FileUp
               size={18}
-              color={path === "document" ? "#B0164A" : "#556274"}
+              color={path === "document" ? Colors.primaryPressed : Colors.muted}
             />
             <Text style={[s.tabText, path === "document" && s.tabTextActive]}>
               Upload proof
@@ -257,10 +258,7 @@ export default function GraduateRoomVerify() {
         </View>
 
         <Text style={s.label}>Institution</Text>
-        <InstitutionPicker
-          value={institution}
-          onChange={setInstitution}
-        />
+        <InstitutionPicker value={institution} onChange={setInstitution} />
 
         {path === "email" ? (
           <>
@@ -271,7 +269,7 @@ export default function GraduateRoomVerify() {
               keyboardType="email-address"
               autoCapitalize="none"
               placeholder="student@university.ac.za"
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor={Colors.mutedSubtle}
               style={s.input}
             />
 
@@ -281,7 +279,7 @@ export default function GraduateRoomVerify() {
               onPress={() => void sendCode()}
             >
               {busy ? (
-                <ActivityIndicator color="#FFFFFF" />
+                <ActivityIndicator color={Colors.surface} />
               ) : (
                 <Text style={s.primaryText}>Send verification code</Text>
               )}
@@ -296,7 +294,7 @@ export default function GraduateRoomVerify() {
                   keyboardType="number-pad"
                   maxLength={8}
                   placeholder="Enter code"
-                  placeholderTextColor="#94A3B8"
+                  placeholderTextColor={Colors.mutedSubtle}
                   style={s.input}
                 />
                 <Pressable
@@ -324,7 +322,7 @@ export default function GraduateRoomVerify() {
               onPress={() => void uploadProof()}
             >
               {busy ? (
-                <ActivityIndicator color="#FFFFFF" />
+                <ActivityIndicator color={Colors.surface} />
               ) : (
                 <Text style={s.primaryText}>Choose proof document</Text>
               )}
@@ -340,10 +338,10 @@ export default function GraduateRoomVerify() {
 }
 
 const s = StyleSheet.create({
-  page: { flex: 1, backgroundColor: "#F6F7F9" },
+  page: { flex: 1, backgroundColor: Colors.background },
   center: {
     flex: 1,
-    backgroundColor: "#F6F7F9",
+    backgroundColor: Colors.background,
     alignItems: "center",
     justifyContent: "center",
     padding: 28,
@@ -352,39 +350,60 @@ const s = StyleSheet.create({
     height: 58,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: "#E8EBF0",
+    borderBottomColor: Colors.border,
   },
-  icon44: { width: 52, height: 52, alignItems: "center", justifyContent: "center" },
-  headerTitle: {
-    flex: 1,
-    textAlign: "center",
-    color: "#061A30",
-    fontSize: 15,
-    fontWeight: "700",
-  },
-  content: { padding: 16, paddingBottom: 40 },
-  iconBox: {
-    width: 54,
-    height: 54,
-    borderRadius: 10,
-    backgroundColor: "#F1F5F9",
+  icon44: {
+    width: 52,
+    height: 52,
     alignItems: "center",
     justifyContent: "center",
   },
-  title: { color: "#061A30", fontSize: 21, lineHeight: 28, fontWeight: "800" },
-  text: { color: "#556274", fontSize: 13, lineHeight: 20, marginTop: 6 },
+  headerTitle: {
+    flex: 1,
+    textAlign: "center",
+    color: Colors.foreground,
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  content: {
+    width: "100%",
+    maxWidth: 800,
+    alignSelf: "center",
+    padding: 16,
+    paddingBottom: 40,
+  },
+  iconBox: {
+    width: 54,
+    height: 54,
+    borderRadius: Radius.sm,
+    backgroundColor: Colors.secondary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  title: {
+    color: Colors.foreground,
+    fontSize: 26,
+    lineHeight: 28,
+    fontWeight: "700",
+  },
+  text: { color: Colors.muted, fontSize: 13, lineHeight: 20, marginTop: 6 },
   statusCard: {
     marginTop: 16,
     padding: 13,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
     borderWidth: 1,
-    borderColor: "#E8EBF0",
-    borderRadius: 8,
+    borderColor: Colors.border,
+    borderRadius: Radius.sm,
   },
-  statusTitle: { color: "#061A30", fontSize: 13, fontWeight: "700" },
-  statusText: { color: "#556274", fontSize: 11, lineHeight: 17, marginTop: 3 },
+  statusTitle: { color: Colors.foreground, fontSize: 13, fontWeight: "700" },
+  statusText: {
+    color: Colors.muted,
+    fontSize: 11,
+    lineHeight: 17,
+    marginTop: 3,
+  },
   tabs: { flexDirection: "row", gap: 8, marginTop: 20 },
   tab: {
     flex: 1,
@@ -394,15 +413,18 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "#E8EBF0",
-    borderRadius: 8,
-    backgroundColor: "#FFFFFF",
+    borderColor: Colors.border,
+    borderRadius: Radius.sm,
+    backgroundColor: Colors.surface,
   },
-  tabActive: { backgroundColor: "#FDEEF3", borderColor: "#E1225F" },
-  tabText: { color: "#556274", fontSize: 11, fontWeight: "600" },
-  tabTextActive: { color: "#B0164A" },
+  tabActive: {
+    backgroundColor: Colors.primarySoft,
+    borderColor: Colors.primary,
+  },
+  tabText: { color: Colors.muted, fontSize: 11, fontWeight: "600" },
+  tabTextActive: { color: Colors.primaryPressed },
   label: {
-    color: "#061A30",
+    color: Colors.foreground,
     fontSize: 12,
     fontWeight: "700",
     marginTop: 16,
@@ -410,38 +432,47 @@ const s = StyleSheet.create({
   },
   input: {
     minHeight: 48,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
     borderWidth: 1,
-    borderColor: "#DFE4EC",
-    borderRadius: 8,
+    borderColor: Colors.input,
+    borderRadius: Radius.sm,
     paddingHorizontal: 13,
-    color: "#061A30",
+    color: Colors.foreground,
     fontSize: 13,
   },
-  uploadHelp: { color: "#556274", fontSize: 12, lineHeight: 18, marginTop: 16 },
+  uploadHelp: {
+    color: Colors.muted,
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 16,
+  },
   primary: {
     minHeight: 49,
     marginTop: 16,
-    borderRadius: 8,
-    backgroundColor: "#E1225F",
+    borderRadius: Radius.sm,
+    backgroundColor: Colors.primary,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 18,
   },
-  primaryText: { color: "#FFFFFF", fontSize: 13, fontWeight: "700" },
+  primaryText: { color: Colors.surface, fontSize: 13, fontWeight: "700" },
   secondaryButton: {
     minHeight: 48,
     marginTop: 10,
-    borderRadius: 8,
-    backgroundColor: "#FFFFFF",
+    borderRadius: Radius.sm,
+    backgroundColor: Colors.surface,
     borderWidth: 1,
-    borderColor: "#DFE4EC",
+    borderColor: Colors.input,
     alignItems: "center",
     justifyContent: "center",
   },
-  secondaryText: { color: "#061A30", fontSize: 13, fontWeight: "700" },
+  secondaryText: { color: Colors.foreground, fontSize: 13, fontWeight: "700" },
   disabled: { opacity: 0.45 },
-  success: { color: "#16A34A", fontSize: 12, lineHeight: 18, marginTop: 14 },
-  error: { color: "#DC2626", fontSize: 12, lineHeight: 18, marginTop: 14 },
+  success: {
+    color: Colors.success,
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 14,
+  },
+  error: { color: Colors.error, fontSize: 12, lineHeight: 18, marginTop: 14 },
 });
-

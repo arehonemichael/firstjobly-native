@@ -1,12 +1,15 @@
-﻿import {
+import {
+  AppPressable as Pressable,
+  AppText as Text,
+  AppTextInput as TextInput,
+} from "../../components/ui/primitives";
+import { Colors, Radius } from "../../constants/theme";
+import {
   ActivityIndicator,
   Alert,
   Modal,
-  Pressable,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   View,
 } from "react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -63,7 +66,9 @@ function Author({
               ? "Anonymous member"
               : author.name || "FirstJobly member"}
           </Text>
-          {author.verified ? <ShieldCheck size={14} color="#E1225F" /> : null}
+          {author.verified ? (
+            <ShieldCheck size={14} color={Colors.primary} />
+          ) : null}
         </View>
         <Text style={s.meta}>
           {author.anonymous
@@ -203,7 +208,7 @@ export default function GraduateRoomPostDetail() {
   if (loading) {
     return (
       <SafeAreaView style={s.center} edges={["top", "bottom"]}>
-        <ActivityIndicator color="#E1225F" size="large" />
+        <ActivityIndicator color={Colors.primary} size="large" />
       </SafeAreaView>
     );
   }
@@ -224,11 +229,18 @@ export default function GraduateRoomPostDetail() {
   return (
     <SafeAreaView style={s.page} edges={["top", "bottom"]}>
       <View style={s.header}>
-        <Pressable style={s.icon44} onPress={() => router.back()}>
-          <ArrowLeft size={22} color="#061A30" />
+        <Pressable
+          accessibilityLabel="Go back"
+          style={s.icon44}
+          onPress={() => router.back()}
+        >
+          <ArrowLeft size={22} color={Colors.foreground} />
         </Pressable>
         <Text style={s.headerTitle}>Discussion</Text>
         <Pressable
+          accessibilityLabel={
+            post.author.isMine ? "Delete discussion" : "Report discussion"
+          }
           style={s.icon44}
           onPress={() => {
             if (post.author.isMine) {
@@ -239,9 +251,9 @@ export default function GraduateRoomPostDetail() {
           }}
         >
           {post.author.isMine ? (
-            <Trash2 size={19} color="#DC2626" />
+            <Trash2 size={19} color={Colors.error} />
           ) : (
-            <MoreHorizontal size={21} color="#556274" />
+            <MoreHorizontal size={21} color={Colors.muted} />
           )}
         </Pressable>
       </View>
@@ -261,16 +273,18 @@ export default function GraduateRoomPostDetail() {
           <View style={s.actions}>
             <Pressable
               style={[s.action, post.viewerVoted && s.actionActive]}
+              accessibilityLabel="Upvote discussion"
+              accessibilityState={{ selected: post.viewerVoted }}
               onPress={() => void mutate("toggle-vote", { postId: post.id })}
             >
               <ChevronUp
                 size={19}
-                color={post.viewerVoted ? "#B0164A" : "#556274"}
+                color={post.viewerVoted ? Colors.primaryPressed : Colors.muted}
               />
               <Text style={s.actionText}>{post.upvoteCount}</Text>
             </Pressable>
             <View style={s.action}>
-              <MessageCircle size={18} color="#556274" />
+              <MessageCircle size={18} color={Colors.muted} />
               <Text style={s.actionText}>{post.commentCount}</Text>
             </View>
             <Pressable
@@ -279,7 +293,7 @@ export default function GraduateRoomPostDetail() {
             >
               <Bookmark
                 size={18}
-                color={post.viewerSaved ? "#B0164A" : "#556274"}
+                color={post.viewerSaved ? Colors.primaryPressed : Colors.muted}
               />
               <Text style={s.actionText}>
                 {post.viewerSaved ? "Saved" : "Save"}
@@ -300,7 +314,7 @@ export default function GraduateRoomPostDetail() {
                   style={s.commentAction}
                   onPress={() => setReplyTo(root.id)}
                 >
-                  <Reply size={15} color="#556274" />
+                  <Reply size={15} color={Colors.muted} />
                   <Text style={s.commentActionText}>Reply</Text>
                 </Pressable>
                 {root.author.isMine ? (
@@ -335,9 +349,7 @@ export default function GraduateRoomPostDetail() {
                     ) : (
                       <Pressable
                         style={s.commentAction}
-                        onPress={() =>
-                          setReportTarget({ commentId: child.id })
-                        }
+                        onPress={() => setReportTarget({ commentId: child.id })}
                       >
                         <Text style={s.deleteText}>Report</Text>
                       </Pressable>
@@ -355,8 +367,11 @@ export default function GraduateRoomPostDetail() {
           {replyTo ? (
             <View style={s.replyingRow}>
               <Text style={s.replyingText}>Replying to a comment</Text>
-              <Pressable onPress={() => setReplyTo(null)}>
-                <X size={17} color="#556274" />
+              <Pressable
+                accessibilityLabel="Cancel reply"
+                onPress={() => setReplyTo(null)}
+              >
+                <X size={17} color={Colors.muted} />
               </Pressable>
             </View>
           ) : null}
@@ -367,7 +382,7 @@ export default function GraduateRoomPostDetail() {
             multiline
             textAlignVertical="top"
             placeholder="Share what you know..."
-            placeholderTextColor="#94A3B8"
+            placeholderTextColor={Colors.mutedSubtle}
             style={s.replyInput}
           />
           <Pressable
@@ -375,10 +390,7 @@ export default function GraduateRoomPostDetail() {
             onPress={() => setAnonymous((value) => !value)}
           >
             <Text
-              style={[
-                s.anonToggleText,
-                anonymous && s.anonToggleTextActive,
-              ]}
+              style={[s.anonToggleText, anonymous && s.anonToggleTextActive]}
             >
               {anonymous ? "Replying anonymously" : "Reply anonymously"}
             </Text>
@@ -389,7 +401,7 @@ export default function GraduateRoomPostDetail() {
             onPress={() => void sendReply()}
           >
             {busy ? (
-              <ActivityIndicator color="#FFFFFF" />
+              <ActivityIndicator color={Colors.surface} />
             ) : (
               <Text style={s.primaryText}>Post reply</Text>
             )}
@@ -400,22 +412,31 @@ export default function GraduateRoomPostDetail() {
       </ScrollView>
 
       <Modal
+        accessibilityViewIsModal
         visible={!!reportTarget}
         transparent
         animationType="slide"
         onRequestClose={() => setReportTarget(null)}
       >
         <View style={s.modalBackdrop}>
-          <View style={s.sheet}>
+          <ScrollView
+            style={[s.sheet, { maxHeight: "92%", flexGrow: 0 }]}
+            keyboardShouldPersistTaps="handled"
+          >
             <View style={s.sheetHeader}>
               <Text style={s.sheetTitle}>Report content</Text>
-              <Pressable style={s.icon44} onPress={() => setReportTarget(null)}>
-                <X size={21} color="#061A30" />
+              <Pressable
+                accessibilityLabel="Close report"
+                style={s.icon44}
+                onPress={() => setReportTarget(null)}
+              >
+                <X size={21} color={Colors.foreground} />
               </Pressable>
             </View>
             {COMMUNITY_REPORT_REASONS.map((reason) => (
               <Pressable
                 key={reason}
+                accessibilityState={{ selected: reportReason === reason }}
                 style={[s.reason, reportReason === reason && s.reasonActive]}
                 onPress={() => setReportReason(reason)}
               >
@@ -435,20 +456,17 @@ export default function GraduateRoomPostDetail() {
               maxLength={500}
               multiline
               placeholder="Anything a moderator should know (optional)"
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor={Colors.mutedSubtle}
               style={s.reportInput}
             />
             <Pressable
-              style={[
-                s.primary,
-                (!reportReason || busy) && s.disabled,
-              ]}
+              style={[s.primary, (!reportReason || busy) && s.disabled]}
               disabled={!reportReason || busy}
               onPress={() => void submitReport()}
             >
               <Text style={s.primaryText}>Send report</Text>
             </Pressable>
-          </View>
+          </ScrollView>
         </View>
       </Modal>
     </SafeAreaView>
@@ -456,10 +474,10 @@ export default function GraduateRoomPostDetail() {
 }
 
 const s = StyleSheet.create({
-  page: { flex: 1, backgroundColor: "#F6F7F9" },
+  page: { flex: 1, backgroundColor: Colors.background },
   center: {
     flex: 1,
-    backgroundColor: "#F6F7F9",
+    backgroundColor: Colors.background,
     alignItems: "center",
     justifyContent: "center",
     padding: 24,
@@ -468,9 +486,9 @@ const s = StyleSheet.create({
     height: 58,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: "#E8EBF0",
+    borderBottomColor: Colors.border,
   },
   icon44: {
     width: 52,
@@ -481,16 +499,22 @@ const s = StyleSheet.create({
   headerTitle: {
     flex: 1,
     textAlign: "center",
-    color: "#061A30",
+    color: Colors.foreground,
     fontSize: 16,
     fontWeight: "700",
   },
-  content: { padding: 16, paddingBottom: 40 },
+  content: {
+    width: "100%",
+    maxWidth: 800,
+    alignSelf: "center",
+    padding: 16,
+    paddingBottom: 40,
+  },
   post: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
     borderWidth: 1,
-    borderColor: "#E8EBF0",
-    borderRadius: 8,
+    borderColor: Colors.border,
+    borderRadius: Radius.sm,
     padding: 15,
   },
   authorRow: { flexDirection: "row", alignItems: "center" },
@@ -498,88 +522,99 @@ const s = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: "#FDEEF3",
+    backgroundColor: Colors.primarySoft,
     alignItems: "center",
     justifyContent: "center",
     marginRight: 9,
   },
-  avatarText: { color: "#B0164A", fontSize: 13, fontWeight: "700" },
-  nameRow: { flexDirection: "row", alignItems: "center", gap: 4 },
-  name: { color: "#061A30", fontSize: 12, fontWeight: "700" },
-  meta: { color: "#94A3B8", fontSize: 10, marginTop: 2 },
+  avatarText: { color: Colors.primaryPressed, fontSize: 13, fontWeight: "700" },
+  nameRow: {
+    flexWrap: "wrap",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  name: { color: Colors.foreground, fontSize: 12, fontWeight: "700" },
+  meta: { color: Colors.mutedSubtle, fontSize: 11, marginTop: 2 },
   typeBadge: {
     alignSelf: "flex-start",
     marginTop: 15,
     paddingHorizontal: 8,
     paddingVertical: 5,
     borderRadius: 6,
-    backgroundColor: "#FDEEF3",
+    backgroundColor: Colors.primarySoft,
   },
-  typeText: { color: "#B0164A", fontSize: 10, fontWeight: "700" },
+  typeText: { color: Colors.primaryPressed, fontSize: 11, fontWeight: "700" },
   title: {
-    color: "#061A30",
-    fontSize: 20,
+    color: Colors.foreground,
+    fontSize: 26,
     lineHeight: 27,
     marginTop: 11,
-    fontWeight: "800",
+    fontWeight: "700",
   },
-  body: { color: "#556274", fontSize: 14, lineHeight: 22, marginTop: 8 },
+  body: { color: Colors.muted, fontSize: 14, lineHeight: 22, marginTop: 8 },
   actions: {
+    flexWrap: "wrap",
     flexDirection: "row",
     gap: 8,
     marginTop: 16,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: "#E8EBF0",
+    borderTopColor: Colors.border,
   },
   action: {
-    minHeight: 40,
+    minHeight: 44,
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
     paddingHorizontal: 10,
     borderRadius: 7,
   },
-  actionActive: { backgroundColor: "#FDEEF3" },
-  actionText: { color: "#556274", fontSize: 11, fontWeight: "600" },
+  actionActive: { backgroundColor: Colors.primarySoft },
+  actionText: { color: Colors.muted, fontSize: 11, fontWeight: "600" },
   sectionTitle: {
-    color: "#061A30",
+    color: Colors.foreground,
     fontSize: 17,
     fontWeight: "700",
     marginTop: 22,
     marginBottom: 10,
   },
   thread: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
     borderWidth: 1,
-    borderColor: "#E8EBF0",
-    borderRadius: 8,
+    borderColor: Colors.border,
+    borderRadius: Radius.sm,
     padding: 13,
     marginBottom: 9,
   },
-  commentBody: { color: "#061A30", fontSize: 13, lineHeight: 20, marginTop: 8 },
+  commentBody: {
+    color: Colors.foreground,
+    fontSize: 13,
+    lineHeight: 20,
+    marginTop: 8,
+  },
   commentActions: { flexDirection: "row", gap: 12, marginTop: 9 },
   commentAction: {
-    minHeight: 34,
+    minHeight: 44,
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
   },
-  commentActionText: { color: "#556274", fontSize: 11, fontWeight: "600" },
-  deleteText: { color: "#DC2626", fontSize: 11, fontWeight: "600" },
+  commentActionText: { color: Colors.muted, fontSize: 11, fontWeight: "600" },
+  deleteText: { color: Colors.error, fontSize: 11, fontWeight: "600" },
   childReply: {
     marginLeft: 28,
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: "#E8EBF0",
+    borderTopColor: Colors.border,
   },
-  noReplies: { color: "#556274", fontSize: 12, marginBottom: 16 },
+  noReplies: { color: Colors.muted, fontSize: 12, marginBottom: 16 },
   replyBox: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
     borderWidth: 1,
-    borderColor: "#E8EBF0",
-    borderRadius: 8,
+    borderColor: Colors.border,
+    borderRadius: Radius.sm,
     padding: 13,
     marginTop: 12,
   },
@@ -589,47 +624,54 @@ const s = StyleSheet.create({
     alignItems: "center",
     marginBottom: 8,
   },
-  replyingText: { color: "#B0164A", fontSize: 11, fontWeight: "600" },
+  replyingText: {
+    color: Colors.primaryPressed,
+    fontSize: 11,
+    fontWeight: "600",
+  },
   replyInput: {
     minHeight: 100,
     borderWidth: 1,
-    borderColor: "#DFE4EC",
-    borderRadius: 8,
+    borderColor: Colors.input,
+    borderRadius: Radius.sm,
     padding: 11,
-    color: "#061A30",
+    color: Colors.foreground,
     fontSize: 13,
   },
   anonToggle: {
     alignSelf: "flex-start",
-    minHeight: 40,
+    minHeight: 44,
     justifyContent: "center",
     marginTop: 8,
     paddingHorizontal: 10,
     borderRadius: 7,
   },
-  anonToggleActive: { backgroundColor: "#FDEEF3" },
-  anonToggleText: { color: "#556274", fontSize: 11, fontWeight: "600" },
-  anonToggleTextActive: { color: "#B0164A" },
+  anonToggleActive: { backgroundColor: Colors.primarySoft },
+  anonToggleText: { color: Colors.muted, fontSize: 11, fontWeight: "600" },
+  anonToggleTextActive: { color: Colors.primaryPressed },
   primary: {
     minHeight: 48,
-    backgroundColor: "#E1225F",
-    borderRadius: 8,
+    backgroundColor: Colors.primary,
+    borderRadius: Radius.sm,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 18,
     marginTop: 10,
   },
-  primaryText: { color: "#FFFFFF", fontSize: 13, fontWeight: "700" },
+  primaryText: { color: Colors.surface, fontSize: 13, fontWeight: "700" },
   disabled: { opacity: 0.45 },
-  error: { color: "#DC2626", fontSize: 12, marginTop: 12 },
-  notFound: { color: "#556274", fontSize: 13, textAlign: "center" },
+  error: { color: Colors.error, fontSize: 12, marginTop: 12 },
+  notFound: { color: Colors.muted, fontSize: 13, textAlign: "center" },
   modalBackdrop: {
     flex: 1,
     justifyContent: "flex-end",
     backgroundColor: "rgba(6,26,48,0.28)",
   },
   sheet: {
-    backgroundColor: "#FFFFFF",
+    width: "100%",
+    maxWidth: 640,
+    alignSelf: "center",
+    backgroundColor: Colors.surface,
     padding: 16,
     paddingBottom: 28,
     borderTopLeftRadius: 12,
@@ -640,23 +682,23 @@ const s = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
-  sheetTitle: { color: "#061A30", fontSize: 18, fontWeight: "700" },
+  sheetTitle: { color: Colors.foreground, fontSize: 18, fontWeight: "700" },
   reason: {
-    minHeight: 42,
+    minHeight: 44,
     justifyContent: "center",
     paddingHorizontal: 11,
     borderRadius: 7,
   },
-  reasonActive: { backgroundColor: "#FDEEF3" },
-  reasonText: { color: "#556274", fontSize: 12 },
-  reasonTextActive: { color: "#B0164A", fontWeight: "700" },
+  reasonActive: { backgroundColor: Colors.primarySoft },
+  reasonText: { color: Colors.muted, fontSize: 12 },
+  reasonTextActive: { color: Colors.primaryPressed, fontWeight: "700" },
   reportInput: {
     minHeight: 80,
     marginTop: 10,
     borderWidth: 1,
-    borderColor: "#DFE4EC",
-    borderRadius: 8,
+    borderColor: Colors.input,
+    borderRadius: Radius.sm,
     padding: 11,
-    color: "#061A30",
+    color: Colors.foreground,
   },
 });

@@ -1,11 +1,10 @@
-﻿import {
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import {
+  AppText as Text,
+  AppTouchableOpacity as TouchableOpacity,
+} from "../../components/ui/primitives";
+import { Colors, Fonts, Radius } from "../../constants/theme";
+import { ScrollView, StyleSheet, View } from "react-native";
+import { Icon as Ionicons } from "../../components/ui/icon";
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -35,7 +34,12 @@ export default function ToolsScreen() {
   const bottomContentPadding = useScreenBottomPadding(true);
   return (
     <SafeAreaView style={styles.page} edges={["top", "bottom"]}>
-      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: bottomContentPadding }]}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          { paddingBottom: bottomContentPadding },
+        ]}
+      >
         <Text style={styles.title}>Career tools</Text>
         <Text style={styles.subtitle}>
           Free tools to help you prepare stronger applications.
@@ -50,7 +54,7 @@ export default function ToolsScreen() {
               onPress={() => router.push(tool.route)}
             >
               <View style={styles.icon}>
-                <Ionicons name={tool.icon} size={25} color="#E1225F" />
+                <Ionicons name={tool.icon} size={25} color={Colors.primary} />
               </View>
 
               <View style={styles.body}>
@@ -61,7 +65,7 @@ export default function ToolsScreen() {
               <Ionicons
                 name="chevron-forward"
                 size={20}
-                color="#94A3B8"
+                color={Colors.mutedSubtle}
               />
             </TouchableOpacity>
           ))}
@@ -71,7 +75,7 @@ export default function ToolsScreen() {
           <Ionicons
             name="shield-checkmark-outline"
             size={20}
-            color="#E1225F"
+            color={Colors.primary}
           />
           <Text style={styles.tipText}>
             Your CV draft stays on your device. FirstJobly only receives profile
@@ -84,15 +88,16 @@ export default function ToolsScreen() {
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: "#F6F7F9" },
+  page: { flex: 1, backgroundColor: Colors.background },
   content: { padding: 20, paddingBottom: 40 },
   title: {
-    color: "#061A30",
-    fontSize: 27,
-    fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800",
+    color: Colors.foreground,
+    fontSize: 26,
+    fontFamily: Fonts.bold,
+    fontWeight: "700",
   },
   subtitle: {
-    color: "#556274",
+    color: Colors.muted,
     fontSize: 14,
     lineHeight: 20,
     marginTop: 5,
@@ -100,10 +105,10 @@ const styles = StyleSheet.create({
   grid: { marginTop: 22, gap: 12 },
   card: {
     minHeight: 112,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
     borderWidth: 1,
-    borderColor: "#E8EBF0",
-    borderRadius: 8,
+    borderColor: Colors.border,
+    borderRadius: Radius.sm,
     padding: 16,
     flexDirection: "row",
     alignItems: "center",
@@ -111,19 +116,20 @@ const styles = StyleSheet.create({
   icon: {
     width: 50,
     height: 50,
-    borderRadius: 8,
-    backgroundColor: "#FDEEF3",
+    borderRadius: Radius.sm,
+    backgroundColor: Colors.primarySoft,
     alignItems: "center",
     justifyContent: "center",
   },
   body: { flex: 1, marginHorizontal: 13 },
   cardTitle: {
-    color: "#061A30",
+    color: Colors.foreground,
     fontSize: 16,
-    fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800",
+    fontFamily: Fonts.bold,
+    fontWeight: "700",
   },
   description: {
-    color: "#556274",
+    color: Colors.muted,
     fontSize: 12,
     lineHeight: 18,
     marginTop: 4,
@@ -131,22 +137,17 @@ const styles = StyleSheet.create({
   tip: {
     marginTop: 18,
     borderWidth: 1,
-    borderColor: "#F8D3E0",
-    backgroundColor: "#FDEEF3",
-    borderRadius: 8,
+    borderColor: Colors.primaryBorder,
+    backgroundColor: Colors.primarySoft,
+    borderRadius: Radius.sm,
     padding: 14,
     flexDirection: "row",
     gap: 10,
   },
   tipText: {
     flex: 1,
-    color: "#556274",
+    color: Colors.muted,
     fontSize: 12,
     lineHeight: 18,
   },
 });
-
-
-
-
-

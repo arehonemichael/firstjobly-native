@@ -1,5 +1,7 @@
+import { AppText as Text } from "../components/ui/primitives";
+import { Colors, Radius } from "../constants/theme";
 import { useEffect, useState } from "react";
-import { Image, StyleSheet, Text, View } from "react-native";
+import { Image, StyleSheet, View } from "react-native";
 import {
   NativeAd,
   NativeAdView,
@@ -108,15 +110,15 @@ const styles = StyleSheet.create({
   },
   card: {
     borderWidth: 1,
-    borderColor: "#E4E7EC",
-    borderRadius: 16,
+    borderColor: Colors.border,
+    borderRadius: Radius.md,
     padding: 14,
-    backgroundColor: "#FAFAFA",
+    backgroundColor: Colors.background,
   },
   feedCard: {
-    borderRadius: 12,
+    borderRadius: Radius.md,
     padding: 12,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
   },
   topRow: {
     flexDirection: "row",
@@ -126,20 +128,20 @@ const styles = StyleSheet.create({
   icon: {
     width: 44,
     height: 44,
-    borderRadius: 10,
+    borderRadius: Radius.sm,
   },
   feedIcon: {
     width: 40,
     height: 40,
-    borderRadius: 8,
+    borderRadius: Radius.sm,
   },
   copy: {
     flex: 1,
   },
   sponsored: {
     fontSize: 11,
-    fontWeight: "800",
-    color: "#667085",
+    fontWeight: "700",
+    color: Colors.muted,
     textTransform: "uppercase",
     letterSpacing: 0.5,
     marginBottom: 4,
@@ -147,8 +149,8 @@ const styles = StyleSheet.create({
   headline: {
     fontSize: 16,
     lineHeight: 21,
-    fontWeight: "800",
-    color: "#0B1F30",
+    fontWeight: "700",
+    color: Colors.foreground,
   },
   feedHeadline: {
     fontSize: 14,
@@ -158,17 +160,17 @@ const styles = StyleSheet.create({
     width: "100%",
     height: 180,
     marginTop: 12,
-    borderRadius: 12,
+    borderRadius: Radius.md,
     overflow: "hidden",
   },
   feedMedia: {
     height: 120,
     marginTop: 10,
-    borderRadius: 10,
+    borderRadius: Radius.sm,
   },
   body: {
     marginTop: 10,
-    color: "#475467",
+    color: Colors.muted,
     fontSize: 14,
     lineHeight: 20,
   },
@@ -180,13 +182,13 @@ const styles = StyleSheet.create({
   cta: {
     marginTop: 12,
     alignSelf: "flex-start",
-    backgroundColor: "#0B1F30",
-    color: "#FFFFFF",
+    backgroundColor: Colors.foreground,
+    color: Colors.surface,
     fontSize: 14,
-    fontWeight: "800",
+    fontWeight: "700",
     paddingHorizontal: 14,
     paddingVertical: 10,
-    borderRadius: 10,
+    borderRadius: Radius.sm,
     overflow: "hidden",
   },
   feedCta: {
@@ -194,6 +196,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    borderRadius: 8,
+    borderRadius: Radius.sm,
   },
 });

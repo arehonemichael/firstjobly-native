@@ -1,4 +1,10 @@
-﻿import { useState } from "react";
+import {
+  AppText as Text,
+  AppTextInput as TextInput,
+  AppTouchableOpacity as TouchableOpacity,
+} from "../components/ui/primitives";
+import { Colors, Radius } from "../constants/theme";
+import { useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -6,12 +12,9 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
   View,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Icon as Ionicons } from "../components/ui/icon";
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -75,7 +78,7 @@ export default function AuthScreen() {
     if (password.length < 8) {
       Alert.alert(
         "Password too short",
-        "Your password must contain at least 8 characters."
+        "Your password must contain at least 8 characters.",
       );
       return;
     }
@@ -115,7 +118,7 @@ export default function AuthScreen() {
               setConfirmPassword("");
             },
           },
-        ]
+        ],
       );
     } finally {
       setBusy(false);
@@ -131,12 +134,9 @@ export default function AuthScreen() {
     try {
       setBusy(true);
 
-      const { error } = await supabase.auth.resetPasswordForEmail(
-        cleanEmail,
-        {
-          redirectTo: "https://firstjobly.co.za/reset-password",
-        }
-      );
+      const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
+        redirectTo: "https://firstjobly.co.za/reset-password",
+      });
 
       if (error) {
         Alert.alert("Could not send reset link", error.message);
@@ -145,7 +145,7 @@ export default function AuthScreen() {
 
       Alert.alert(
         "Reset link sent",
-        `Check ${cleanEmail} for the password reset link.`
+        `Check ${cleanEmail} for the password reset link.`,
       );
 
       setMode("signin");
@@ -167,14 +167,18 @@ export default function AuthScreen() {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <ScrollView
-          contentContainerStyle={[styles.content, { paddingBottom: bottomContentPadding }]}
+          contentContainerStyle={[
+            styles.content,
+            { paddingBottom: bottomContentPadding },
+          ]}
           keyboardShouldPersistTaps="handled"
         >
           <TouchableOpacity
+            accessibilityLabel="Go back"
             style={styles.back}
             onPress={() => router.back()}
           >
-            <Ionicons name="arrow-back" size={23} color="#061A30" />
+            <Ionicons name="arrow-back" size={23} color={Colors.foreground} />
           </TouchableOpacity>
 
           <View style={styles.brand}>
@@ -195,6 +199,7 @@ export default function AuthScreen() {
             <Text style={styles.label}>Email</Text>
 
             <TextInput
+              accessibilityLabel="Email"
               value={email}
               onChangeText={setEmail}
               autoCapitalize="none"
@@ -202,7 +207,7 @@ export default function AuthScreen() {
               keyboardType="email-address"
               autoComplete="email"
               placeholder="you@example.com"
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor={Colors.mutedSubtle}
               style={styles.input}
             />
 
@@ -212,6 +217,10 @@ export default function AuthScreen() {
 
                 <View style={styles.passwordWrap}>
                   <TextInput
+                    accessibilityLabel="Password"
+                    autoComplete={
+                      mode === "signup" ? "new-password" : "current-password"
+                    }
                     value={password}
                     onChangeText={setPassword}
                     secureTextEntry={!showPassword}
@@ -221,18 +230,19 @@ export default function AuthScreen() {
                         ? "At least 8 characters"
                         : "Your password"
                     }
-                    placeholderTextColor="#94A3B8"
+                    placeholderTextColor={Colors.mutedSubtle}
                     style={styles.passwordInput}
                   />
 
                   <TouchableOpacity
+                    accessibilityLabel="Toggle password visibility"
                     style={styles.eye}
                     onPress={() => setShowPassword((v) => !v)}
                   >
                     <Ionicons
                       name={showPassword ? "eye-off-outline" : "eye-outline"}
                       size={21}
-                      color="#556274"
+                      color={Colors.muted}
                     />
                   </TouchableOpacity>
                 </View>
@@ -244,12 +254,14 @@ export default function AuthScreen() {
                 <Text style={styles.label}>Confirm password</Text>
 
                 <TextInput
+                  accessibilityLabel="Confirm password"
+                  autoComplete="new-password"
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
                   placeholder="Repeat your password"
-                  placeholderTextColor="#94A3B8"
+                  placeholderTextColor={Colors.mutedSubtle}
                   style={styles.input}
                 />
               </>
@@ -270,7 +282,7 @@ export default function AuthScreen() {
               onPress={() => void submit()}
             >
               {busy ? (
-                <ActivityIndicator color="#FFFFFF" />
+                <ActivityIndicator color={Colors.surface} />
               ) : (
                 <Text style={styles.primaryText}>
                   {mode === "signup"
@@ -311,7 +323,7 @@ export default function AuthScreen() {
 
             {mode === "signup" && (
               <Text style={styles.legal}>
-                By creating an account you agree to FirstJobly's Terms &
+                By creating an account you agree to FirstJobly’s Terms &
                 Conditions and Privacy Policy.
               </Text>
             )}
@@ -327,10 +339,13 @@ const styles = StyleSheet.create({
 
   page: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
   },
 
   content: {
+    width: "100%",
+    maxWidth: 480,
+    alignSelf: "center",
     flexGrow: 1,
     paddingHorizontal: 24,
     paddingBottom: 40,
@@ -345,34 +360,34 @@ const styles = StyleSheet.create({
 
   brand: {
     alignItems: "center",
-    marginTop: 35,
+    marginTop: 24,
   },
 
   wordmark: {
-    color: "#061A30",
-    fontSize: 32,
-    fontWeight: "800",
+    color: Colors.foreground,
+    fontSize: 26,
+    fontWeight: "700",
   },
 
   pink: {
-    color: "#E1225F",
+    color: Colors.primary,
   },
 
   subtitle: {
     maxWidth: 330,
     marginTop: 12,
-    color: "#556274",
+    color: Colors.muted,
     textAlign: "center",
     fontSize: 14,
     lineHeight: 20,
   },
 
   form: {
-    marginTop: 38,
+    marginTop: 24,
   },
 
   label: {
-    color: "#556274",
+    color: Colors.muted,
     fontSize: 13,
     fontWeight: "700",
     marginBottom: 7,
@@ -382,19 +397,19 @@ const styles = StyleSheet.create({
   input: {
     height: 52,
     borderWidth: 1,
-    borderColor: "#DFE4EC",
-    borderRadius: 10,
+    borderColor: Colors.input,
+    borderRadius: Radius.sm,
     paddingHorizontal: 14,
-    color: "#061A30",
+    color: Colors.foreground,
     fontSize: 15,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
   },
 
   passwordWrap: {
     height: 52,
     borderWidth: 1,
-    borderColor: "#DFE4EC",
-    borderRadius: 10,
+    borderColor: Colors.input,
+    borderRadius: Radius.sm,
     flexDirection: "row",
     alignItems: "center",
   },
@@ -402,7 +417,7 @@ const styles = StyleSheet.create({
   passwordInput: {
     flex: 1,
     paddingHorizontal: 14,
-    color: "#061A30",
+    color: Colors.foreground,
     fontSize: 15,
   },
 
@@ -421,8 +436,8 @@ const styles = StyleSheet.create({
   primary: {
     height: 54,
     marginTop: 20,
-    borderRadius: 10,
-    backgroundColor: "#E1225F",
+    borderRadius: Radius.sm,
+    backgroundColor: Colors.primary,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -432,12 +447,13 @@ const styles = StyleSheet.create({
   },
 
   primaryText: {
-    color: "#FFFFFF",
-    fontWeight: "800",
+    color: Colors.surface,
+    fontWeight: "700",
     fontSize: 15,
   },
 
   switchRow: {
+    flexWrap: "wrap",
     marginTop: 26,
     flexDirection: "row",
     justifyContent: "center",
@@ -450,23 +466,21 @@ const styles = StyleSheet.create({
   },
 
   switchText: {
-    color: "#556274",
+    color: Colors.muted,
     fontSize: 13,
   },
 
   link: {
-    color: "#E1225F",
+    color: Colors.primary,
     fontWeight: "700",
     fontSize: 13,
   },
 
   legal: {
     marginTop: 25,
-    color: "#94A3B8",
+    color: Colors.mutedSubtle,
     textAlign: "center",
     fontSize: 11,
     lineHeight: 17,
   },
 });
-
-

@@ -1,13 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  FlatList,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+  AppText as Text,
+  AppTouchableOpacity as TouchableOpacity,
+} from "../../components/ui/primitives";
+import { Colors, Radius } from "../../constants/theme";
+import { useCallback, useEffect, useState } from "react";
+import { ActivityIndicator, FlatList, StyleSheet, View } from "react-native";
+import { Icon as Ionicons } from "../../components/ui/icon";
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -120,7 +118,7 @@ export default function ApplicationsScreen() {
   if (authLoading || loading) {
     return (
       <SafeAreaView style={styles.center}>
-        <ActivityIndicator color="#E1225F" />
+        <ActivityIndicator color={Colors.primary} />
       </SafeAreaView>
     );
   }
@@ -129,12 +127,15 @@ export default function ApplicationsScreen() {
     return (
       <SafeAreaView style={styles.page}>
         <View style={styles.empty}>
-          <Ionicons name="briefcase-outline" size={45} color="#E1225F" />
+          <Ionicons name="briefcase-outline" size={45} color={Colors.primary} />
           <Text style={styles.emptyTitle}>Track your applications</Text>
           <Text style={styles.emptyText}>
             Sign in to see every FirstJobly application and its latest status.
           </Text>
-          <TouchableOpacity style={styles.primary} onPress={() => router.push("/auth")}>
+          <TouchableOpacity
+            style={styles.primary}
+            onPress={() => router.push("/auth")}
+          >
             <Text style={styles.primaryText}>Sign in</Text>
           </TouchableOpacity>
         </View>
@@ -147,14 +148,25 @@ export default function ApplicationsScreen() {
       <FlatList
         data={items}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={[styles.list, { paddingBottom: bottomContentPadding }]}
+        contentContainerStyle={[
+          styles.list,
+          { paddingBottom: bottomContentPadding },
+        ]}
         refreshing={loading}
         onRefresh={() => void load()}
         ListHeaderComponent={
           <View style={styles.header}>
             <View style={styles.headerRow}>
-              <TouchableOpacity style={styles.back} onPress={() => router.back()}>
-                <Ionicons name="arrow-back" size={22} color="#061A30" />
+              <TouchableOpacity
+                accessibilityLabel="Go back"
+                style={styles.back}
+                onPress={() => router.back()}
+              >
+                <Ionicons
+                  name="arrow-back"
+                  size={22}
+                  color={Colors.foreground}
+                />
               </TouchableOpacity>
               <View>
                 <Text style={styles.title}>My applications</Text>
@@ -167,16 +179,23 @@ export default function ApplicationsScreen() {
         }
         ListEmptyComponent={
           <View style={styles.emptyList}>
-            <Ionicons name="briefcase-outline" size={38} color="#94A3B8" />
+            <Ionicons
+              name="briefcase-outline"
+              size={38}
+              color={Colors.mutedSubtle}
+            />
             <Text style={styles.emptyListTitle}>No applications yet</Text>
-            <TouchableOpacity style={styles.secondary} onPress={() => router.push("/jobs")}>
+            <TouchableOpacity
+              style={styles.secondary}
+              onPress={() => router.push("/jobs")}
+            >
               <Text style={styles.secondaryText}>Search jobs</Text>
             </TouchableOpacity>
           </View>
         }
         renderItem={({ item }) => {
           const timeline = history.filter(
-            (entry) => entry.application_id === item.id
+            (entry) => entry.application_id === item.id,
           );
           const latestNote = timeline.find((entry) => entry.message);
           const expanded = openId === item.id;
@@ -198,17 +217,19 @@ export default function ApplicationsScreen() {
                 </Text>
                 <Text style={styles.company}>
                   {item.jobs?.company_name ?? ""}
-                  {item.jobs ? " � " : ""}
+                  {item.jobs ? " · " : ""}
                   {formatDate(item.applied_at)}
                 </Text>
               </TouchableOpacity>
 
               <View style={styles.statusRow}>
-                <View style={[styles.badge, item.is_draft && styles.draftBadge]}>
+                <View
+                  style={[styles.badge, item.is_draft && styles.draftBadge]}
+                >
                   <Text style={styles.badgeText}>
                     {item.is_draft
                       ? "Draft"
-                      : STATUS_LABEL[item.status] ?? item.status}
+                      : (STATUS_LABEL[item.status] ?? item.status)}
                   </Text>
                 </View>
               </View>
@@ -218,7 +239,7 @@ export default function ApplicationsScreen() {
                   <Ionicons
                     name="chatbox-outline"
                     size={15}
-                    color="#E1225F"
+                    color={Colors.primary}
                   />
                   <Text style={styles.noteText} numberOfLines={2}>
                     {latestNote.message}
@@ -239,7 +260,7 @@ export default function ApplicationsScreen() {
                   <Ionicons
                     name={expanded ? "chevron-up" : "chevron-down"}
                     size={17}
-                    color="#E1225F"
+                    color={Colors.primary}
                   />
                 </TouchableOpacity>
               ) : null}
@@ -256,7 +277,7 @@ export default function ApplicationsScreen() {
                         <Text style={styles.timelineDate}>
                           {formatDateTime(entry.changed_at)}
                           {entry.changed_by === "employer"
-                            ? " � from the employer"
+                            ? " · from the employer"
                             : ""}
                         </Text>
                         {entry.message ? (
@@ -278,10 +299,10 @@ export default function ApplicationsScreen() {
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: "#F6F7F9" },
+  page: { flex: 1, backgroundColor: Colors.background },
   center: {
     flex: 1,
-    backgroundColor: "#F6F7F9",
+    backgroundColor: Colors.background,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -296,40 +317,40 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginRight: 6,
   },
-  title: { color: "#061A30", fontSize: 23, fontWeight: "800" },
-  subtitle: { color: "#556274", fontSize: 12, marginTop: 3 },
+  title: { color: Colors.foreground, fontSize: 23, fontWeight: "700" },
+  subtitle: { color: Colors.muted, fontSize: 12, marginTop: 3 },
   card: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
     borderWidth: 1,
-    borderColor: "#E8EBF0",
-    borderRadius: 8,
+    borderColor: Colors.border,
+    borderRadius: Radius.sm,
     padding: 15,
     marginBottom: 11,
   },
-  jobTitle: { color: "#061A30", fontSize: 15, fontWeight: "800" },
-  company: { color: "#556274", fontSize: 12, marginTop: 4 },
-  statusRow: { flexDirection: "row", marginTop: 11 },
+  jobTitle: { color: Colors.foreground, fontSize: 15, fontWeight: "700" },
+  company: { color: Colors.muted, fontSize: 12, marginTop: 4 },
+  statusRow: { flexWrap: "wrap", flexDirection: "row", marginTop: 11 },
   badge: {
-    borderRadius: 8,
-    backgroundColor: "#FDEEF3",
+    borderRadius: Radius.sm,
+    backgroundColor: Colors.primarySoft,
     paddingHorizontal: 9,
     paddingVertical: 5,
   },
   draftBadge: {
-    backgroundColor: "#F1F5F9",
+    backgroundColor: Colors.secondary,
   },
-  badgeText: { color: "#556274", fontSize: 11, fontWeight: "700" },
+  badgeText: { color: Colors.muted, fontSize: 11, fontWeight: "700" },
   note: {
     marginTop: 12,
     padding: 11,
-    borderRadius: 9,
-    backgroundColor: "#F9FAFB",
+    borderRadius: Radius.sm,
+    backgroundColor: Colors.background,
     flexDirection: "row",
     gap: 7,
   },
   noteText: {
     flex: 1,
-    color: "#556274",
+    color: Colors.muted,
     fontSize: 12,
     lineHeight: 18,
   },
@@ -340,11 +361,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
-  historyText: { color: "#E1225F", fontSize: 12, fontWeight: "700" },
+  historyText: { color: Colors.primary, fontSize: 12, fontWeight: "700" },
   timeline: {
     marginTop: 4,
     borderLeftWidth: 1,
-    borderLeftColor: "#E8EBF0",
+    borderLeftColor: Colors.border,
     marginLeft: 5,
   },
   timelineItem: {
@@ -355,15 +376,15 @@ const styles = StyleSheet.create({
     width: 9,
     height: 9,
     borderRadius: 5,
-    backgroundColor: "#E1225F",
+    backgroundColor: Colors.primary,
     marginLeft: -5,
     marginTop: 5,
   },
   timelineBody: { flex: 1, marginLeft: 12 },
-  timelineStatus: { color: "#061A30", fontSize: 13, fontWeight: "700" },
-  timelineDate: { color: "#94A3B8", fontSize: 10, marginTop: 2 },
+  timelineStatus: { color: Colors.foreground, fontSize: 13, fontWeight: "700" },
+  timelineDate: { color: Colors.mutedSubtle, fontSize: 11, marginTop: 2 },
   timelineMessage: {
-    color: "#556274",
+    color: Colors.muted,
     fontSize: 12,
     lineHeight: 18,
     marginTop: 6,
@@ -375,46 +396,42 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   emptyTitle: {
-    color: "#061A30",
+    color: Colors.foreground,
     fontSize: 20,
-    fontWeight: "800",
+    fontWeight: "700",
     marginTop: 14,
   },
   emptyText: {
-    color: "#556274",
+    color: Colors.muted,
     textAlign: "center",
     lineHeight: 20,
     marginTop: 7,
   },
   emptyList: { alignItems: "center", paddingTop: 80 },
   emptyListTitle: {
-    color: "#061A30",
-    fontWeight: "800",
+    color: Colors.foreground,
+    fontWeight: "700",
     marginTop: 12,
   },
   primary: {
     width: "100%",
     height: 52,
-    borderRadius: 10,
-    backgroundColor: "#E1225F",
+    borderRadius: Radius.sm,
+    backgroundColor: Colors.primary,
     alignItems: "center",
     justifyContent: "center",
     marginTop: 22,
   },
-  primaryText: { color: "#FFFFFF", fontWeight: "800" },
+  primaryText: { color: Colors.surface, fontWeight: "700" },
   secondary: {
     height: 48,
     paddingHorizontal: 22,
-    borderRadius: 9,
+    borderRadius: Radius.sm,
     borderWidth: 1,
-    borderColor: "#DFE4EC",
+    borderColor: Colors.input,
     alignItems: "center",
     justifyContent: "center",
     marginTop: 18,
   },
-  secondaryText: { color: "#061A30", fontWeight: "700" },
+  secondaryText: { color: Colors.foreground, fontWeight: "700" },
 });
-
-
-
-

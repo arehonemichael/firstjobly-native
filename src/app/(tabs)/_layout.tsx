@@ -1,3 +1,4 @@
+import { useWindowDimensions } from "react-native";
 import { Tabs } from "expo-router";
 import {
   Bookmark,
@@ -14,12 +15,15 @@ import { Colors, Fonts } from "../../constants/theme";
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
+  const desktop = useWindowDimensions().width >= 900;
   const bottomInset = Math.max(insets.bottom, 6);
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
+        tabBarPosition: desktop ? "top" : "bottom",
+        tabBarLabelPosition: desktop ? "beside-icon" : "below-icon",
         tabBarHideOnKeyboard: true,
         sceneStyle: {
           backgroundColor: Colors.background,
@@ -27,9 +31,9 @@ export default function TabsLayout() {
         tabBarActiveTintColor: Colors.primary,
         tabBarInactiveTintColor: Colors.muted,
         tabBarStyle: {
-          height: 68 + bottomInset,
+          height: desktop ? 72 : 72 + bottomInset,
           paddingTop: 8,
-          paddingBottom: bottomInset,
+          paddingBottom: desktop ? 8 : bottomInset,
           borderTopWidth: 1,
           borderTopColor: Colors.border,
           backgroundColor: Colors.surface,
@@ -41,8 +45,8 @@ export default function TabsLayout() {
           paddingVertical: 2,
         },
         tabBarLabelStyle: {
-          fontSize: 11,
-          lineHeight: 14,
+          fontSize: desktop ? 13 : 10,
+          lineHeight: 16,
           fontFamily: Fonts.semibold,
         },
       }}
@@ -52,7 +56,7 @@ export default function TabsLayout() {
         options={{
           title: "Home",
           tabBarIcon: ({ color }) => (
-            <Home size={22} strokeWidth={2} color={color} />
+            <Home size={20} strokeWidth={2} color={color} />
           ),
         }}
       />
@@ -62,7 +66,7 @@ export default function TabsLayout() {
         options={{
           title: "Jobs",
           tabBarIcon: ({ color }) => (
-            <BriefcaseBusiness size={22} strokeWidth={2} color={color} />
+            <BriefcaseBusiness size={20} strokeWidth={2} color={color} />
           ),
         }}
       />
@@ -72,7 +76,7 @@ export default function TabsLayout() {
         options={{
           title: "Saved",
           tabBarIcon: ({ color }) => (
-            <Bookmark size={22} strokeWidth={2} color={color} />
+            <Bookmark size={20} strokeWidth={2} color={color} />
           ),
         }}
       />
@@ -82,7 +86,7 @@ export default function TabsLayout() {
         options={{
           title: "Applied",
           tabBarIcon: ({ color }) => (
-            <ClipboardList size={22} strokeWidth={2} color={color} />
+            <ClipboardList size={20} strokeWidth={2} color={color} />
           ),
         }}
       />
@@ -92,7 +96,7 @@ export default function TabsLayout() {
         options={{
           title: "Tools",
           tabBarIcon: ({ color }) => (
-            <Wrench size={22} strokeWidth={2} color={color} />
+            <Wrench size={20} strokeWidth={2} color={color} />
           ),
         }}
       />
@@ -102,7 +106,7 @@ export default function TabsLayout() {
         options={{
           title: "Room",
           tabBarIcon: ({ color }) => (
-            <GraduationCap size={22} strokeWidth={2} color={color} />
+            <GraduationCap size={20} strokeWidth={2} color={color} />
           ),
         }}
       />
@@ -112,7 +116,7 @@ export default function TabsLayout() {
         options={{
           title: "Profile",
           tabBarIcon: ({ color }) => (
-            <User size={22} strokeWidth={2} color={color} />
+            <User size={20} strokeWidth={2} color={color} />
           ),
         }}
       />
