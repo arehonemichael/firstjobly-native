@@ -1,4 +1,5 @@
-﻿import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { Fonts } from "../../constants/theme";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -849,9 +850,8 @@ const styles = StyleSheet.create({
     paddingBottom: 110,
   },
 
-  title: {
+  title: { fontFamily: Fonts.editorial, fontWeight: "400",
     fontSize: 22,
-    fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800",
     color: "#061A30",
   },
 
@@ -1265,10 +1265,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 25,
   },
 
-  emptyTitle: {
+  emptyTitle: { fontFamily: Fonts.editorial, fontWeight: "400",
     marginTop: 12,
     color: "#061A30",
-    fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800",
   },
 
   emptyText: {

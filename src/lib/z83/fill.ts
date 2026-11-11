@@ -4,7 +4,7 @@ import {
   rgb,
   type PDFFont,
   type PDFPage,
-} from "pdf-lib";
+} from "./pdf-lib";
 import {
   A,
   B,

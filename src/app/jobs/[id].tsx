@@ -1,3 +1,4 @@
+import { Fonts } from "../../constants/theme";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -146,7 +147,7 @@ export default function JobDetailsScreen() {
     if (!userId) {
       Alert.alert("Sign in to apply", "Sign in to use FirstJobly Easy Apply.", [
         { text: "Cancel", style: "cancel" },
-        { text: "Sign in", onPress: () => router.push("/auth") },
+        { text: "Sign in", onPress: () => router.push({ pathname: "/auth", params: { returnTo: `/jobs/${job!.id}` } }) },
       ]);
       return;
     }
@@ -262,7 +263,7 @@ export default function JobDetailsScreen() {
 
     setSubmitting(false);
 
-    if (applyError) {
+    if (applyError || !data) {
       console.error("Easy Apply failed:", applyError);
       Alert.alert("Easy Apply", "Could not save your application.");
       return;
@@ -320,7 +321,7 @@ export default function JobDetailsScreen() {
           onPress={async () => {
             const result = await toggleSave(job.id);
             if (!result.ok && result.reason === "not-signed-in") {
-              router.push("/auth");
+              router.push({ pathname: "/auth", params: { returnTo: `/jobs/${job!.id}` } });
             }
           }}
         >
@@ -601,10 +602,9 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
   },
   appliedBadgeText: { color: "#556274", fontSize: 11, fontFamily: "PlusJakartaSans_700Bold", fontWeight: "700" },
-  title: {
+  title: { fontFamily: Fonts.editorial, fontWeight: "400",
     fontSize: 26,
     lineHeight: 33,
-    fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800",
     color: "#061A30",
     marginTop: 15,
   },
@@ -613,10 +613,9 @@ const styles = StyleSheet.create({
   metaRow: { flexDirection: "row", alignItems: "center" },
   metaText: { color: "#556274", marginLeft: 8, fontSize: 14 },
   divider: { height: 1, backgroundColor: "#E8EBF0", marginVertical: 26 },
-  heading: {
+  heading: { fontFamily: Fonts.editorial, fontWeight: "400",
     color: "#061A30",
     fontSize: 18,
-    fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800",
     marginTop: 20,
     marginBottom: 11,
   },

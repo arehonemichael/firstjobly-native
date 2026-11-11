@@ -1,4 +1,5 @@
-﻿import { useCallback, useEffect, useState } from "react";
+import { Fonts } from "../../constants/theme";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -88,7 +89,7 @@ export default function SavedScreen() {
 
           <TouchableOpacity
             style={styles.primary}
-            onPress={() => router.push("/auth")}
+            onPress={() => router.push({ pathname: "/auth", params: { returnTo: "/saved" } })}
           >
             <Text style={styles.primaryText}>Sign in</Text>
           </TouchableOpacity>
@@ -210,10 +211,9 @@ const styles = StyleSheet.create({
     paddingBottom: 18,
   },
 
-  title: {
+  title: { fontFamily: Fonts.editorial, fontWeight: "400",
     color: "#061A30",
     fontSize: 24,
-    fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800",
   },
 
   subtitle: {
@@ -229,11 +229,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 
-  emptyTitle: {
+  emptyTitle: { fontFamily: Fonts.editorial, fontWeight: "400",
     marginTop: 18,
     color: "#061A30",
     fontSize: 21,
-    fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800",
   },
 
   emptyText: {

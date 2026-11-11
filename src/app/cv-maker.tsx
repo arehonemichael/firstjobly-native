@@ -81,7 +81,7 @@ export default function CvMakerScreen() {
 
   async function prefill() {
     if (!userId) {
-      router.push("/auth");
+      router.push({ pathname: "/auth", params: { returnTo: "/cv-maker" } });
       return;
     }
 

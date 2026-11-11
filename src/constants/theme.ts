@@ -1,3 +1,4 @@
+/** Shared presentation tokens; brand colours remain unchanged. */
 export const Colors = {
   background: "#F6F7F9",
   foreground: "#061A30",
@@ -22,6 +23,8 @@ export const Colors = {
   ring: "#E1225F",
 
   error: "#DC2626",
+  errorBorder: "#FECACA",
+  primaryBorder: "#F3B2C7",
   destructive: "#DC2626",
   success: "#16A34A",
   warning: "#F59E0B",
@@ -39,9 +42,14 @@ export const Radius = {
 } as const;
 
 export const Fonts = {
+  editorial: "FirstJoblyEditorial",
   regular: "PlusJakartaSans_400Regular",
   medium: "PlusJakartaSans_500Medium",
   semibold: "PlusJakartaSans_600SemiBold",
   bold: "PlusJakartaSans_700Bold",
   extraBold: "PlusJakartaSans_800ExtraBold",
 } as const;
+
+export const Space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32, xxxl: 48 } as const;
+export const Layout = { desktop: 900, content: 1120, reading: 800 } as const;
+export const Type = { caption: 12, body: 14, lead: 16, section: 24, title: 36 } as const;

@@ -99,7 +99,7 @@ export default function Z83Screen() {
 
   async function prefill() {
     if (!userId) {
-      router.push("/auth");
+      router.push({ pathname: "/auth", params: { returnTo: "/z83" } });
       return;
     }
     setBusy(true);
