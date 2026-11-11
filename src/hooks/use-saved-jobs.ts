@@ -8,11 +8,13 @@ export function useSavedJobs() {
 
   const [savedIds, setSavedIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const loadSaved = useCallback(async () => {
     if (authLoading) return;
 
     if (!userId) {
+      setError(null);
       setSavedIds([]);
       setLoading(false);
       return;
@@ -20,6 +22,7 @@ export function useSavedJobs() {
 
     try {
       setLoading(true);
+      setError(null);
 
       const { data, error } = await supabase
         .from("saved_jobs")
@@ -30,6 +33,7 @@ export function useSavedJobs() {
 
       setSavedIds((data ?? []).map((row) => row.job_id));
     } catch (error) {
+      setError("Saved jobs are unavailable.");
       console.error("Could not load saved jobs:", error);
     } finally {
       setLoading(false);
@@ -109,6 +113,7 @@ export function useSavedJobs() {
 
   return {
     savedIds,
+    error,
     isSaved,
     toggleSave,
     loading,

@@ -1,3 +1,4 @@
+import { Fonts } from "../../constants/theme";
 import {
   ActivityIndicator,
   FlatList,
@@ -318,7 +319,7 @@ export default function GraduateRoom() {
         <Text style={s.gateText}>
           Sign in to join the verified student and graduate community.
         </Text>
-        <Pressable style={s.primary} onPress={() => router.push("/auth")}>
+        <Pressable style={s.primary} onPress={() => router.push({ pathname: "/auth", params: { returnTo: "/graduateroom" } })}>
           <Text style={s.primaryText}>Sign in</Text>
         </Pressable>
       </SafeAreaView>
@@ -579,12 +580,10 @@ const s = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 14,
   },
-  title: {
+  title: { fontFamily: Fonts.editorial, fontWeight: "400",
     color: NAVY,
     fontSize: 25,
     lineHeight: 31,
-    fontFamily: "PlusJakartaSans_800ExtraBold",
-    fontWeight: "800",
   },
   subtitle: {
     color: MUTED,
@@ -857,12 +856,10 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  emptyTitle: {
+  emptyTitle: { fontFamily: Fonts.editorial, fontWeight: "400",
     color: NAVY,
     fontSize: 16,
     marginTop: 14,
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontWeight: "700",
   },
   emptyText: {
     color: MUTED,

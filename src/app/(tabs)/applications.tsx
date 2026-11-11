@@ -1,3 +1,4 @@
+import { Fonts } from "../../constants/theme";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -134,7 +135,7 @@ export default function ApplicationsScreen() {
           <Text style={styles.emptyText}>
             Sign in to see every FirstJobly application and its latest status.
           </Text>
-          <TouchableOpacity style={styles.primary} onPress={() => router.push("/auth")}>
+          <TouchableOpacity style={styles.primary} onPress={() => router.push({ pathname: "/auth", params: { returnTo: "/applications" } })}>
             <Text style={styles.primaryText}>Sign in</Text>
           </TouchableOpacity>
         </View>
@@ -296,7 +297,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginRight: 6,
   },
-  title: { color: "#061A30", fontSize: 23, fontWeight: "800" },
+  title: { fontFamily: Fonts.editorial, fontWeight: "400",  color: "#061A30", fontSize: 23,},
   subtitle: { color: "#556274", fontSize: 12, marginTop: 3 },
   card: {
     backgroundColor: "#FFFFFF",
@@ -374,10 +375,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  emptyTitle: {
+  emptyTitle: { fontFamily: Fonts.editorial, fontWeight: "400",
     color: "#061A30",
     fontSize: 20,
-    fontWeight: "800",
     marginTop: 14,
   },
   emptyText: {

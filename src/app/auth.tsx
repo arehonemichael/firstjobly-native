@@ -1,4 +1,5 @@
-﻿import { useState } from "react";
+import { AppText as Text, AppTextInput as TextInput, AppTouchableOpacity as TouchableOpacity } from "../components/ui/primitives";
+import { useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -6,13 +7,11 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, useLocalSearchParams, type Href } from "expo-router";
+import { authDestination } from "../lib/auth-destination";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { supabase } from "./../lib/supabase";
@@ -22,6 +21,8 @@ import { useScreenBottomPadding } from "../hooks/use-screen-bottom-padding";
 type Mode = "signin" | "signup" | "forgot";
 
 export default function AuthScreen() {
+  const { returnTo } = useLocalSearchParams<{ returnTo?: string | string[] }>();
+  const destination = authDestination(returnTo) as Href;
   const bottomContentPadding = useScreenBottomPadding(false);
   const [mode, setMode] = useState<Mode>("signin");
   const [email, setEmail] = useState("");
@@ -60,7 +61,7 @@ export default function AuthScreen() {
         return;
       }
 
-      router.replace("/profile");
+      router.replace(destination);
     } finally {
       setBusy(false);
     }
@@ -99,7 +100,7 @@ export default function AuthScreen() {
       }
 
       if (data.session) {
-        router.replace("/profile");
+        router.replace(destination);
         return;
       }
 

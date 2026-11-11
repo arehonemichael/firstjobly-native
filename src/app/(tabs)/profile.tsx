@@ -1,3 +1,4 @@
+import { Fonts } from "../../constants/theme";
 import {
   ActivityIndicator,
   Alert,
@@ -261,7 +262,7 @@ export default function ProfileScreen() {
           </Text>
           <TouchableOpacity
             style={styles.button}
-            onPress={() => router.push("/auth")}
+            onPress={() => router.push({ pathname: "/auth", params: { returnTo: "/profile" } })}
           >
             <Text style={styles.buttonText}>Sign in</Text>
           </TouchableOpacity>
@@ -572,10 +573,9 @@ const styles = StyleSheet.create({
     paddingTop: 18,
     paddingBottom: 40,
   },
-  heading: {
+  heading: { fontFamily: Fonts.editorial, fontWeight: "400",
     color: NAVY,
     fontSize: 24,
-    fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800",
     marginBottom: 14,
   },
   card: {
@@ -587,9 +587,8 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   cardTitle: { color: NAVY, fontFamily: "PlusJakartaSans_700Bold", fontWeight: "700", fontSize: 15 },
-  sectionTitle: {
+  sectionTitle: { fontFamily: Fonts.editorial, fontWeight: "400",
     color: NAVY,
-    fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800",
     fontSize: 16,
     marginBottom: 4,
   },

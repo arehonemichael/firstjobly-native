@@ -1,4 +1,5 @@
-﻿import {
+import { Fonts } from "../../constants/theme";
+import {
   ScrollView,
   StyleSheet,
   Text,
@@ -86,10 +87,9 @@ export default function ToolsScreen() {
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: "#F6F7F9" },
   content: { padding: 20, paddingBottom: 40 },
-  title: {
+  title: { fontFamily: Fonts.editorial, fontWeight: "400",
     color: "#061A30",
     fontSize: 27,
-    fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800",
   },
   subtitle: {
     color: "#556274",

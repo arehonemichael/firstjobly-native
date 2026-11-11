@@ -1,13 +1,14 @@
-﻿import {
+import { AppPressable as Pressable, AppText as Text } from "./primitives";
+import { useReducedMotion } from "../../hooks/use-reduced-motion";
+import { Colors, Fonts, Radius } from "../../constants/theme";
+import {
   Animated,
-  Pressable,
   StyleSheet,
-  Text,
   View,
   type AccessibilityRole,
   type ViewStyle,
 } from "react-native";
-import { useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
 import { AlertCircle, Inbox } from "lucide-react-native";
 
 type ScreenHeaderProps = {
@@ -52,13 +53,9 @@ export function EmptyState({
   onAction,
 }: EmptyStateProps) {
   return (
-    <View
-      style={styles.empty}
-      accessible
-      accessibilityLabel={`${title}. ${message}`}
-    >
+    <View style={styles.empty}>
       <View style={styles.emptyIcon}>
-        <Inbox size={22} color="#E1225F" strokeWidth={2} />
+        <Inbox size={22} color={Colors.primary} strokeWidth={2} />
       </View>
 
       <Text style={styles.emptyTitle} maxFontSizeMultiplier={1.35}>
@@ -93,20 +90,19 @@ type InlineErrorStateProps = {
 
 export function InlineErrorState({ message, onRetry }: InlineErrorStateProps) {
   return (
-    <View style={styles.error} accessible accessibilityRole="alert">
-      <AlertCircle size={18} color="#DC2626" />
+    <View style={styles.error}>
+      <AlertCircle size={18} color={Colors.error} />
       <View style={styles.errorCopy}>
-        <Text style={styles.errorText}>{message}</Text>
+        <Text accessibilityRole="alert" style={styles.errorText}>
+          {message}
+        </Text>
         {!!onRetry && (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Retry"
             onPress={onRetry}
             hitSlop={8}
-            style={({ pressed }) => [
-              styles.retry,
-              pressed && styles.pressed,
-            ]}
+            style={({ pressed }) => [styles.retry, pressed && styles.pressed]}
           >
             <Text style={styles.retryText}>Retry</Text>
           </Pressable>
@@ -142,10 +138,7 @@ export function PressableRow({
       onPress={onPress}
       accessibilityRole={accessibilityRole}
       accessibilityLabel={accessibilityLabel}
-      style={({ pressed }) => [
-        styles.row,
-        pressed && styles.rowPressed,
-      ]}
+      style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
     >
       {children}
     </Pressable>
@@ -153,9 +146,14 @@ export function PressableRow({
 }
 
 export function SkeletonJobCard() {
-  const opacity = useRef(new Animated.Value(0.55)).current;
+  const reducedMotion = useReducedMotion();
+  const [opacity] = useState(() => new Animated.Value(0.55));
 
   useEffect(() => {
+    if (reducedMotion) {
+      opacity.setValue(0.7);
+      return;
+    }
     const animation = Animated.loop(
       Animated.sequence([
         Animated.timing(opacity, {
@@ -168,12 +166,12 @@ export function SkeletonJobCard() {
           duration: 650,
           useNativeDriver: true,
         }),
-      ])
+      ]),
     );
 
     animation.start();
     return () => animation.stop();
-  }, [opacity]);
+  }, [opacity, reducedMotion]);
 
   return (
     <Animated.View
@@ -201,15 +199,15 @@ const styles = StyleSheet.create({
   },
   headerCopy: { flex: 1, paddingRight: 12 },
   title: {
-    color: "#061A30",
-    fontFamily: "PlusJakartaSans_800ExtraBold",
-    fontWeight: "800",
+    color: Colors.foreground,
+    fontFamily: Fonts.editorial,
+    fontWeight: "700",
     fontSize: 26,
     lineHeight: 32,
   },
   subtitle: {
-    color: "#556274",
-    fontFamily: "PlusJakartaSans_500Medium",
+    color: Colors.muted,
+    fontFamily: Fonts.editorial,
     fontWeight: "500",
     fontSize: 13,
     lineHeight: 19,
@@ -223,22 +221,22 @@ const styles = StyleSheet.create({
   emptyIcon: {
     width: 44,
     height: 44,
-    borderRadius: 8,
-    backgroundColor: "#FDEEF3",
+    borderRadius: Radius.sm,
+    backgroundColor: Colors.primarySoft,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 14,
   },
   emptyTitle: {
-    color: "#061A30",
-    fontFamily: "PlusJakartaSans_700Bold",
+    color: Colors.foreground,
+    fontFamily: Fonts.editorial,
     fontWeight: "700",
     fontSize: 17,
     textAlign: "center",
   },
   emptyMessage: {
-    color: "#556274",
-    fontFamily: "PlusJakartaSans_500Medium",
+    color: Colors.muted,
+    fontFamily: Fonts.medium,
     fontWeight: "500",
     fontSize: 13,
     lineHeight: 19,
@@ -250,16 +248,16 @@ const styles = StyleSheet.create({
     minHeight: 44,
     marginTop: 18,
     paddingHorizontal: 16,
-    borderRadius: 8,
+    borderRadius: Radius.sm,
     borderWidth: 1,
-    borderColor: "#DFE4EC",
-    backgroundColor: "#FFFFFF",
+    borderColor: Colors.input,
+    backgroundColor: Colors.surface,
     alignItems: "center",
     justifyContent: "center",
   },
   secondaryButtonText: {
-    color: "#061A30",
-    fontFamily: "PlusJakartaSans_700Bold",
+    color: Colors.foreground,
+    fontFamily: Fonts.bold,
     fontWeight: "700",
     fontSize: 13,
   },
@@ -269,15 +267,15 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     marginHorizontal: 16,
     padding: 13,
-    borderRadius: 8,
+    borderRadius: Radius.sm,
     borderWidth: 1,
-    borderColor: "#FECACA",
-    backgroundColor: "#FFFFFF",
+    borderColor: Colors.errorBorder,
+    backgroundColor: Colors.surface,
   },
   errorCopy: { flex: 1, marginLeft: 9 },
   errorText: {
-    color: "#061A30",
-    fontFamily: "PlusJakartaSans_500Medium",
+    color: Colors.foreground,
+    fontFamily: Fonts.medium,
     fontWeight: "500",
     fontSize: 13,
     lineHeight: 18,
@@ -288,53 +286,53 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   retryText: {
-    color: "#E1225F",
-    fontFamily: "PlusJakartaSans_700Bold",
+    color: Colors.primary,
+    fontFamily: Fonts.bold,
     fontWeight: "700",
     fontSize: 13,
   },
   card: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
     borderWidth: 1,
-    borderColor: "#E8EBF0",
-    borderRadius: 8,
+    borderColor: Colors.border,
+    borderRadius: Radius.sm,
     padding: 16,
   },
   row: {
     minHeight: 52,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: "#E8EBF0",
+    borderBottomColor: Colors.border,
     justifyContent: "center",
   },
-  rowPressed: { backgroundColor: "#F1F5F9" },
+  rowPressed: { backgroundColor: Colors.secondary },
   skeletonCard: {
     minHeight: 104,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
     borderWidth: 1,
-    borderColor: "#E8EBF0",
-    borderRadius: 8,
+    borderColor: Colors.border,
+    borderRadius: Radius.sm,
     padding: 14,
     marginBottom: 10,
   },
   skeletonLogo: {
     width: 48,
     height: 48,
-    borderRadius: 8,
-    backgroundColor: "#E8EBF0",
+    borderRadius: Radius.sm,
+    backgroundColor: Colors.border,
   },
   skeletonBody: { flex: 1, marginLeft: 12 },
   skeletonLine: {
     height: 11,
     borderRadius: 4,
-    backgroundColor: "#E8EBF0",
+    backgroundColor: Colors.border,
     marginBottom: 8,
   },
   skeletonLineSmall: {
     height: 9,
     borderRadius: 4,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: Colors.secondary,
   },
 });
