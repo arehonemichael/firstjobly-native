@@ -1,7 +1,18 @@
 import { useCallback, useEffect, useRef } from "react";
-import { useInterstitialAd } from "react-native-google-mobile-ads";
-
+import { mobileAdsSDK } from "./sdk";
 import { AD_UNITS } from "./config";
+const noop = () => {};
+const disabledAd = {
+  isLoaded: false,
+  isClosed: false,
+  load: noop,
+  show: async () => {},
+};
+function useDisabledInterstitialAd() {
+  return disabledAd;
+}
+const useInterstitialAd =
+  mobileAdsSDK?.useInterstitialAd ?? useDisabledInterstitialAd;
 
 let jobOpensThisSession = 0;
 let interstitialAttemptedThisSession = false;
@@ -11,7 +22,7 @@ export function useEarlyJobInterstitial() {
 
   const { isLoaded, isClosed, load, show } = useInterstitialAd(
     AD_UNITS.interstitial,
-    { requestNonPersonalizedAdsOnly: true }
+    { requestNonPersonalizedAdsOnly: true },
   );
 
   useEffect(() => {
@@ -56,7 +67,7 @@ export function useEarlyJobInterstitial() {
         load();
       }
     },
-    [isLoaded, load, show]
+    [isLoaded, load, show],
   );
 
   return { openJobWithEarlyInterstitial };

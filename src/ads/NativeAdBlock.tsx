@@ -2,13 +2,8 @@ import { AppText as Text } from "../components/ui/primitives";
 import { Colors } from "../constants/theme";
 import { useEffect, useState } from "react";
 import { Image, StyleSheet, View } from "react-native";
-import {
-  NativeAd,
-  NativeAdView,
-  NativeAsset,
-  NativeAssetType,
-  NativeMediaView,
-} from "react-native-google-mobile-ads";
+import type { NativeAd as NativeAdInstance } from "react-native-google-mobile-ads";
+import { mobileAdsSDK } from "./sdk";
 
 import { AD_UNITS } from "./config";
 
@@ -17,12 +12,14 @@ type NativeAdBlockProps = {
 };
 
 export function NativeAdBlock({ variant = "detail" }: NativeAdBlockProps) {
-  const [nativeAd, setNativeAd] = useState<NativeAd | null>(null);
+  const [nativeAd, setNativeAd] = useState<NativeAdInstance | null>(null);
   const compact = variant === "feed";
 
   useEffect(() => {
+    if (!mobileAdsSDK) return;
+    const { NativeAd } = mobileAdsSDK;
     let alive = true;
-    let loadedAd: NativeAd | null = null;
+    let loadedAd: NativeAdInstance | null = null;
 
     NativeAd.createForAdRequest(AD_UNITS.native, {
       requestNonPersonalizedAdsOnly: true,
@@ -42,7 +39,9 @@ export function NativeAdBlock({ variant = "detail" }: NativeAdBlockProps) {
     };
   }, []);
 
-  if (!nativeAd) return null;
+  if (!nativeAd || !mobileAdsSDK) return null;
+  const { NativeAdView, NativeAsset, NativeAssetType, NativeMediaView } =
+    mobileAdsSDK;
 
   return (
     <View style={[styles.outer, compact && styles.feedOuter]}>

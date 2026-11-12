@@ -1,4 +1,5 @@
-import { TestIds } from "react-native-google-mobile-ads";
+import { mobileAdsSDK } from "./sdk";
+const TestIds = mobileAdsSDK?.TestIds;
 
 const PROD = {
   banner: "ca-app-pub-1505001993402465/3915348751",
@@ -8,10 +9,10 @@ const PROD = {
 } as const;
 
 export const AD_UNITS = {
-  banner: __DEV__ ? TestIds.ADAPTIVE_BANNER : PROD.banner,
-  appOpen: __DEV__ ? TestIds.APP_OPEN : PROD.appOpen,
-  interstitial: __DEV__ ? TestIds.INTERSTITIAL : PROD.interstitial,
-  native: __DEV__ ? TestIds.NATIVE : PROD.native,
+  banner: __DEV__ ? (TestIds?.ADAPTIVE_BANNER ?? "") : PROD.banner,
+  appOpen: __DEV__ ? (TestIds?.APP_OPEN ?? "") : PROD.appOpen,
+  interstitial: __DEV__ ? (TestIds?.INTERSTITIAL ?? "") : PROD.interstitial,
+  native: __DEV__ ? (TestIds?.NATIVE ?? "") : PROD.native,
 } as const;
 
 export const AD_FEATURES = {
