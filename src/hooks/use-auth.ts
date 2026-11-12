@@ -1,42 +1,22 @@
-﻿import { useEffect, useState } from "react";
-import type { Session, User } from "@supabase/supabase-js";
-
+import { useSyncExternalStore } from "react";
 import { supabase } from "../lib/supabase";
+import { createAuthSessionStore } from "../lib/auth-session-store";
 
+const authSession = createAuthSessionStore(supabase);
 export function useAuth() {
-  const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let mounted = true;
-
-    supabase.auth.getSession().then(({ data }) => {
-      if (!mounted) return;
-
-      setSession(data.session);
-      setLoading(false);
-    });
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      setSession(nextSession);
-      setLoading(false);
-    });
-
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
-  }, []);
-
-  const user: User | null = session?.user ?? null;
-
+  const { session, loading, error } = useSyncExternalStore(
+    authSession.subscribe,
+    authSession.getSnapshot,
+    authSession.getServerSnapshot,
+  );
+  const user = session?.user ?? null;
   return {
     session,
     user,
     userId: user?.id ?? null,
     loading,
+    error,
+    retry: authSession.retry,
     isAuthenticated: !!user,
   };
 }
