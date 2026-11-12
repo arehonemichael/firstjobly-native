@@ -1,3 +1,4 @@
+import { invalidateRecommendations } from "../../lib/recommendations/api";
 import {
   AppText as Text,
   AppTextInput as TextInput,
@@ -228,6 +229,7 @@ export default function ProfileScreen() {
       .eq("id", user.id);
 
     setBusy(false);
+    if (!error) invalidateRecommendations();
 
     Alert.alert(
       error ? "Profile" : "Saved",
@@ -278,6 +280,7 @@ export default function ProfileScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <Text style={styles.heading}>My profile</Text>
+        <TouchableOpacity onPress={()=>router.push("/preferences")}><Text style={{color:Colors.primaryPressed}}>Job preferences and learning controls</Text></TouchableOpacity>
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>

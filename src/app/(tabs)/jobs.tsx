@@ -413,6 +413,7 @@ export default function JobsScreen() {
         ListHeaderComponent={
           <>
             <Text style={styles.title}>Search jobs</Text>
+            <TouchableOpacity accessibilityLabel="Open personalized discovery" onPress={()=>router.push("/discover")}><Text style={{color:Colors.primaryPressed,fontFamily:Fonts.medium}}>For you · preferences and recommendations</Text></TouchableOpacity>
 
             <Text style={styles.subtitle}>
               {results.length} opportunities match your search

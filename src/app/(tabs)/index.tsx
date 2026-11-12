@@ -1,5 +1,12 @@
+import { useRecommendations } from "../../hooks/use-recommendations";
+import { RecommendationControls } from "../../components/recommendations/controls";
+import { JobFeedback } from "../../components/recommendations/job-feedback";
+import type {
+  FeedFilters,
+  RankedJob,
+} from "../../lib/recommendations/contracts";
 import { HomeSessionHero } from "../../components/home/session-hero";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Image } from "expo-image";
 import { ActivityIndicator, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -33,7 +40,6 @@ import { useHomeSummary } from "../../hooks/use-home-summary";
 import { useSavedJobs } from "../../hooks/use-saved-jobs";
 import { useScreenBottomPadding } from "../../hooks/use-screen-bottom-padding";
 import { useEarlyJobInterstitial } from "../../ads/useJobInterstitial";
-import { getJobs } from "../../lib/job-api";
 import { categoryLabel } from "../../lib/job-filters";
 import type { Job } from "../../lib/jobs";
 
@@ -61,12 +67,15 @@ export default function HomeScreen() {
   } = useSavedJobs();
   const { openJobWithEarlyInterstitial } = useEarlyJobInterstitial();
   const bottom = useScreenBottomPadding(true);
-  const [jobs, setJobs] = useState<Job[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [filters, setFilters] = useState<FeedFilters>({});
+  const feed = useRecommendations(userId, authLoading, filters);
+  const jobs = feed.page?.items ?? [];
+  const loading = feed.loading;
+  const error = feed.error;
+  const reload = feed.refresh;
+  const [skipSetup, setSkipSetup] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState<string | null>(null);
-  const [revision, setRevision] = useState(0);
   const firstName = String(
     summary?.profile?.first_name ||
       user?.user_metadata?.full_name ||
@@ -86,28 +95,6 @@ export default function HomeScreen() {
   const completion = summary?.completion;
   const province = summary?.profile?.preferred_province;
 
-  useEffect(() => {
-    let active = true;
-    getJobs(0)
-      .then((data) => {
-        if (active) setJobs(data.slice(0, 6));
-      })
-      .catch(() => {
-        if (active)
-          setError("We couldn’t load opportunities. Please try again.");
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [revision]);
-  function reload() {
-    setError(null);
-    setLoading(true);
-    setRevision((value) => value + 1);
-  }
   function openJob(job: Job) {
     void openJobWithEarlyInterstitial(() =>
       router.push({ pathname: "/jobs/[id]", params: { id: job.id } }),
@@ -129,7 +116,8 @@ export default function HomeScreen() {
     }
   }
 
-  function jobCard(job: Job, featured: boolean) {
+  function jobCard(row: RankedJob, featured: boolean) {
+    const job = row.job;
     const saved = savedIds.includes(job.id);
     return (
       <View
@@ -149,14 +137,14 @@ export default function HomeScreen() {
             )}
           </View>
           <Text style={styles.caption}>
-            {job.company_name}
+            {job.company_name || "Company not listed"}
             {job.job_type ? ` · ${job.job_type.replace(/_/g, " ")}` : ""}
           </Text>
           <Text
             accessibilityRole="header"
             style={[styles.jobTitle, featured && styles.featuredTitle]}
           >
-            {job.title}
+            {job.title || "Role title not provided"}
           </Text>
         </View>
         <View style={styles.cardBottom}>
@@ -236,6 +224,7 @@ export default function HomeScreen() {
               />
             </Pressable>
           </View>
+          <JobFeedback row={row} userId={userId} onFeedback={feed.feedback} />
         </View>
       </View>
     );
@@ -481,7 +470,7 @@ export default function HomeScreen() {
               Jobs, internships and learnerships
             </Text>
             <Text accessibilityRole="header" style={styles.sectionTitle}>
-              Latest opportunities
+              {feed.page?.label ?? "Latest opportunities"}
             </Text>
           </View>
           <Pressable
@@ -498,6 +487,46 @@ export default function HomeScreen() {
             />
           </Pressable>
         </View>
+        <RecommendationControls
+          userId={userId}
+          filters={filters}
+          onChange={setFilters}
+        />
+        {!!userId && !skipSetup && !summaryLoading && !completion && (
+          <View>
+            <Text style={styles.supporting}>
+              Choose a few job interests, or browse now and set them later.
+            </Text>
+            <Pressable onPress={() => router.push("/preferences")}>
+              <Text style={styles.link}>Choose job interests</Text>
+            </Pressable>
+            <Pressable onPress={() => setSkipSetup(true)}>
+              <Text style={styles.link}>Skip preference setup</Text>
+            </Pressable>
+          </View>
+        )}
+        {feed.page?.sparse && (
+          <Text style={styles.supporting}>
+            Few suitable opportunities are available. Broaden your preferences
+            or filters to see more.
+          </Text>
+        )}
+        {!!feed.dismissed && (
+          <View style={styles.companyRow}>
+            <Text style={styles.meta}>Opportunity hidden</Text>
+            <Pressable
+              onPress={() =>
+                void feed
+                  .undo()
+                  .catch(() =>
+                    setSaveError("Could not undo dismissal. Please retry."),
+                  )
+              }
+            >
+              <Text style={styles.link}>Undo dismissal</Text>
+            </Pressable>
+          </View>
+        )}
         {!!savedError && userId && (
           <InlineErrorState
             message="Saved jobs are unavailable."
@@ -515,8 +544,13 @@ export default function HomeScreen() {
             <SkeletonJobCard />
             <SkeletonJobCard />
           </View>
-        ) : error ? (
-          <InlineErrorState message={error} onRetry={reload} />
+        ) : !jobs.length && error ? (
+          <View>
+            <InlineErrorState message={error} onRetry={() => void reload()} />
+            <Pressable onPress={() => router.push("/jobs")}>
+              <Text style={styles.link}>Browse job search</Text>
+            </Pressable>
+          </View>
         ) : !jobs.length ? (
           <EmptyState
             title="No opportunities yet"
@@ -526,7 +560,15 @@ export default function HomeScreen() {
           />
         ) : (
           <View style={styles.jobList}>
-            {jobs.map((job, index) => jobCard(job, index === 0))}
+            {!!error && (
+              <Text accessibilityRole="alert" style={styles.supporting}>
+                {error}
+              </Text>
+            )}
+            {jobs.slice(0, 6).map((row, index) => jobCard(row, index === 0))}
+            <Pressable onPress={() => router.push("/discover")}>
+              <Text style={styles.link}>See more opportunities</Text>
+            </Pressable>
           </View>
         )}
         {!!userId && (
