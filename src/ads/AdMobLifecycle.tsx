@@ -1,10 +1,8 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect, useRef } from "react";
 import { AppState, type AppStateStatus } from "react-native";
-import mobileAds, {
-  AdEventType,
-  AppOpenAd,
-} from "react-native-google-mobile-ads";
+import type { AppOpenAd as AppOpenAdInstance } from "react-native-google-mobile-ads";
+import { mobileAdsSDK } from "./sdk";
 
 import { AD_FEATURES, AD_LIMITS, AD_UNITS } from "./config";
 
@@ -15,7 +13,8 @@ let initializationPromise: Promise<unknown> | null = null;
 
 function initializeAdsOnce() {
   if (!initializationPromise) {
-    initializationPromise = mobileAds().initialize();
+    initializationPromise =
+      mobileAdsSDK?.default().initialize() ?? Promise.resolve();
   }
 
   return initializationPromise;
@@ -26,11 +25,12 @@ export function AdMobLifecycle() {
   const launchCount = useRef(0);
   const loaded = useRef(false);
   const loadedAt = useRef(0);
-  const adRef = useRef<ReturnType<typeof AppOpenAd.createForAdRequest> | null>(null);
+  const adRef = useRef<AppOpenAdInstance | null>(null);
   const cleanupRef = useRef<(() => void)[]>([]);
 
   useEffect(() => {
-    if (!AD_FEATURES.appOpen) return;
+    if (!AD_FEATURES.appOpen || !mobileAdsSDK) return;
+    const { AppOpenAd, AdEventType } = mobileAdsSDK;
 
     let mounted = true;
 

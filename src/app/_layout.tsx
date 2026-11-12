@@ -11,13 +11,14 @@ import {
   useFonts,
 } from "@expo-google-fonts/plus-jakarta-sans";
 import { Colors, Layout } from "../constants/theme";
+import { isExpoGo } from "../lib/runtime-environment";
 import { LaunchSplash } from "../components/launch-splash";
 import { useAuth } from "../hooks/use-auth";
 import { useHomeHeroSession } from "../hooks/use-home-hero-session";
 import { useMotionPreference } from "../hooks/use-reduced-motion";
 
 // Hold only until our first branded frame is laid out, not until network data.
-if (Platform.OS !== "web") {
+if (Platform.OS !== "web" && !isExpoGo) {
   void SplashScreen.preventAutoHideAsync().catch(() => undefined);
   SplashScreen.setOptions({ fade: false, duration: 0 });
 }
@@ -50,7 +51,7 @@ export default function RootLayout() {
   }, [fontsLoaded, fontError]);
   const nativeHandoff = useRef(false);
   const onLayout = useCallback(() => {
-    if (Platform.OS === "web" || nativeHandoff.current) return;
+    if (Platform.OS === "web" || isExpoGo || nativeHandoff.current) return;
     nativeHandoff.current = true;
     try {
       SplashScreen.hide();

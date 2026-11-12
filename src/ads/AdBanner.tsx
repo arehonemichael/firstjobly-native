@@ -1,9 +1,11 @@
 import { StyleSheet, View } from "react-native";
-import { BannerAd, BannerAdSize } from "react-native-google-mobile-ads";
+import { mobileAdsSDK } from "./sdk";
 
 import { AD_UNITS } from "./config";
 
 export function AdBanner() {
+  if (!mobileAdsSDK) return null;
+  const { BannerAd, BannerAdSize } = mobileAdsSDK;
   return (
     <View style={styles.wrap}>
       <BannerAd
