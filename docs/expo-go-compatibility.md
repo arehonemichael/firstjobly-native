@@ -15,13 +15,13 @@ check would be too late. Type-only ad class imports are erased by transpilation.
 
 The banner, native card, interstitial and app-open entry points now use this
 boundary. Expo Go displays no native ads, reserves no empty ad space, and opens
-jobs normally. Custom development/release builds still load the installed SDK,
+jobs normally. Configured Android development/release builds still load the installed SDK,
 use test IDs in development and retain the exact existing production ad IDs and
 policies. Ad behavior is not disabled globally. No dependency, SDK version,
 backend, schema, branding or routing changes are introduced.
 
 The root also skips native splash-control calls in Expo Go, where setOptions is
-unsupported; the animated in-app opening still works. Custom builds retain the
+unsupported; the animated in-app opening still works. Configured Android builds retain the
 native handoff. The existing iOS-app-ID configuration warning is separate from
 this Android crash; no iOS ad identity is invented by this fix.
 

@@ -3,6 +3,7 @@ import { Colors } from "../constants/theme";
 import { useEffect, useState } from "react";
 import { Image, StyleSheet, View } from "react-native";
 import type { NativeAd as NativeAdInstance } from "react-native-google-mobile-ads";
+import { useAdsConsent } from "./privacy";
 import { mobileAdsSDK } from "./sdk";
 
 import { AD_UNITS } from "./config";
@@ -11,7 +12,13 @@ type NativeAdBlockProps = {
   variant?: "detail" | "feed";
 };
 
-export function NativeAdBlock({ variant = "detail" }: NativeAdBlockProps) {
+export function NativeAdBlock(props: NativeAdBlockProps) {
+  const consent = useAdsConsent();
+  return consent.canRequestAds && mobileAdsSDK ? (
+    <AuthorizedNativeAd {...props} />
+  ) : null;
+}
+function AuthorizedNativeAd({ variant = "detail" }: NativeAdBlockProps) {
   const [nativeAd, setNativeAd] = useState<NativeAdInstance | null>(null);
   const compact = variant === "feed";
 

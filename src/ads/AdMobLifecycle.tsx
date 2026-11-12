@@ -1,130 +1,124 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useEffect, useRef } from "react";
-import { AppState, type AppStateStatus } from "react-native";
-import type { AppOpenAd as AppOpenAdInstance } from "react-native-google-mobile-ads";
+import { useLayoutEffect, useRef } from "react";
+import { AppState, Linking } from "react-native";
 import { mobileAdsSDK } from "./sdk";
-
+import { adsPrivacy, useAdsConsent } from "./privacy";
+import { createAppOpenController } from "./app-open-controller";
 import { AD_FEATURES, AD_LIMITS, AD_UNITS } from "./config";
+import { setInteractionObserver } from "../lib/user-interaction";
+import { getHomeProfile } from "../lib/recommendations/api";
 
-const LAUNCH_COUNT_KEY = "fj_admob_launch_count";
-const LAST_APP_OPEN_KEY = "fj_admob_last_app_open";
-
-let initializationPromise: Promise<unknown> | null = null;
-
-function initializeAdsOnce() {
-  if (!initializationPromise) {
-    initializationPromise =
-      mobileAdsSDK?.default().initialize() ?? Promise.resolve();
-  }
-
-  return initializationPromise;
+// One controller/subscription per JS app session, including navigator root remounts.
+let runtime: ReturnType<typeof createAppOpenController> | null = null;
+let subscription: { remove(): void } | null = null;
+let links: { remove(): void } | null = null;
+let route = {
+  ready: false,
+  home: false,
+  onboarded: false,
+  owner: null as symbol | null,
+};
+const canPresentConsent = () =>
+  route.ready && route.home && AppState.currentState === "active";
+function syncContext(preload = true) {
+  runtime?.setContext(
+    {
+      eligible:
+        canPresentConsent() &&
+        route.onboarded &&
+        !adsPrivacy.getSnapshot().presenting &&
+        Date.now() - adsPrivacy.getSnapshot().lastUiAt > 1000,
+      consent: adsPrivacy.getSnapshot().canRequestAds,
+    },
+    preload,
+  );
 }
-
-export function AdMobLifecycle() {
-  const appState = useRef<AppStateStatus>(AppState.currentState);
-  const launchCount = useRef(0);
-  const loaded = useRef(false);
-  const loadedAt = useRef(0);
-  const adRef = useRef<AppOpenAdInstance | null>(null);
-  const cleanupRef = useRef<(() => void)[]>([]);
-
-  useEffect(() => {
-    if (!AD_FEATURES.appOpen || !mobileAdsSDK) return;
-    const { AppOpenAd, AdEventType } = mobileAdsSDK;
-
-    let mounted = true;
-
-    const disposeAd = () => {
-      cleanupRef.current.forEach((unsubscribe) => unsubscribe());
-      cleanupRef.current = [];
-      adRef.current?.removeAllListeners();
-      adRef.current = null;
-      loaded.current = false;
-      loadedAt.current = 0;
-    };
-
-    const createAndLoad = () => {
-      disposeAd();
-
-      const ad = AppOpenAd.createForAdRequest(AD_UNITS.appOpen, {
+function ensureRuntime() {
+  if (runtime || !mobileAdsSDK || !AD_FEATURES.appOpen) return;
+  const sdk = mobileAdsSDK;
+  runtime = createAppOpenController({
+    storage: AsyncStorage,
+    minLaunches: AD_LIMITS.minAppLaunchesBeforeAppOpen,
+    cooldownMs: AD_LIMITS.appOpenCooldownMs,
+    createAd: () => {
+      const native = sdk.AppOpenAd.createForAdRequest(AD_UNITS.appOpen, {
         requestNonPersonalizedAdsOnly: true,
       });
-
-      adRef.current = ad;
-      cleanupRef.current = [
-        ad.addAdEventListener(AdEventType.LOADED, () => {
-          loaded.current = true;
-          loadedAt.current = Date.now();
-        }),
-        ad.addAdEventListener(AdEventType.CLOSED, () => {
-          loaded.current = false;
-          loadedAt.current = 0;
-          if (mounted) createAndLoad();
-        }),
-        ad.addAdEventListener(AdEventType.ERROR, () => {
-          loaded.current = false;
-          loadedAt.current = 0;
-        }),
-      ];
-
-      ad.load();
-    };
-
-    const maybeShow = async () => {
-      if (launchCount.current < AD_LIMITS.minAppLaunchesBeforeAppOpen) return;
-
-      const lastShownRaw = await AsyncStorage.getItem(LAST_APP_OPEN_KEY);
-      const lastShown = Number(lastShownRaw || 0);
-      const now = Date.now();
-
-      if (now - lastShown < AD_LIMITS.appOpenCooldownMs) return;
-
-      const adAge = now - loadedAt.current;
-      if (adAge > 3.5 * 60 * 60 * 1000) {
-        createAndLoad();
-        return;
-      }
-
-      if (!loaded.current || !adRef.current) {
-        createAndLoad();
-        return;
-      }
-
-      loaded.current = false;
-      await AsyncStorage.setItem(LAST_APP_OPEN_KEY, String(now));
-      await adRef.current.show();
-    };
-
-    const bootstrap = async () => {
-      await initializeAdsOnce();
-      if (!mounted) return;
-
-      const currentRaw = await AsyncStorage.getItem(LAUNCH_COUNT_KEY);
-      const nextCount = Number(currentRaw || 0) + 1;
-      launchCount.current = nextCount;
-      await AsyncStorage.setItem(LAUNCH_COUNT_KEY, String(nextCount));
-      createAndLoad();
-    };
-
-    void bootstrap();
-
-    const subscription = AppState.addEventListener("change", (nextState) => {
-      const wasBackground =
-        appState.current === "background" || appState.current === "inactive";
-
-      appState.current = nextState;
-
-      if (wasBackground && nextState === "active") {
-        void maybeShow();
-      }
-    });
-
+      return {
+        load: () => native.load(),
+        show: () => native.show(),
+        removeAllListeners: () => native.removeAllListeners(),
+        addAdEventListener: (event, handler) =>
+          native.addAdEventListener(
+            event === "loaded"
+              ? sdk.AdEventType.LOADED
+              : event === "closed"
+                ? sdk.AdEventType.CLOSED
+                : sdk.AdEventType.ERROR,
+            handler,
+          ),
+      };
+    },
+  });
+  setInteractionObserver(markAdInteraction);
+  syncContext();
+  void runtime.initialize();
+  links = Linking.addEventListener("url", () => runtime?.markInteraction());
+  subscription = AppState.addEventListener("change", (next) => {
+    if (next === "active" && canPresentConsent())
+      void adsPrivacy.prepare(canPresentConsent);
+    syncContext(false);
+    runtime?.onState(next);
+  });
+}
+export function markAdInteraction() {
+  runtime?.markInteraction();
+}
+export function disposeAdvertisingRuntime() {
+  setInteractionObserver(null);
+  links?.remove();
+  links = null;
+  subscription?.remove();
+  subscription = null;
+  runtime?.dispose();
+  runtime = null;
+  route = { ready: false, home: false, onboarded: false, owner: null };
+}
+/** Cold launches never wait for ads; inventory is only offered in a bounded guard window on
+ * a later real foreground event, before Home interaction and outside sensitive flows. */
+export function AdMobLifecycle({
+  ready = false,
+  pathname = "",
+  userId = null,
+}: { ready?: boolean; pathname?: string; userId?: string | null } = {}) {
+  const consent = useAdsConsent(),
+    owner = useRef(Symbol("ad-root"));
+  const home =
+    pathname === "/" || pathname === "/(tabs)" || pathname === "/(tabs)/index";
+  useLayoutEffect(() => {
+    if (!mobileAdsSDK) return;
+    const token = owner.current;
+    let active = true;
+    route = { ready, home, onboarded: false, owner: token };
+    ensureRuntime();
+    syncContext();
+    if (canPresentConsent()) void adsPrivacy.prepare(canPresentConsent);
+    if (ready && home && userId)
+      void getHomeProfile(userId)
+        .then((profile) => {
+          if (active && route.owner === token) {
+            route.onboarded = profile?.onboarding_completed === true;
+            syncContext();
+          }
+        })
+        .catch(() => {});
     return () => {
-      mounted = false;
-      subscription.remove();
-      disposeAd();
+      active = false;
+      if (route.owner === token) {
+        route.ready = false;
+        syncContext();
+      }
     };
-  }, []);
-
+  }, [ready, home, userId, consent.canRequestAds]);
   return null;
 }

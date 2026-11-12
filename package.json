@@ -63,7 +63,9 @@
     "test:home-hero": "node scripts/test-home-hero.cjs",
     "test:recommendations": "node --test scripts/personalization/test-*.cjs",
     "test:startup": "node --test scripts/test-startup.cjs",
-    "test:expo-go": "node --test scripts/test-expo-go.cjs"
+    "test:expo-go": "node --test scripts/test-expo-go.cjs",
+    "test:ads": "node --test scripts/test-ads.cjs",
+    "benchmark:recommendations": "node scripts/benchmark-recommendations.cjs"
   },
   "private": true
 }

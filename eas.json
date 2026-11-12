@@ -9,6 +9,9 @@
       "environment": "development",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_ADS_TEST_MODE": "true"
       }
     },
     "preview": {
@@ -16,6 +19,9 @@
       "environment": "preview",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_ADS_TEST_MODE": "true"
       }
     },
     "production": {

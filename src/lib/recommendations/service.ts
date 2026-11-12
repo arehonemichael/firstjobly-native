@@ -19,7 +19,6 @@ import {
   type Signals,
 } from "./engine";
 import { RULES } from "./config";
-import { JOB_LIST_COLUMNS } from "../jobs";
 
 export class RecommendationError extends Error {
   constructor(
@@ -51,8 +50,10 @@ const emptyLocal = (): LocalState => ({
   feedback: [],
 });
 const profileColumns =
-  "preferred_categories,preferred_job_types,preferred_province,preferred_city,province,skills,field_of_study,highest_qualification";
-const jobColumns = `${JOB_LIST_COLUMNS},requirements,responsibilities,required_documents,approval_status`;
+  "first_name,last_name,email,phone,province,city,date_of_birth,address,about,highest_qualification,institution,field_of_study,year_completed,skills,languages,preferred_categories,preferred_job_types,preferred_province,preferred_city,available_immediately,willing_to_relocate,onboarding_completed";
+const jobColumns =
+  "id,slug,title,company_name,company_logo_url,company_id,city,province,category,job_type,experience_level,education_level,salary_min,salary_max,salary_period,closing_date,posted_at,apply_type,external_url,is_urgent,is_featured,is_active,requirements,approval_status";
+const referenceColumns = "id,category,company_id,company_name";
 const confirmedStatuses = new Set([
   "submitted",
   "viewed",
@@ -84,15 +85,31 @@ export function createRecommendationService(
   let sequence = 0,
     revision = 0;
   let queue: Promise<unknown> = Promise.resolve();
+  let lastOwner: string | null | undefined;
+  const profiles = new Map<
+    string,
+    { expires: number; data: Record<string, unknown> | null }
+  >();
+  const profileRequests = new Map<
+    string,
+    Promise<Record<string, unknown> | null>
+  >();
   const invalidate = () => {
     revision++;
     snapshots.clear();
     pending.clear();
+    profiles.clear();
+    profileRequests.clear();
   };
   async function owner() {
     const { data, error } = await client.auth.getSession();
     if (error) throw error;
-    return data.session?.user.id ?? null;
+    const id = data.session?.user.id ?? null;
+    if (lastOwner !== id) {
+      lastOwner = id;
+      invalidate();
+    }
+    return id;
   }
   async function requireOwner() {
     const id = await owner();
@@ -156,27 +173,44 @@ export function createRecommendationService(
       return emptyLocal();
     }
   }
-  function mutate(id: string, change: (state: LocalState) => void) {
+  function mutate(id: string, change: (state: LocalState) => void | boolean) {
     const work = queue
       .catch(() => undefined)
       .then(async () => {
         await assertOwner(id);
         const state = await readLocal(id);
-        change(state);
+        if (change(state) === false) return false;
         await storage.setItem(keyFor(id), JSON.stringify(state));
         invalidate();
+        return true;
       });
     queue = work;
     return work;
   }
-  async function profile(id: string) {
-    const { data, error } = await client
-      .from("profiles")
-      .select(profileColumns)
-      .eq("id", id)
-      .maybeSingle();
-    if (error) throw error;
-    return data as Record<string, unknown> | null;
+  async function profile(id: string): Promise<Record<string, unknown> | null> {
+    const cached = profiles.get(id);
+    if (cached && cached.expires > now()) return cached.data;
+    const inFlight = profileRequests.get(id);
+    if (inFlight) return inFlight;
+    const ticket = revision;
+    const request = (async () => {
+      const { data, error } = await client
+        .from("profiles")
+        .select(profileColumns)
+        .eq("id", id)
+        .maybeSingle();
+      if (error) throw error;
+      const row = data as Record<string, unknown> | null;
+      if (ticket === revision)
+        profiles.set(id, { data: row, expires: now() + 60000 });
+      return row;
+    })();
+    profileRequests.set(id, request);
+    try {
+      return await request;
+    } finally {
+      if (profileRequests.get(id) === request) profileRequests.delete(id);
+    }
   }
   function preferences(
     p: Record<string, unknown> | null,
@@ -266,15 +300,80 @@ export function createRecommendationService(
       .limit(300);
     if (filters.category) query = query.eq("category", filters.category);
     if (filters.province) query = query.eq("province", filters.province);
-    const { data: jobs, error: jobError } = await query.returns<Candidate[]>();
-    if (jobError) throw jobError;
-    let candidates = (jobs ?? []).filter(
-      (j) =>
-        typeof j.id === "string" &&
-        typeof j.title === "string" &&
-        typeof j.category === "string",
-    );
-    // Keyword/city filters run on the bounded candidate set; never interpolate raw PostgREST filters.
+    const privateInputs = async () => {
+      if (!id) return null;
+      const local = readLocal(id);
+      const history = local.then((value) =>
+        value.settings.learningEnabled === false || latest
+          ? null
+          : Promise.all([
+              client
+                .from("saved_jobs")
+                .select("job_id,created_at")
+                .eq("user_id", id)
+                .order("created_at", { ascending: false })
+                .limit(100),
+              client
+                .from("applications")
+                .select("job_id,status,is_draft,applied_at")
+                .eq("user_id", id)
+                .order("applied_at", { ascending: false })
+                .limit(100),
+              client
+                .from("job_views")
+                .select("job_id,viewed_at")
+                .eq("user_id", id)
+                .order("viewed_at", { ascending: false })
+                .limit(100),
+            ]),
+      );
+      const [p, l, searches, experience, h] = await Promise.all([
+        profile(id),
+        local,
+        client
+          .from("saved_searches")
+          .select("keyword,filters,notify")
+          .eq("notify", true)
+          .limit(300),
+        client
+          .from("work_experience")
+          .select("start_date,end_date,currently_working")
+          .eq("user_id", id)
+          .order("start_date", { ascending: false })
+          .limit(300),
+        history,
+      ]);
+      for (const result of [searches, experience, ...(h ?? [])])
+        if (result.error) throw result.error;
+      return {
+        p,
+        l,
+        searches: searches.data ?? [],
+        experience: experience.data ?? [],
+        saved: h?.[0].data ?? [],
+        applications: h?.[1].data ?? [],
+        views: h?.[2].data ?? [],
+      };
+    };
+    // Independent private inputs begin alongside jobs, not after the candidate response.
+    const [result, input] = await Promise.all([
+      query.returns<Candidate[]>(),
+      privateInputs(),
+    ]);
+    if (result.error) throw result.error;
+    let candidates = (result.data ?? [])
+      .filter(
+        (j) =>
+          typeof j.id === "string" &&
+          typeof j.title === "string" &&
+          typeof j.category === "string",
+      )
+      .map((j) => ({
+        ...j,
+        description: "",
+        responsibilities: [],
+        required_documents: [],
+      }));
     const norm = (v: unknown) =>
       String(v ?? "")
         .toLowerCase()
@@ -302,43 +401,77 @@ export function createRecommendationService(
       dismissedIds: new Set(),
       savedSearches: [],
     };
-    if (id && candidates.length) {
-      const ids = candidates.map((j) => j.id);
-      // Candidate-constrained applications ensure even old confirmed applications are excluded.
-      const [p, local, applied, searches, experience] = await Promise.all([
-        profile(id),
-        readLocal(id),
-        client
-          .from("applications")
-          .select("job_id,status,is_draft,applied_at")
-          .eq("user_id", id)
-          .in("job_id", ids)
-          .limit(300),
-        client
-          .from("saved_searches")
-          .select("keyword,filters,notify")
-          .eq("notify", true)
-          .limit(300),
-        client
-          .from("work_experience")
-          .select("start_date,end_date,currently_working")
-          .eq("user_id", id)
-          .order("start_date", { ascending: false })
-          .limit(300),
-      ]);
-      for (const result of [applied, searches, experience])
-        if (result.error) throw result.error;
-      signals.profile = p;
-      signals.preferences = preferences(p, local);
-      signals.experience = experience.data ?? [];
-      // A bounded history cannot prove insufficient experience if more may exist.
+    if (id && input) {
+      // Completion/name/contact fields shared with Home are never scoring inputs.
+      signals.profile = Object.fromEntries(
+        [
+          "preferred_categories",
+          "preferred_job_types",
+          "preferred_province",
+          "preferred_city",
+          "province",
+          "skills",
+          "field_of_study",
+          "highest_qualification",
+        ].map((k) => [k, input.p?.[k]]),
+      );
+      signals.preferences = preferences(input.p, input.l);
+      signals.savedSearches = input.searches;
+      signals.experience = input.experience;
       if (signals.experience.length === 300)
         signals.experience.push({
           start_date: null,
           end_date: null,
           currently_working: false,
         });
-      signals.savedSearches = searches.data ?? [];
+      signals.dismissedIds = new Set(
+        input.l.feedback
+          .filter((f) => f.kind === "dismissed")
+          .map((f) => f.jobId),
+      );
+      const confirmed = input.applications.filter(
+        (a) => a.is_draft === false && confirmedStatuses.has(a.status),
+      );
+      const refIds = [
+        ...new Set([
+          ...input.saved.map((r) => r.job_id),
+          ...confirmed.map((r) => r.job_id),
+          ...input.views.map((r) => r.job_id),
+          ...input.l.events.map((r) => r.jobId),
+          ...input.l.feedback
+            .filter((f) => f.kind === "more_like_this")
+            .map((r) => r.jobId),
+        ]),
+      ].slice(0, 300);
+      const known = new Map<string, Candidate>(
+        candidates.map((j) => [j.id, j]),
+      );
+      const missing = refIds.filter((r) => !known.has(r));
+      // These depend on job IDs, but can run concurrently with each other.
+      const [applied, references] = await Promise.all([
+        candidates.length
+          ? client
+              .from("applications")
+              .select("job_id,status,is_draft,applied_at")
+              .eq("user_id", id)
+              .in(
+                "job_id",
+                candidates.map((j) => j.id),
+              )
+              .limit(300)
+          : Promise.resolve({ data: [], error: null }),
+        missing.length
+          ? client
+              .from("jobs")
+              .select(referenceColumns)
+              .eq("approval_status", "approved")
+              .in("id", missing)
+              .limit(300)
+              .returns<Candidate[]>()
+          : Promise.resolve({ data: [], error: null }),
+      ]);
+      if (applied.error) throw applied.error;
+      if (references.error) throw references.error;
       signals.submittedIds = new Set(
         (applied.data ?? [])
           .filter(
@@ -346,96 +479,38 @@ export function createRecommendationService(
           )
           .map((a) => a.job_id),
       );
-      signals.dismissedIds = new Set(
-        local.feedback
-          .filter((f) => f.kind === "dismissed")
-          .map((f) => f.jobId),
+      for (const j of references.data ?? []) known.set(j.id, j);
+      const refs = (rows: { job_id: string; at: string }[]) =>
+        rows.flatMap((r) => {
+          const job = known.get(r.job_id);
+          return job ? [{ job, occurredAt: r.at }] : [];
+        });
+      signals.saved = refs(
+        input.saved.map((r) => ({ job_id: r.job_id, at: r.created_at })),
       );
-      if (signals.preferences.learningEnabled && !latest) {
-        const [saved, applications, views] = await Promise.all([
-          client
-            .from("saved_jobs")
-            .select("job_id,created_at")
-            .eq("user_id", id)
-            .order("created_at", { ascending: false })
-            .limit(100),
-          client
-            .from("applications")
-            .select("job_id,status,is_draft,applied_at")
-            .eq("user_id", id)
-            .order("applied_at", { ascending: false })
-            .limit(100),
-          client
-            .from("job_views")
-            .select("job_id,viewed_at")
-            .eq("user_id", id)
-            .order("viewed_at", { ascending: false })
-            .limit(100),
-        ]);
-        for (const result of [saved, applications, views])
-          if (result.error) throw result.error;
-        const confirmed = (applications.data ?? []).filter(
-          (a) => a.is_draft === false && confirmedStatuses.has(a.status),
-        );
-        const refIds = [
-          ...new Set([
-            ...(saved.data ?? []).map((r) => r.job_id),
-            ...confirmed.map((r) => r.job_id),
-            ...(views.data ?? []).map((r) => r.job_id),
-            ...local.events.map((r) => r.jobId),
-            ...local.feedback
-              .filter((f) => f.kind === "more_like_this")
-              .map((r) => r.jobId),
-          ]),
-        ].slice(0, 300);
-        const known = new Map(candidates.map((j) => [j.id, j]));
-        const missing = refIds.filter((j) => !known.has(j));
-        if (missing.length) {
-          const result = await client
-            .from("jobs")
-            .select(jobColumns)
-            .eq("approval_status", "approved")
-            .in("id", missing)
-            .limit(300)
-            .returns<Candidate[]>();
-          if (result.error) throw result.error;
-          for (const j of result.data ?? []) known.set(j.id, j);
-        }
-        const refs = (rows: { job_id: string; at: string }[]) =>
-          rows.flatMap((r) => {
-            const job = known.get(r.job_id);
-            return job ? [{ job, occurredAt: r.at }] : [];
-          });
-        signals.saved = refs(
-          (saved.data ?? []).map((r) => ({
-            job_id: r.job_id,
-            at: r.created_at,
+      signals.applications = refs(
+        confirmed.map((r) => ({ job_id: r.job_id, at: r.applied_at })),
+      );
+      signals.activity = [
+        ...input.l.events.map((e) => ({
+          job_id: e.jobId,
+          at: e.at,
+          kind: e.kind,
+        })),
+        ...input.views.map((e) => ({
+          job_id: e.job_id,
+          at: e.viewed_at,
+          kind: "opened",
+        })),
+      ].flatMap((e) => refs([e]).map((r) => ({ ...r, kind: e.kind })));
+      signals.feedback = input.l.feedback
+        .filter((f) => f.kind === "more_like_this")
+        .flatMap((f) =>
+          refs([{ job_id: f.jobId, at: f.at }]).map((r) => ({
+            ...r,
+            kind: f.kind,
           })),
         );
-        signals.applications = refs(
-          confirmed.map((r) => ({ job_id: r.job_id, at: r.applied_at })),
-        );
-        signals.activity = [
-          ...local.events.map((e) => ({
-            job_id: e.jobId,
-            at: e.at,
-            kind: e.kind,
-          })),
-          ...(views.data ?? []).map((e) => ({
-            job_id: e.job_id,
-            at: e.viewed_at,
-            kind: "opened",
-          })),
-        ].flatMap((e) => refs([e]).map((r) => ({ ...r, kind: e.kind })));
-        signals.feedback = local.feedback
-          .filter((f) => f.kind === "more_like_this")
-          .flatMap((f) =>
-            refs([{ job_id: f.jobId, at: f.at }]).map((r) => ({
-              ...r,
-              kind: f.kind,
-            })),
-          );
-      }
     }
     await assertOwner(id);
     if (version !== revision) throw new RecommendationError("REFRESH_REQUIRED");
@@ -539,6 +614,36 @@ export function createRecommendationService(
   }
   return {
     feed,
+    async readHomeProfile(id: string) {
+      await assertOwner(id);
+      const data = await profile(id);
+      await assertOwner(id);
+      return data;
+    },
+    peek(ownerId: string | null, filters: FeedFilters = {}) {
+      if (lastOwner !== ownerId) return null;
+      const key = JSON.stringify([
+        RANKING_VERSION,
+        ownerId,
+        filters,
+        false,
+        johannesburgDate(now()),
+      ]);
+      const snapshot = snapshots.get(key);
+      if (!snapshot || snapshot.expires <= now()) return null;
+      const next = RULES.pageSize;
+      return {
+        items: snapshot.rows.slice(0, next),
+        nextCursor:
+          next < snapshot.rows.length ? `${snapshot.id}:${next}` : null,
+        version: RANKING_VERSION,
+        label: snapshot.label,
+        personalized: snapshot.personalized,
+        sparse: snapshot.rows.length < 10,
+        total: snapshot.rows.length,
+        candidateLimit: 300,
+      } as FeedPage;
+    },
     getPreferences,
     savePreferences,
     invalidate,
@@ -573,9 +678,18 @@ export function createRecommendationService(
     async activity(jobId: string, kind: ActivityKind) {
       const id = await owner();
       if (!id) return;
-      await mutate(id, (s) => {
-        if (s.settings.learningEnabled === false) return;
+      return mutate(id, (s) => {
+        if (s.settings.learningEnabled === false) return false;
         const at = new Date(now()).toISOString();
+        if (
+          s.events.some(
+            (e) =>
+              e.jobId === jobId &&
+              e.kind === kind &&
+              e.at.slice(0, 10) === at.slice(0, 10),
+          )
+        )
+          return false;
         if (
           !s.events.some(
             (e) =>
