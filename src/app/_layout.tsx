@@ -1,3 +1,4 @@
+import { useHomeHeroSession } from "../hooks/use-home-hero-session";
 import { useReducedMotion } from "../hooks/use-reduced-motion";
 import "../global.css";
 import { View } from "react-native";
@@ -17,6 +18,7 @@ import { useAuth } from "../hooks/use-auth";
 export default function RootLayout() {
   const reducedMotion = useReducedMotion();
   const auth = useAuth();
+  useHomeHeroSession(auth.userId, auth.loading);
   const authAny = auth as any;
   const [showLaunchSplash, setShowLaunchSplash] = useState(true);
   const firstName =

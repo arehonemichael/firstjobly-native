@@ -59,7 +59,8 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
-    "test:navigation": "node scripts/test-navigation.cjs"
+    "test:navigation": "node scripts/test-navigation.cjs",
+    "test:home-hero": "node scripts/test-home-hero.cjs"
   },
   "private": true
 }

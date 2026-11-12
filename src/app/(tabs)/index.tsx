@@ -1,3 +1,4 @@
+import { HomeSessionHero } from "../../components/home/session-hero";
 import { useEffect, useState } from "react";
 import { Image } from "expo-image";
 import { ActivityIndicator, ScrollView, StyleSheet, View } from "react-native";
@@ -318,6 +319,7 @@ export default function HomeScreen() {
               : "Jobs, internships and learnerships"}
           </Text>
         </View>
+        <HomeSessionHero />
         {authLoading || (userId && summaryLoading && !summary) ? (
           <View accessibilityLabel="Loading your overview">
             <SkeletonJobCard />
