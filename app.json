@@ -41,7 +41,8 @@
       [
         "react-native-google-mobile-ads",
         {
-          "androidAppId": "ca-app-pub-1505001993402465~7846151022"
+          "androidAppId": "ca-app-pub-1505001993402465~7846151022",
+          "delayAppMeasurementInit": true
         }
       ],
       "expo-image"

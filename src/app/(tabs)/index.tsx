@@ -5,6 +5,8 @@ import type {
   FeedFilters,
   RankedJob,
 } from "../../lib/recommendations/contracts";
+import { AdBanner } from "../../ads/AdBanner";
+import { RecommendationSkeleton } from "../../components/home/recommendation-skeleton";
 import { HomeSessionHero } from "../../components/home/session-hero";
 import { useState } from "react";
 import { Image } from "expo-image";
@@ -122,6 +124,7 @@ export default function HomeScreen() {
     return (
       <View
         key={job.id}
+        testID="home-job-card"
         style={[styles.jobCard, featured && styles.featuredCard]}
       >
         <View style={[styles.cardTop, featured && styles.featuredTop]}>
@@ -249,7 +252,7 @@ export default function HomeScreen() {
               contentFit="contain"
             />
             <Text accessibilityLabel="FirstJobly" style={styles.wordmark}>
-              firstjobly
+              FirstJobly
             </Text>
           </View>
           <View style={styles.headerActions}>
@@ -539,10 +542,16 @@ export default function HomeScreen() {
             onRetry={() => setSaveError(null)}
           />
         )}
-        {loading ? (
+        {loading && !!jobs.length && (
+          <Text style={styles.meta} accessibilityLiveRegion="polite">
+            Updating opportunities…
+          </Text>
+        )}
+        {loading && !jobs.length ? (
           <View style={styles.jobList}>
-            <SkeletonJobCard />
-            <SkeletonJobCard />
+            {Array.from({ length: 6 }, (_, index) => (
+              <RecommendationSkeleton key={index} featured={index === 0} />
+            ))}
           </View>
         ) : !jobs.length && error ? (
           <View>
@@ -571,6 +580,7 @@ export default function HomeScreen() {
             </Pressable>
           </View>
         )}
+        <AdBanner placement="home" />
         {!!userId && (
           <View style={styles.quickLinks}>
             <Pressable
@@ -655,14 +665,26 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    flexWrap: "wrap",
+    columnGap: 12,
+    rowGap: 12,
     paddingTop: Space.lg,
     paddingBottom: Space.xl,
   },
-  brand: { flexDirection: "row", gap: Space.sm, alignItems: "center" },
+  brand: {
+    flexDirection: "row",
+    gap: Space.sm,
+    alignItems: "center",
+    flexShrink: 0,
+    flexWrap: "wrap",
+    maxWidth: "100%",
+  },
   brandIcon: { width: 30, height: 30, borderRadius: 9 },
   wordmark: {
     fontFamily: Fonts.bold,
-    fontSize: 15,
+    fontSize: 18,
+    lineHeight: 26,
+    flexShrink: 0,
     letterSpacing: 0,
     color: Colors.foreground,
   },
@@ -703,7 +725,7 @@ const styles = StyleSheet.create({
   },
   greeting: {
     fontFamily: Fonts.editorial,
-    fontSize: 32,
+    fontSize: 28,
     lineHeight: 36,
     letterSpacing: 0,
     marginTop: Space.sm,

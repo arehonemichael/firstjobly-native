@@ -573,28 +573,39 @@ export function rankJobs(
 function diversify(ranked: RankedJob[]): RankedJob[] {
   const remaining = [...ranked],
     output: RankedJob[] = [];
+  // URL parsing/normalization happens once per job, not repeatedly in nested counts.
+  const keys = new Map(
+    ranked.map((r) => [
+      r.job.id,
+      {
+        employer: employer(r.job),
+        category: normalize(r.job.category),
+        source: source(r.job),
+      },
+    ]),
+  );
+  const employers = new Map<string, number>(),
+    categories = new Map<string, number>(),
+    sources = new Map<string, number>();
   while (remaining.length) {
-    const window = output.slice(
-        Math.floor(output.length / RULES.pageSize) * RULES.pageSize,
-      ),
-      slot = window.length + 1;
+    if (output.length % RULES.pageSize === 0) {
+      employers.clear();
+      categories.clear();
+      sources.clear();
+    }
+    const slot = (output.length % RULES.pageSize) + 1;
     const wantDiscovery = slot % Math.round(1 / RULES.explorationShare) === 0;
-    const counts = (key: (x: Candidate) => string) =>
-      new Map(
-        window
-          .map((x) => key(x.job))
-          .map((k) => [k, window.filter((x) => key(x.job) === k).length]),
+    const diverse = (r: RankedJob) => {
+      const k = keys.get(r.job.id)!;
+      return (
+        (employers.get(k.employer) ?? 0) <
+          Math.ceil(RULES.pageSize * RULES.maxEmployerShare) &&
+        (categories.get(k.category) ?? 0) <
+          Math.ceil(RULES.pageSize * RULES.maxCategoryShare) &&
+        (sources.get(k.source) ?? 0) <
+          Math.ceil(RULES.pageSize * RULES.maxSourceShare)
       );
-    const employers = counts(employer),
-      categories = counts((j) => normalize(j.category)),
-      sources = counts(source);
-    const diverse = (r: RankedJob) =>
-      (employers.get(employer(r.job)) ?? 0) <
-        Math.ceil(RULES.pageSize * RULES.maxEmployerShare) &&
-      (categories.get(normalize(r.job.category)) ?? 0) <
-        Math.ceil(RULES.pageSize * RULES.maxCategoryShare) &&
-      (sources.get(source(r.job)) ?? 0) <
-        Math.ceil(RULES.pageSize * RULES.maxSourceShare);
+    };
     let index = remaining.findIndex(
       (r) => r.ranking.discovery === wantDiscovery && diverse(r),
     );
@@ -602,7 +613,15 @@ function diversify(ranked: RankedJob[]): RankedJob[] {
       index = remaining.findIndex((r) => r.ranking.discovery === wantDiscovery);
     if (index < 0) index = remaining.findIndex(diverse);
     if (index < 0) index = 0;
-    output.push(remaining.splice(index, 1)[0]);
+    const selected = remaining.splice(index, 1)[0],
+      k = keys.get(selected.job.id)!;
+    for (const [map, key] of [
+      [employers, k.employer],
+      [categories, k.category],
+      [sources, k.source],
+    ] as const)
+      map.set(key, (map.get(key) ?? 0) + 1);
+    output.push(selected);
   }
   return output;
 }

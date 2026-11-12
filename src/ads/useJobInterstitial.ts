@@ -1,22 +1,35 @@
 import { useCallback, useEffect, useRef } from "react";
-import { useInterstitialAd } from "react-native-google-mobile-ads";
-
+import { useAdsConsent } from "./privacy";
+import { mobileAdsSDK } from "./sdk";
 import { AD_UNITS } from "./config";
+const noop = () => {};
+const disabledAd = {
+  isLoaded: false,
+  isClosed: false,
+  load: noop,
+  show: async () => {},
+};
+function useDisabledInterstitialAd() {
+  return disabledAd;
+}
+const useInterstitialAd =
+  mobileAdsSDK?.useInterstitialAd ?? useDisabledInterstitialAd;
 
 let jobOpensThisSession = 0;
 let interstitialAttemptedThisSession = false;
 
 export function useEarlyJobInterstitial() {
+  const { canRequestAds } = useAdsConsent();
   const pendingAction = useRef<(() => void) | null>(null);
 
   const { isLoaded, isClosed, load, show } = useInterstitialAd(
     AD_UNITS.interstitial,
-    { requestNonPersonalizedAdsOnly: true }
+    { requestNonPersonalizedAdsOnly: true },
   );
 
   useEffect(() => {
-    load();
-  }, [load]);
+    if (canRequestAds) load();
+  }, [load, canRequestAds]);
 
   useEffect(() => {
     if (!isClosed || !pendingAction.current) return;
@@ -24,8 +37,8 @@ export function useEarlyJobInterstitial() {
     const action = pendingAction.current;
     pendingAction.current = null;
     action();
-    load();
-  }, [isClosed, load]);
+    if (canRequestAds) load();
+  }, [isClosed, load, canRequestAds]);
 
   const openJobWithEarlyInterstitial = useCallback(
     async (action: () => void) => {
@@ -40,9 +53,9 @@ export function useEarlyJobInterstitial() {
       // Attempt only once per app session. Never block job navigation if the ad is not ready.
       interstitialAttemptedThisSession = true;
 
-      if (!isLoaded) {
+      if (!canRequestAds || !isLoaded) {
         action();
-        load();
+        if (canRequestAds) load();
         return;
       }
 
@@ -53,10 +66,10 @@ export function useEarlyJobInterstitial() {
       } catch {
         pendingAction.current = null;
         action();
-        load();
+        if (canRequestAds) load();
       }
     },
-    [isLoaded, load, show]
+    [isLoaded, load, show, canRequestAds],
   );
 
   return { openJobWithEarlyInterstitial };

@@ -19,6 +19,7 @@ import {
   type StyleProp,
   type ViewStyle,
 } from "react-native";
+import { signalUserInteraction } from "../../lib/user-interaction";
 import { Colors, Fonts, Radius } from "../../constants/theme";
 
 const TextContext = createContext(false);
@@ -61,6 +62,7 @@ export const AppTextInput = forwardRef<TextInput, TextInputProps>(
         placeholderTextColor={Colors.mutedSubtle}
         selectionColor={Colors.primary}
         onFocus={(event) => {
+          signalUserInteraction();
           setFocused(true);
           onFocus?.(event);
         }}
@@ -78,7 +80,7 @@ export const AppTouchableOpacity = forwardRef<
   ComponentRef<typeof TouchableOpacity>,
   TouchableOpacityProps
 >(function AppTouchableOpacity(
-  { accessibilityState, disabled, style, ...props },
+  { accessibilityState, disabled, style, onPress, ...props },
   ref,
 ) {
   return (
@@ -87,6 +89,10 @@ export const AppTouchableOpacity = forwardRef<
       accessibilityRole="button"
       activeOpacity={0.7}
       {...props}
+      onPress={(event) => {
+        signalUserInteraction();
+        onPress?.(event);
+      }}
       disabled={disabled}
       accessibilityState={{ ...accessibilityState, disabled: !!disabled }}
       style={[styles.control, style, disabled && styles.disabled]}
@@ -105,7 +111,7 @@ export const AppPressable = forwardRef<
   ComponentRef<typeof Pressable>,
   AppPressableProps
 >(function AppPressable(
-  { style, disabled, accessibilityState, ...props },
+  { style, disabled, accessibilityState, onPress, ...props },
   ref,
 ) {
   return (
@@ -113,6 +119,10 @@ export const AppPressable = forwardRef<
       ref={ref}
       accessibilityRole="button"
       {...props}
+      onPress={(event) => {
+        signalUserInteraction();
+        onPress?.(event);
+      }}
       disabled={disabled}
       accessibilityState={{ ...accessibilityState, disabled: !!disabled }}
       style={(state) => [

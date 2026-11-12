@@ -5,7 +5,7 @@
 The opening reuses `assets/images/icon.png` (the actual pink/navy FirstJobly icon),
 the existing FirstJobly wordmark, Plus Jakarta Sans, brand tokens, and the existing
 “Your next step into work”, “Jobs, internships and learnerships”, and session
-“Did you know” content. Lora remains available to the rest of the app. The unused
+“Did you know” content. The interface now consistently uses the established sans-serif family. The unused
 Expo sample splash icon/AnimatedIcon templates are not activated. No new identity,
 placeholder jobs, letter animation, music, sound, or animation dependency is added.
 

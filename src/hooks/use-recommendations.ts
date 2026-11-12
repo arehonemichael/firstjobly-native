@@ -3,6 +3,7 @@ import { useFocusEffect } from "expo-router";
 import { AppState } from "react-native";
 import {
   getRecommendations,
+  getCachedRecommendations,
   latestFallback,
   RecommendationError,
   sendRecommendationFeedback,
@@ -31,11 +32,14 @@ export function useRecommendations(
 ) {
   const filterKey = JSON.stringify(filters),
     generation = useRef(0);
+  const initialPage = authLoading
+    ? null
+    : getCachedRecommendations(userId, filters);
   const [state, setState] = useState<State>({
     owner: userId,
     filterKey,
-    page: null,
-    loading: true,
+    page: initialPage,
+    loading: !initialPage,
     error: null,
     fallback: false,
     dismissed: null,
@@ -43,11 +47,14 @@ export function useRecommendations(
   const refresh = useCallback(async () => {
     if (authLoading) return;
     const ticket = ++generation.current;
+    const cached = getCachedRecommendations(userId, JSON.parse(filterKey));
     setState((s) => ({
       owner: userId,
       filterKey,
-      page: s.owner === userId && s.filterKey === filterKey ? s.page : null,
-      loading: true,
+      page:
+        cached ??
+        (s.owner === userId && s.filterKey === filterKey ? s.page : null),
+      loading: !cached,
       error: null,
       fallback: false,
       dismissed: s.owner === userId ? s.dismissed : null,
@@ -166,8 +173,10 @@ export function useRecommendations(
     }
   };
   return {
-    page: current?.page ?? null,
-    loading: current?.loading ?? true,
+    page:
+      current?.page ??
+      (authLoading ? null : getCachedRecommendations(userId, filters)),
+    loading: current?.loading ?? !initialPage,
     error: current?.error ?? null,
     fallback: current?.fallback ?? false,
     dismissed: current?.dismissed ?? null,
