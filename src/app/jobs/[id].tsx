@@ -1,3 +1,4 @@
+import { recordRecommendationActivity } from "../../lib/recommendations/api";
 import {
   AppText as Text,
   AppTextInput as TextInput,
@@ -82,6 +83,10 @@ export default function JobDetailsScreen() {
   } | null>(null);
 
   useEffect(() => {
+    if (job?.id && userId) void recordRecommendationActivity(job.id, "opened");
+  }, [job?.id, userId]);
+
+  useEffect(() => {
     if (!id) return;
 
     getJob(id)
@@ -151,7 +156,10 @@ export default function JobDetailsScreen() {
     if (job!.apply_type !== "easy_apply") {
       if (!job!.external_url) return;
       const canOpen = await Linking.canOpenURL(job!.external_url);
-      if (canOpen) await Linking.openURL(job!.external_url);
+      if (canOpen) {
+        await Linking.openURL(job!.external_url);
+        void recordRecommendationActivity(job!.id, "application_started");
+      }
       return;
     }
 
@@ -218,6 +226,7 @@ export default function JobDetailsScreen() {
       return;
     }
 
+    void recordRecommendationActivity(job!.id, "application_started");
     setApplyOpen(true);
   }
 
@@ -281,6 +290,7 @@ export default function JobDetailsScreen() {
     setExistingApplication(data);
 
     if (!isDraft) {
+      void recordRecommendationActivity(job.id, "application_submitted");
       try {
         const { data: sessionData } = await supabase.auth.getSession();
         await fetch(`${WEB_APP_URL}/api/public/notify-employer`, {

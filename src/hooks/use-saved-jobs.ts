@@ -1,3 +1,4 @@
+import { recordRecommendationActivity } from "../lib/recommendations/api";
 import { useCallback, useEffect, useState } from "react";
 
 import { useAuth } from "./use-auth";
@@ -70,6 +71,7 @@ export function useSavedJobs() {
 
           if (error) throw error;
 
+          void recordRecommendationActivity(jobId, "unsaved");
           setSavedIds((current) =>
             current.filter((id) => id !== jobId)
           );
@@ -82,13 +84,14 @@ export function useSavedJobs() {
 
         const { error } = await supabase
           .from("saved_jobs")
-          .insert({
-            user_id: userId,
-            job_id: jobId,
-          });
+          .upsert(
+            { user_id: userId, job_id: jobId },
+            { onConflict: "user_id,job_id" },
+          );
 
         if (error) throw error;
 
+        void recordRecommendationActivity(jobId, "saved");
         setSavedIds((current) =>
           current.includes(jobId)
             ? current
