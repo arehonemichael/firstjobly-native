@@ -1,3 +1,9 @@
+import {
+  AppText as Text,
+  AppTextInput as TextInput,
+  AppTouchableOpacity as TouchableOpacity,
+} from "../components/ui/primitives";
+import { Colors, Fonts } from "../constants/theme";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -5,12 +11,9 @@ import {
   ScrollView,
   StyleSheet,
   Switch,
-  Text,
-  TextInput,
-  TouchableOpacity,
   View,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Icon as Ionicons } from "../components/ui/icon";
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -87,11 +90,7 @@ export default function CvMakerScreen() {
 
     setBusy(true);
     const [profileRes, workRes] = await Promise.all([
-      supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", userId)
-        .maybeSingle(),
+      supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
       supabase
         .from("work_experience")
         .select("*")
@@ -195,7 +194,10 @@ export default function CvMakerScreen() {
       });
     } catch (error) {
       console.error("CV AI experience failed:", error);
-      Alert.alert("AI Assist", "Could not generate work-experience points right now.");
+      Alert.alert(
+        "AI Assist",
+        "Could not generate work-experience points right now.",
+      );
     } finally {
       setAiBusy(null);
     }
@@ -223,7 +225,10 @@ export default function CvMakerScreen() {
       );
     } catch (error) {
       console.error("CV PDF failed:", error);
-      if (error instanceof Error && error.message === "DOWNLOAD_PERMISSION_DENIED") {
+      if (
+        error instanceof Error &&
+        error.message === "DOWNLOAD_PERMISSION_DENIED"
+      ) {
         Alert.alert(
           "Download cancelled",
           "Choose the Downloads folder when Android asks where FirstJobly may save your PDFs.",
@@ -239,7 +244,7 @@ export default function CvMakerScreen() {
   if (!loaded) {
     return (
       <SafeAreaView style={s.center}>
-        <ActivityIndicator color="#E1225F" />
+        <ActivityIndicator color={Colors.primary} />
       </SafeAreaView>
     );
   }
@@ -248,12 +253,14 @@ export default function CvMakerScreen() {
     <SafeAreaView style={s.page} edges={["top", "bottom"]}>
       <Header title="CV Maker" />
       <ScrollView
-        contentContainerStyle={[s.content, { paddingBottom: bottomContentPadding }]}
+        contentContainerStyle={[
+          s.content,
+          { paddingBottom: bottomContentPadding },
+        ]}
         keyboardShouldPersistTaps="handled"
       >
         <Text style={s.intro}>
-          Choose the same ATS-safe template used on FirstJobly web, then fill
-          every section you need.
+          Choose a CV template, then add your experience and qualifications
         </Text>
 
         <Text style={s.sectionHeading}>1. Choose a template</Text>
@@ -296,8 +303,8 @@ export default function CvMakerScreen() {
           >
             <Ionicons
               name="person-circle-outline"
-              size={20}
-              color="#061A30"
+              size={18}
+              color={Colors.foreground}
             />
             <Text style={s.profileText}>Use my FirstJobly profile</Text>
           </TouchableOpacity>
@@ -364,9 +371,9 @@ export default function CvMakerScreen() {
             onPress={() => void generateSummary()}
           >
             {aiBusy === "summary" ? (
-              <ActivityIndicator color="#E1225F" />
+              <ActivityIndicator color={Colors.primary} />
             ) : (
-              <Text style={s.aiButtonText}>✦✦ Generate from professional title</Text>
+              <Text style={s.aiButtonText}>Help write my summary</Text>
             )}
           </TouchableOpacity>
         </Card>
@@ -380,7 +387,7 @@ export default function CvMakerScreen() {
                 onChangeText={(jobTitle) =>
                   patch({
                     experience: data.experience.map((v, i) =>
-                      i === index ? { ...v, jobTitle } : v
+                      i === index ? { ...v, jobTitle } : v,
                     ),
                   })
                 }
@@ -391,7 +398,7 @@ export default function CvMakerScreen() {
                 onChangeText={(company) =>
                   patch({
                     experience: data.experience.map((v, i) =>
-                      i === index ? { ...v, company } : v
+                      i === index ? { ...v, company } : v,
                     ),
                   })
                 }
@@ -402,7 +409,7 @@ export default function CvMakerScreen() {
                 onChangeText={(location) =>
                   patch({
                     experience: data.experience.map((v, i) =>
-                      i === index ? { ...v, location } : v
+                      i === index ? { ...v, location } : v,
                     ),
                   })
                 }
@@ -414,7 +421,7 @@ export default function CvMakerScreen() {
                 onChangeText={(startDate) =>
                   patch({
                     experience: data.experience.map((v, i) =>
-                      i === index ? { ...v, startDate } : v
+                      i === index ? { ...v, startDate } : v,
                     ),
                   })
                 }
@@ -427,7 +434,7 @@ export default function CvMakerScreen() {
                   onChangeText={(endDate) =>
                     patch({
                       experience: data.experience.map((v, i) =>
-                        i === index ? { ...v, endDate } : v
+                        i === index ? { ...v, endDate } : v,
                       ),
                     })
                   }
@@ -439,7 +446,7 @@ export default function CvMakerScreen() {
                 onValueChange={(current) =>
                   patch({
                     experience: data.experience.map((v, i) =>
-                      i === index ? { ...v, current } : v
+                      i === index ? { ...v, current } : v,
                     ),
                   })
                 }
@@ -448,11 +455,13 @@ export default function CvMakerScreen() {
                 label="Achievements / duties"
                 value={x.bullets}
                 multiline
-                placeholder={"Resolved customer queries\nSupported daily operations"}
+                placeholder={
+                  "Resolved customer queries\nSupported daily operations"
+                }
                 onChangeText={(bullets) =>
                   patch({
                     experience: data.experience.map((v, i) =>
-                      i === index ? { ...v, bullets } : v
+                      i === index ? { ...v, bullets } : v,
                     ),
                   })
                 }
@@ -463,18 +472,18 @@ export default function CvMakerScreen() {
                 onPress={() => void generateExperience(index)}
               >
                 {aiBusy === `experience-${index}` ? (
-                  <ActivityIndicator color="#E1225F" />
+                  <ActivityIndicator color={Colors.primary} />
                 ) : (
-                  <Text style={s.aiButtonText}>✦✦ Help write achievement points</Text>
+                  <Text style={s.aiButtonText}>
+                    Help write achievement points
+                  </Text>
                 )}
               </TouchableOpacity>
               <Remove
                 label="Remove experience"
                 onPress={() =>
                   patch({
-                    experience: data.experience.filter(
-                      (_, i) => i !== index
-                    ),
+                    experience: data.experience.filter((_, i) => i !== index),
                   })
                 }
               />
@@ -499,7 +508,7 @@ export default function CvMakerScreen() {
                 onChangeText={(qualification) =>
                   patch({
                     education: data.education.map((v, i) =>
-                      i === index ? { ...v, qualification } : v
+                      i === index ? { ...v, qualification } : v,
                     ),
                   })
                 }
@@ -510,7 +519,7 @@ export default function CvMakerScreen() {
                 onChangeText={(institution) =>
                   patch({
                     education: data.education.map((v, i) =>
-                      i === index ? { ...v, institution } : v
+                      i === index ? { ...v, institution } : v,
                     ),
                   })
                 }
@@ -522,7 +531,7 @@ export default function CvMakerScreen() {
                 onChangeText={(nqfLevel) =>
                   patch({
                     education: data.education.map((v, i) =>
-                      i === index ? { ...v, nqfLevel } : v
+                      i === index ? { ...v, nqfLevel } : v,
                     ),
                   })
                 }
@@ -533,7 +542,7 @@ export default function CvMakerScreen() {
                 onChangeText={(year) =>
                   patch({
                     education: data.education.map((v, i) =>
-                      i === index ? { ...v, year } : v
+                      i === index ? { ...v, year } : v,
                     ),
                   })
                 }
@@ -545,7 +554,7 @@ export default function CvMakerScreen() {
                 onChangeText={(notes) =>
                   patch({
                     education: data.education.map((v, i) =>
-                      i === index ? { ...v, notes } : v
+                      i === index ? { ...v, notes } : v,
                     ),
                   })
                 }
@@ -554,9 +563,7 @@ export default function CvMakerScreen() {
                 label="Remove qualification"
                 onPress={() =>
                   patch({
-                    education: data.education.filter(
-                      (_, i) => i !== index
-                    ),
+                    education: data.education.filter((_, i) => i !== index),
                   })
                 }
               />
@@ -569,7 +576,6 @@ export default function CvMakerScreen() {
             }
           />
         </Card>
-
 
         <Card title="Core skills">
           <Field
@@ -597,7 +603,7 @@ export default function CvMakerScreen() {
                     onChangeText={(name) =>
                       patch({
                         certifications: data.certifications.map((v, i) =>
-                          i === index ? { ...v, name } : v
+                          i === index ? { ...v, name } : v,
                         ),
                       })
                     }
@@ -608,7 +614,7 @@ export default function CvMakerScreen() {
                     onChangeText={(issuer) =>
                       patch({
                         certifications: data.certifications.map((v, i) =>
-                          i === index ? { ...v, issuer } : v
+                          i === index ? { ...v, issuer } : v,
                         ),
                       })
                     }
@@ -619,7 +625,7 @@ export default function CvMakerScreen() {
                     onChangeText={(year) =>
                       patch({
                         certifications: data.certifications.map((v, i) =>
-                          i === index ? { ...v, year } : v
+                          i === index ? { ...v, year } : v,
                         ),
                       })
                     }
@@ -629,7 +635,7 @@ export default function CvMakerScreen() {
                     onPress={() =>
                       patch({
                         certifications: data.certifications.filter(
-                          (_, i) => i !== index
+                          (_, i) => i !== index,
                         ),
                       })
                     }
@@ -656,9 +662,7 @@ export default function CvMakerScreen() {
           <Toggle
             label="Include languages"
             value={data.includeLanguages}
-            onValueChange={(includeLanguages) =>
-              patch({ includeLanguages })
-            }
+            onValueChange={(includeLanguages) => patch({ includeLanguages })}
           />
           {data.includeLanguages ? (
             <Field
@@ -687,7 +691,7 @@ export default function CvMakerScreen() {
                     onChangeText={(name) =>
                       patch({
                         references: data.references.map((v, i) =>
-                          i === index ? { ...v, name } : v
+                          i === index ? { ...v, name } : v,
                         ),
                       })
                     }
@@ -698,7 +702,7 @@ export default function CvMakerScreen() {
                     onChangeText={(relationship) =>
                       patch({
                         references: data.references.map((v, i) =>
-                          i === index ? { ...v, relationship } : v
+                          i === index ? { ...v, relationship } : v,
                         ),
                       })
                     }
@@ -710,7 +714,7 @@ export default function CvMakerScreen() {
                     onChangeText={(phone) =>
                       patch({
                         references: data.references.map((v, i) =>
-                          i === index ? { ...v, phone } : v
+                          i === index ? { ...v, phone } : v,
                         ),
                       })
                     }
@@ -722,7 +726,7 @@ export default function CvMakerScreen() {
                     onChangeText={(email) =>
                       patch({
                         references: data.references.map((v, i) =>
-                          i === index ? { ...v, email } : v
+                          i === index ? { ...v, email } : v,
                         ),
                       })
                     }
@@ -732,7 +736,7 @@ export default function CvMakerScreen() {
                     onPress={() =>
                       patch({
                         references: data.references.filter(
-                          (_, i) => i !== index
+                          (_, i) => i !== index,
                         ),
                       })
                     }
@@ -758,13 +762,13 @@ export default function CvMakerScreen() {
           onPress={() => void createPdf()}
         >
           {busy ? (
-            <ActivityIndicator color="#FFFFFF" />
+            <ActivityIndicator color={Colors.surface} />
           ) : (
             <>
               <Ionicons
                 name="download-outline"
-                size={20}
-                color="#FFFFFF"
+                size={18}
+                color={Colors.surface}
               />
               <Text style={s.primaryText}>Download PDF</Text>
             </>
@@ -795,7 +799,7 @@ function Header({ title }: { title: string }) {
   return (
     <View style={s.header}>
       <TouchableOpacity style={s.headerIcon} onPress={() => router.back()}>
-        <Ionicons name="arrow-back" size={22} color="#061A30" />
+        <Ionicons name="arrow-back" size={18} color={Colors.foreground} />
       </TouchableOpacity>
       <Text style={s.headerTitle}>{title}</Text>
       <View style={s.headerIcon} />
@@ -845,9 +849,10 @@ function Field({
     <View style={s.field}>
       <Text style={s.label}>{label}</Text>
       <TextInput
+        accessibilityLabel={label}
         {...props}
         multiline={multiline}
-        placeholderTextColor="#94A3B8"
+        placeholderTextColor={Colors.mutedSubtle}
         style={[s.input, multiline && s.multiline]}
       />
     </View>
@@ -869,45 +874,33 @@ function Toggle({
       <Switch
         value={value}
         onValueChange={onValueChange}
-        trackColor={{ false: "#DFE4EC", true: "#F6A8C4" }}
-        thumbColor={value ? "#E1225F" : "#FFFFFF"}
+        trackColor={{ false: Colors.input, true: Colors.primaryBorder }}
+        thumbColor={value ? Colors.primary : Colors.surface}
       />
     </View>
   );
 }
 
-function Add({
-  label,
-  onPress,
-}: {
-  label: string;
-  onPress: () => void;
-}) {
+function Add({ label, onPress }: { label: string; onPress: () => void }) {
   return (
     <TouchableOpacity style={s.add} onPress={onPress}>
-      <Ionicons name="add" size={18} color="#061A30" />
+      <Ionicons name="add" size={18} color={Colors.foreground} />
       <Text style={s.addText}>{label}</Text>
     </TouchableOpacity>
   );
 }
 
-function Remove({
-  label,
-  onPress,
-}: {
-  label: string;
-  onPress: () => void;
-}) {
+function Remove({ label, onPress }: { label: string; onPress: () => void }) {
   return (
     <TouchableOpacity style={s.remove} onPress={onPress}>
-      <Ionicons name="trash-outline" size={17} color="#DC2626" />
+      <Ionicons name="trash-outline" size={18} color={Colors.error} />
       <Text style={s.removeText}>{label}</Text>
     </TouchableOpacity>
   );
 }
 
 const s = StyleSheet.create({
-  page: { flex: 1, backgroundColor: "#F6F7F9" },
+  page: { flex: 1, backgroundColor: Colors.background },
   center: {
     flex: 1,
     alignItems: "center",
@@ -915,9 +908,9 @@ const s = StyleSheet.create({
   },
   header: {
     height: 62,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: "#E8EBF0",
+    borderBottomColor: Colors.border,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -929,163 +922,219 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  headerTitle: { color: "#061A30", fontSize: 18, fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800" },
+  headerTitle: {
+    color: Colors.foreground,
+    fontSize: 18,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
+  },
   content: { padding: 16, paddingBottom: 44 },
-  intro: { color: "#556274", fontSize: 13, lineHeight: 20 },
+  intro: { color: Colors.muted, fontSize: 13, lineHeight: 20 },
   sectionHeading: {
     marginTop: 20,
-    marginBottom: 10,
-    color: "#061A30",
+    marginBottom: 12,
+    color: Colors.foreground,
     fontSize: 16,
-    fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800",
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
   },
-  templateRow: { flexDirection: "row", gap: 10, paddingRight: 16 },
+  templateRow: { flexDirection: "row", gap: 12, paddingRight: 16 },
   templateCard: {
     width: 180,
     minHeight: 150,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
     borderWidth: 1,
-    borderColor: "#E8EBF0",
+    borderColor: Colors.border,
     borderRadius: 8,
-    padding: 13,
+    padding: 12,
   },
-  templateCardActive: { borderColor: "#E1225F", borderWidth: 2 },
-  templateName: { color: "#061A30", fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800", fontSize: 14 },
-  templateTag: { color: "#556274", fontSize: 11, marginTop: 3 },
+  templateCardActive: { borderColor: Colors.primary, borderWidth: 2 },
+  templateName: {
+    color: Colors.foreground,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
+    fontSize: 14,
+  },
+  templateTag: { color: Colors.muted, fontSize: 12, marginTop: 4 },
   recommended: {
-    color: "#E1225F",
-    fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800",
-    fontSize: 10,
+    color: Colors.primaryPressed,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
+    fontSize: 12,
     marginTop: 8,
   },
   templateBest: {
-    color: "#556274",
-    fontSize: 11,
+    color: Colors.muted,
+    fontSize: 12,
     lineHeight: 16,
     marginTop: 8,
   },
   infoCard: {
-    backgroundColor: "#FDEEF3",
+    backgroundColor: Colors.primarySoft,
     borderWidth: 1,
-    borderColor: "#F8D3E0",
+    borderColor: Colors.primaryBorder,
     borderRadius: 11,
     padding: 12,
     marginTop: 12,
   },
-  infoTitle: { color: "#061A30", fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800" },
-  infoText: { color: "#556274", fontSize: 11, lineHeight: 17, marginTop: 3 },
+  infoTitle: {
+    color: Colors.foreground,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
+  },
+  infoText: { color: Colors.muted, fontSize: 12, lineHeight: 20, marginTop: 4 },
   profileButton: {
     height: 48,
     marginTop: 12,
     borderWidth: 1,
-    borderColor: "#DFE4EC",
+    borderColor: Colors.input,
     borderRadius: 10,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
     flexDirection: "row",
-    gap: 7,
+    gap: 8,
     alignItems: "center",
     justifyContent: "center",
   },
-  profileText: { color: "#061A30", fontFamily: "PlusJakartaSans_700Bold", fontWeight: "700" },
+  profileText: {
+    color: Colors.foreground,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
+  },
   card: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
     borderWidth: 1,
-    borderColor: "#E8EBF0",
+    borderColor: Colors.border,
     borderRadius: 8,
-    padding: 14,
+    padding: 16,
     marginBottom: 12,
   },
-  cardTitle: { color: "#061A30", fontSize: 15, fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800" },
+  cardTitle: {
+    color: Colors.foreground,
+    fontSize: 15,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
+  },
   subCard: {
     marginTop: 12,
-    backgroundColor: "#F9FAFB",
+    backgroundColor: Colors.background,
     borderWidth: 1,
-    borderColor: "#E8EBF0",
+    borderColor: Colors.border,
     borderRadius: 10,
     padding: 12,
   },
-  subTitle: { color: "#556274", fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800", fontSize: 12 },
-  field: { marginTop: 11 },
-  label: { color: "#556274", fontSize: 12, fontFamily: "PlusJakartaSans_700Bold", fontWeight: "700", marginBottom: 6 },
+  subTitle: {
+    color: Colors.muted,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
+    fontSize: 12,
+  },
+  field: { marginTop: 12 },
+  label: {
+    color: Colors.muted,
+    fontSize: 12,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
+    marginBottom: 8,
+  },
   input: {
     minHeight: 46,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
     borderWidth: 1,
-    borderColor: "#DFE4EC",
+    borderColor: Colors.input,
     borderRadius: 9,
-    paddingHorizontal: 11,
-    color: "#061A30",
+    paddingHorizontal: 12,
+    color: Colors.foreground,
   },
-  multiline: { minHeight: 90, paddingTop: 10, textAlignVertical: "top" },
+  multiline: { minHeight: 90, paddingTop: 12, textAlignVertical: "top" },
   toggle: {
     minHeight: 50,
-    marginTop: 11,
+    marginTop: 12,
     borderWidth: 1,
-    borderColor: "#E8EBF0",
+    borderColor: Colors.border,
     borderRadius: 9,
-    paddingHorizontal: 11,
+    paddingHorizontal: 12,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
-  toggleText: { flex: 1, color: "#556274", fontSize: 12, fontFamily: "PlusJakartaSans_700Bold", fontWeight: "700" },
+  toggleText: {
+    flex: 1,
+    color: Colors.muted,
+    fontSize: 12,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
+  },
   add: {
     marginTop: 12,
     height: 44,
     borderWidth: 1,
-    borderColor: "#DFE4EC",
+    borderColor: Colors.input,
     borderRadius: 9,
     flexDirection: "row",
-    gap: 5,
+    gap: 4,
     alignItems: "center",
     justifyContent: "center",
   },
-  addText: { color: "#061A30", fontFamily: "PlusJakartaSans_700Bold", fontWeight: "700", fontSize: 12 },
+  addText: {
+    color: Colors.foreground,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
+    fontSize: 12,
+  },
   remove: {
-    marginTop: 11,
+    marginTop: 12,
     flexDirection: "row",
-    gap: 5,
+    gap: 4,
     alignItems: "center",
   },
-  removeText: { color: "#DC2626", fontSize: 11, fontFamily: "PlusJakartaSans_700Bold", fontWeight: "700" },
+  removeText: {
+    color: Colors.error,
+    fontSize: 12,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
+  },
   aiButton: {
     minHeight: 42,
-    marginTop: 10,
+    marginTop: 12,
     borderRadius: 9,
     borderWidth: 1,
-    borderColor: "#F8D3E0",
-    backgroundColor: "#FDEEF3",
+    borderColor: Colors.primaryBorder,
+    backgroundColor: Colors.primarySoft,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 12,
   },
   aiButtonText: {
-    color: "#E1225F",
+    color: Colors.primaryPressed,
     fontSize: 12,
-    fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800",
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
   },
   primary: {
     height: 54,
     borderRadius: 11,
-    backgroundColor: "#E1225F",
+    backgroundColor: Colors.primary,
     flexDirection: "row",
-    gap: 7,
+    gap: 8,
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 6,
+    marginTop: 8,
   },
-  primaryText: { color: "#FFFFFF", fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800", fontSize: 15 },
+  primaryText: {
+    color: Colors.surface,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
+    fontSize: 15,
+  },
   clear: {
     height: 48,
-    marginTop: 9,
+    marginTop: 8,
     alignItems: "center",
     justifyContent: "center",
   },
-  clearText: { color: "#DC2626", fontFamily: "PlusJakartaSans_700Bold", fontWeight: "700" },
+  clearText: {
+    color: Colors.error,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
+  },
 });
-
-
-
-
-
-

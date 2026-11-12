@@ -1,12 +1,10 @@
-import { Fonts } from "../../constants/theme";
 import {
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+  AppText as Text,
+  AppTouchableOpacity as TouchableOpacity,
+} from "../../components/ui/primitives";
+import { Fonts, Colors } from "../../constants/theme";
+import { ScrollView, StyleSheet, View } from "react-native";
+import { Icon as Ionicons } from "../../components/ui/icon";
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -36,10 +34,15 @@ export default function ToolsScreen() {
   const bottomContentPadding = useScreenBottomPadding(true);
   return (
     <SafeAreaView style={styles.page} edges={["top", "bottom"]}>
-      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: bottomContentPadding }]}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          { paddingBottom: bottomContentPadding },
+        ]}
+      >
         <Text style={styles.title}>Career tools</Text>
         <Text style={styles.subtitle}>
-          Free tools to help you prepare stronger applications.
+          Prepare your CV and government applications
         </Text>
 
         <View style={styles.grid}>
@@ -51,7 +54,7 @@ export default function ToolsScreen() {
               onPress={() => router.push(tool.route)}
             >
               <View style={styles.icon}>
-                <Ionicons name={tool.icon} size={25} color="#E1225F" />
+                <Ionicons name={tool.icon} size={18} color={Colors.primary} />
               </View>
 
               <View style={styles.body}>
@@ -61,8 +64,8 @@ export default function ToolsScreen() {
 
               <Ionicons
                 name="chevron-forward"
-                size={20}
-                color="#94A3B8"
+                size={18}
+                color={Colors.mutedSubtle}
               />
             </TouchableOpacity>
           ))}
@@ -71,8 +74,8 @@ export default function ToolsScreen() {
         <View style={styles.tip}>
           <Ionicons
             name="shield-checkmark-outline"
-            size={20}
-            color="#E1225F"
+            size={18}
+            color={Colors.primary}
           />
           <Text style={styles.tipText}>
             Your CV draft stays on your device. FirstJobly only receives profile
@@ -85,24 +88,26 @@ export default function ToolsScreen() {
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: "#F6F7F9" },
+  page: { flex: 1, backgroundColor: Colors.background },
   content: { padding: 20, paddingBottom: 40 },
-  title: { fontFamily: Fonts.editorial, fontWeight: "400",
-    color: "#061A30",
-    fontSize: 27,
+  title: {
+    fontFamily: Fonts.editorial,
+    fontWeight: "400",
+    color: Colors.foreground,
+    fontSize: 28,
   },
   subtitle: {
-    color: "#556274",
+    color: Colors.muted,
     fontSize: 14,
     lineHeight: 20,
-    marginTop: 5,
+    marginTop: 4,
   },
-  grid: { marginTop: 22, gap: 12 },
+  grid: { marginTop: 24, gap: 12 },
   card: {
     minHeight: 112,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
     borderWidth: 1,
-    borderColor: "#E8EBF0",
+    borderColor: Colors.border,
     borderRadius: 8,
     padding: 16,
     flexDirection: "row",
@@ -112,41 +117,37 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 8,
-    backgroundColor: "#FDEEF3",
+    backgroundColor: Colors.primarySoft,
     alignItems: "center",
     justifyContent: "center",
   },
-  body: { flex: 1, marginHorizontal: 13 },
+  body: { flex: 1, marginHorizontal: 12 },
   cardTitle: {
-    color: "#061A30",
+    color: Colors.foreground,
     fontSize: 16,
-    fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800",
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
   },
   description: {
-    color: "#556274",
+    color: Colors.muted,
     fontSize: 12,
-    lineHeight: 18,
+    lineHeight: 20,
     marginTop: 4,
   },
   tip: {
-    marginTop: 18,
+    marginTop: 20,
     borderWidth: 1,
-    borderColor: "#F8D3E0",
-    backgroundColor: "#FDEEF3",
+    borderColor: Colors.primaryBorder,
+    backgroundColor: Colors.primarySoft,
     borderRadius: 8,
-    padding: 14,
+    padding: 16,
     flexDirection: "row",
-    gap: 10,
+    gap: 12,
   },
   tipText: {
     flex: 1,
-    color: "#556274",
+    color: Colors.muted,
     fontSize: 12,
-    lineHeight: 18,
+    lineHeight: 20,
   },
 });
-
-
-
-
-

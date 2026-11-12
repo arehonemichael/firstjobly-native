@@ -1,15 +1,18 @@
+import {
+  AppText as Text,
+  AppTextInput as TextInput,
+  AppTouchableOpacity as TouchableOpacity,
+} from "../ui/primitives";
+import { Colors, Fonts } from "../../constants/theme";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   StyleSheet,
   Switch,
-  Text,
-  TextInput,
-  TouchableOpacity,
   View,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Icon as Ionicons } from "../ui/icon";
 
 import { supabase } from "../../lib/supabase";
 
@@ -143,41 +146,54 @@ export function WorkExperienceSection({
               .eq("user_id", userId);
 
             if (error) {
-              Alert.alert("Work experience", "Could not remove that experience.");
+              Alert.alert(
+                "Work experience",
+                "Could not remove that experience.",
+              );
               return;
             }
 
             await load();
           },
         },
-      ]
+      ],
     );
   }
 
   if (loading) {
-    return <ActivityIndicator color="#E1225F" style={{ marginVertical: 16 }} />;
+    return (
+      <ActivityIndicator
+        color={Colors.primary}
+        style={{ marginVertical: 16 }}
+      />
+    );
   }
 
   return (
     <View>
       {entries.length === 0 && !draft ? (
         <Text style={styles.empty}>
-          No experience yet. Volunteering, holiday work and internships all count.
+          No experience yet. Volunteering, holiday work and internships all
+          count.
         </Text>
       ) : null}
 
       {entries.map((entry) => (
         <View key={entry.id} style={styles.entry}>
           <View style={styles.icon}>
-            <Ionicons name="briefcase-outline" size={18} color="#E1225F" />
+            <Ionicons
+              name="briefcase-outline"
+              size={18}
+              color={Colors.primary}
+            />
           </View>
 
           <View style={styles.entryBody}>
             <Text style={styles.jobTitle}>{entry.job_title}</Text>
             <Text style={styles.company}>{entry.company}</Text>
             <Text style={styles.date}>
-              {entry.start_date ?? "�"} ?{" "}
-              {entry.currently_working ? "Present" : entry.end_date ?? "�"}
+              {entry.start_date ?? "·"} ?{" "}
+              {entry.currently_working ? "Present" : (entry.end_date ?? "·")}
             </Text>
 
             {entry.description ? (
@@ -185,7 +201,10 @@ export function WorkExperienceSection({
             ) : null}
 
             <View style={styles.actions}>
-              <TouchableOpacity style={styles.outlineButton} onPress={() => edit(entry)}>
+              <TouchableOpacity
+                style={styles.outlineButton}
+                onPress={() => edit(entry)}
+              >
                 <Text style={styles.outlineText}>Edit</Text>
               </TouchableOpacity>
 
@@ -193,7 +212,7 @@ export function WorkExperienceSection({
                 style={styles.deleteButton}
                 onPress={() => remove(entry)}
               >
-                <Ionicons name="trash-outline" size={18} color="#DC2626" />
+                <Ionicons name="trash-outline" size={18} color={Colors.error} />
               </TouchableOpacity>
             </View>
           </View>
@@ -226,8 +245,10 @@ export function WorkExperienceSection({
               onValueChange={(currently_working) =>
                 setDraft({ ...draft, currently_working })
               }
-              trackColor={{ false: "#DFE4EC", true: "#F6A8C4" }}
-              thumbColor={draft.currently_working ? "#E1225F" : "#FFFFFF"}
+              trackColor={{ false: Colors.input, true: Colors.primaryBorder }}
+              thumbColor={
+                draft.currently_working ? Colors.primary : Colors.surface
+              }
             />
           </View>
 
@@ -255,11 +276,13 @@ export function WorkExperienceSection({
                 (!draft.company.trim() || !draft.job_title.trim() || saving) &&
                   styles.disabled,
               ]}
-              disabled={!draft.company.trim() || !draft.job_title.trim() || saving}
+              disabled={
+                !draft.company.trim() || !draft.job_title.trim() || saving
+              }
               onPress={() => void save()}
             >
               {saving ? (
-                <ActivityIndicator color="#FFFFFF" />
+                <ActivityIndicator color={Colors.surface} />
               ) : (
                 <Text style={styles.saveText}>Save</Text>
               )}
@@ -284,7 +307,7 @@ export function WorkExperienceSection({
             setDraft({ ...EMPTY });
           }}
         >
-          <Ionicons name="add" size={18} color="#061A30" />
+          <Ionicons name="add" size={18} color={Colors.foreground} />
           <Text style={styles.addText}>Add experience</Text>
         </TouchableOpacity>
       )}
@@ -304,9 +327,10 @@ function Field({
     <View style={styles.field}>
       <Text style={styles.label}>{label}</Text>
       <TextInput
+        accessibilityLabel={label}
         {...props}
         multiline={multiline}
-        placeholderTextColor="#94A3B8"
+        placeholderTextColor={Colors.mutedSubtle}
         style={[styles.input, multiline && styles.multiline]}
       />
     </View>
@@ -314,72 +338,97 @@ function Field({
 }
 
 const styles = StyleSheet.create({
-  empty: { color: "#556274", fontSize: 13, lineHeight: 19, marginBottom: 12 },
+  empty: {
+    color: Colors.muted,
+    fontSize: 13,
+    lineHeight: 20,
+    marginBottom: 12,
+  },
   entry: {
     flexDirection: "row",
-    padding: 14,
+    padding: 16,
     borderWidth: 1,
-    borderColor: "#E8EBF0",
+    borderColor: Colors.border,
     borderRadius: 12,
-    marginBottom: 10,
-    backgroundColor: "#FFFFFF",
+    marginBottom: 12,
+    backgroundColor: Colors.surface,
   },
   icon: {
     width: 36,
     height: 36,
     borderRadius: 8,
-    backgroundColor: "#FDEEF3",
+    backgroundColor: Colors.primarySoft,
     alignItems: "center",
     justifyContent: "center",
   },
-  entryBody: { flex: 1, marginLeft: 11 },
-  jobTitle: { color: "#061A30", fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800", fontSize: 14 },
-  company: { color: "#556274", fontSize: 13, marginTop: 2 },
-  date: { color: "#556274", fontSize: 11, marginTop: 6 },
-  description: { color: "#556274", fontSize: 12, lineHeight: 18, marginTop: 7 },
+  entryBody: { flex: 1, marginLeft: 12 },
+  jobTitle: {
+    color: Colors.foreground,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
+    fontSize: 14,
+  },
+  company: { color: Colors.muted, fontSize: 13, marginTop: 2 },
+  date: { color: Colors.muted, fontSize: 12, marginTop: 8 },
+  description: {
+    color: Colors.muted,
+    fontSize: 12,
+    lineHeight: 20,
+    marginTop: 8,
+  },
   actions: { flexDirection: "row", gap: 8, marginTop: 12 },
   outlineButton: {
     flex: 1,
     height: 42,
     borderWidth: 1,
-    borderColor: "#DFE4EC",
+    borderColor: Colors.input,
     borderRadius: 9,
     alignItems: "center",
     justifyContent: "center",
   },
-  outlineText: { color: "#061A30", fontFamily: "PlusJakartaSans_700Bold", fontWeight: "700" },
+  outlineText: {
+    color: Colors.foreground,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
+  },
   deleteButton: {
     width: 44,
     height: 42,
     borderWidth: 1,
-    borderColor: "#DFE4EC",
+    borderColor: Colors.input,
     borderRadius: 9,
     alignItems: "center",
     justifyContent: "center",
   },
   editor: {
     borderWidth: 1,
-    borderColor: "#E8EBF0",
+    borderColor: Colors.border,
     borderRadius: 12,
-    padding: 14,
-    backgroundColor: "#FFFFFF",
+    padding: 16,
+    backgroundColor: Colors.surface,
   },
   field: { marginBottom: 12 },
-  label: { color: "#556274", fontSize: 13, fontFamily: "PlusJakartaSans_600SemiBold", fontWeight: "600", marginBottom: 6 },
+  label: {
+    color: Colors.muted,
+    fontSize: 13,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
+    marginBottom: 8,
+  },
   input: {
     minHeight: 48,
     borderWidth: 1,
-    borderColor: "#DFE4EC",
+    borderColor: Colors.input,
     borderRadius: 10,
     paddingHorizontal: 12,
-    color: "#061A30",
-    backgroundColor: "#FFFFFF",
+    color: Colors.foreground,
+    backgroundColor: Colors.surface,
   },
   multiline: { minHeight: 88, paddingTop: 12, textAlignVertical: "top" },
   toggleRow: {
     minHeight: 54,
     borderWidth: 1,
-    borderColor: "#E8EBF0",
+    borderColor: Colors.border,
     borderRadius: 10,
     paddingHorizontal: 12,
     flexDirection: "row",
@@ -387,39 +436,54 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 12,
   },
-  toggleLabel: { color: "#556274", fontSize: 13, fontFamily: "PlusJakartaSans_600SemiBold", fontWeight: "600" },
+  toggleLabel: {
+    color: Colors.muted,
+    fontSize: 13,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
+  },
   editorActions: { flexDirection: "row", gap: 8 },
   saveButton: {
     flex: 1,
     height: 46,
-    backgroundColor: "#E1225F",
+    backgroundColor: Colors.primary,
     borderRadius: 9,
     alignItems: "center",
     justifyContent: "center",
   },
-  saveText: { color: "#FFFFFF", fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800" },
+  saveText: {
+    color: Colors.surface,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
+  },
   cancelButton: {
     height: 46,
-    paddingHorizontal: 18,
+    paddingHorizontal: 20,
     borderWidth: 1,
-    borderColor: "#DFE4EC",
+    borderColor: Colors.input,
     borderRadius: 9,
     alignItems: "center",
     justifyContent: "center",
   },
-  cancelText: { color: "#061A30", fontFamily: "PlusJakartaSans_700Bold", fontWeight: "700" },
+  cancelText: {
+    color: Colors.foreground,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
+  },
   disabled: { opacity: 0.55 },
   addButton: {
     height: 48,
     borderWidth: 1,
-    borderColor: "#DFE4EC",
+    borderColor: Colors.input,
     borderRadius: 9,
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
-    gap: 6,
+    gap: 8,
   },
-  addText: { color: "#061A30", fontFamily: "PlusJakartaSans_700Bold", fontWeight: "700" },
+  addText: {
+    color: Colors.foreground,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
+  },
 });
-
-

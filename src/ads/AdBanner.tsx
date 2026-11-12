@@ -1,8 +1,5 @@
 import { StyleSheet, View } from "react-native";
-import {
-  BannerAd,
-  BannerAdSize,
-} from "react-native-google-mobile-ads";
+import { BannerAd, BannerAdSize } from "react-native-google-mobile-ads";
 
 import { AD_UNITS } from "./config";
 
@@ -25,6 +22,6 @@ const styles = StyleSheet.create({
     minHeight: 60,
     alignItems: "center",
     justifyContent: "center",
-    marginVertical: 18,
+    marginVertical: 20,
   },
 });

@@ -1,12 +1,10 @@
-﻿import {
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import {
+  AppText as Text,
+  AppTextInput as TextInput,
+  AppPressable as Pressable,
+} from "../ui/primitives";
+import { Colors, Fonts } from "../../constants/theme";
+import { Modal, ScrollView, StyleSheet, View } from "react-native";
 import { useMemo, useState } from "react";
 import { Check, ChevronDown, Search, X } from "lucide-react-native";
 
@@ -37,8 +35,7 @@ export function InstitutionPicker({
   }, [query]);
 
   const isCustom =
-    !!value &&
-    !INSTITUTIONS.some((institution) => institution === value);
+    !!value && !INSTITUTIONS.some((institution) => institution === value);
 
   function select(institution: string) {
     if (institution === "Other institution") {
@@ -63,24 +60,19 @@ export function InstitutionPicker({
   return (
     <>
       <Pressable
-        style={({ pressed }) => [
-          styles.trigger,
-          pressed && styles.pressed,
-        ]}
+        style={({ pressed }) => [styles.trigger, pressed && styles.pressed]}
         onPress={() => setOpen(true)}
         accessibilityRole="button"
         accessibilityLabel={`Choose ${label}`}
       >
         <Text
-          style={[
-            styles.triggerText,
-            !value && styles.placeholder,
-          ]}
+          style={[styles.triggerText, !value && styles.placeholder]}
           numberOfLines={1}
         >
-          {value || `Select ${label.toLowerCase()}${optional ? " (optional)" : ""}`}
+          {value ||
+            `Select ${label.toLowerCase()}${optional ? " (optional)" : ""}`}
         </Text>
-        <ChevronDown size={18} color="#556274" />
+        <ChevronDown strokeWidth={1.5} size={18} color={Colors.muted} />
       </Pressable>
 
       <Modal
@@ -95,7 +87,8 @@ export function InstitutionPicker({
               <View style={{ flex: 1 }}>
                 <Text style={styles.title}>Choose institution</Text>
                 <Text style={styles.subtitle}>
-                  Universities, universities of technology, TVET colleges and private colleges.
+                  Universities, universities of technology, TVET colleges and
+                  private colleges.
                 </Text>
               </View>
               <Pressable
@@ -103,23 +96,23 @@ export function InstitutionPicker({
                 onPress={() => setOpen(false)}
                 accessibilityLabel="Close institution picker"
               >
-                <X size={21} color="#061A30" />
+                <X strokeWidth={1.5} size={18} color={Colors.foreground} />
               </Pressable>
             </View>
 
             <View style={styles.search}>
-              <Search size={18} color="#556274" />
+              <Search strokeWidth={1.5} size={18} color={Colors.muted} />
               <TextInput
                 value={query}
                 onChangeText={setQuery}
                 placeholder="Search institution"
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={Colors.mutedSubtle}
                 style={styles.searchInput}
                 autoCapitalize="words"
               />
               {query ? (
                 <Pressable hitSlop={8} onPress={() => setQuery("")}>
-                  <X size={17} color="#94A3B8" />
+                  <X strokeWidth={1.5} size={18} color={Colors.mutedSubtle} />
                 </Pressable>
               ) : null}
             </View>
@@ -131,7 +124,7 @@ export function InstitutionPicker({
                   value={otherValue}
                   onChangeText={setOtherValue}
                   placeholder="Type your institution name"
-                  placeholderTextColor="#94A3B8"
+                  placeholderTextColor={Colors.mutedSubtle}
                   style={styles.otherInput}
                   autoFocus
                 />
@@ -169,7 +162,13 @@ export function InstitutionPicker({
                     }}
                   >
                     <Text style={styles.optionText}>No institution</Text>
-                    {!value ? <Check size={18} color="#E1225F" /> : null}
+                    {!value ? (
+                      <Check
+                        strokeWidth={1.5}
+                        size={18}
+                        color={Colors.primary}
+                      />
+                    ) : null}
                   </Pressable>
                 ) : null}
 
@@ -181,10 +180,7 @@ export function InstitutionPicker({
                   return (
                     <Pressable
                       key={institution}
-                      style={[
-                        styles.option,
-                        selected && styles.optionSelected,
-                      ]}
+                      style={[styles.option, selected && styles.optionSelected]}
                       onPress={() => select(institution)}
                     >
                       <Text
@@ -196,7 +192,11 @@ export function InstitutionPicker({
                         {institution}
                       </Text>
                       {selected ? (
-                        <Check size={18} color="#E1225F" />
+                        <Check
+                          strokeWidth={1.5}
+                          size={18}
+                          color={Colors.primary}
+                        />
                       ) : null}
                     </Pressable>
                   );
@@ -208,7 +208,7 @@ export function InstitutionPicker({
                       Institution not listed?
                     </Text>
                     <Text style={styles.noResultsText}>
-                      Choose "Other institution" and enter the name.
+                      Choose “Other institution” and enter the name.
                     </Text>
                     <Pressable
                       style={styles.primary}
@@ -236,20 +236,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
     borderWidth: 1,
-    borderColor: "#DFE4EC",
+    borderColor: Colors.input,
     borderRadius: 8,
-    backgroundColor: "#FFFFFF",
-    paddingHorizontal: 13,
+    backgroundColor: Colors.surface,
+    paddingHorizontal: 12,
   },
   triggerText: {
     flex: 1,
-    color: "#061A30",
+    color: Colors.foreground,
     fontSize: 13,
-    fontFamily: "PlusJakartaSans_500Medium",
+    fontFamily: Fonts.medium,
     fontWeight: "500",
   },
   placeholder: {
-    color: "#94A3B8",
+    color: Colors.mutedSubtle,
   },
   pressed: {
     opacity: 0.72,
@@ -261,7 +261,7 @@ const styles = StyleSheet.create({
   },
   sheet: {
     maxHeight: "86%",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
     borderTopLeftRadius: 12,
     borderTopRightRadius: 12,
     paddingHorizontal: 16,
@@ -279,16 +279,16 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   title: {
-    color: "#061A30",
-    fontSize: 19,
-    lineHeight: 25,
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontWeight: "700",
+    color: Colors.foreground,
+    fontSize: 20,
+    lineHeight: 28,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
   },
   subtitle: {
-    color: "#556274",
-    fontSize: 11,
-    lineHeight: 17,
+    color: Colors.muted,
+    fontSize: 12,
+    lineHeight: 20,
     marginTop: 2,
     paddingRight: 8,
   },
@@ -300,14 +300,14 @@ const styles = StyleSheet.create({
     marginTop: 12,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: "#DFE4EC",
+    borderColor: Colors.input,
     borderRadius: 8,
-    backgroundColor: "#F6F7F9",
+    backgroundColor: Colors.background,
     paddingHorizontal: 12,
   },
   searchInput: {
     flex: 1,
-    color: "#061A30",
+    color: Colors.foreground,
     fontSize: 13,
   },
   list: {
@@ -317,41 +317,41 @@ const styles = StyleSheet.create({
     minHeight: 48,
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    paddingHorizontal: 10,
+    gap: 12,
+    paddingHorizontal: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#E8EBF0",
+    borderBottomColor: Colors.border,
   },
   optionSelected: {
-    backgroundColor: "#FDEEF3",
+    backgroundColor: Colors.primarySoft,
   },
   optionText: {
     flex: 1,
-    color: "#061A30",
+    color: Colors.foreground,
     fontSize: 12,
-    lineHeight: 18,
+    lineHeight: 20,
   },
   optionTextSelected: {
-    color: "#B0164A",
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontWeight: "700",
+    color: Colors.primaryPressed,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
   },
   otherBox: {
-    marginTop: 10,
+    marginTop: 12,
   },
   otherLabel: {
-    color: "#061A30",
+    color: Colors.foreground,
     fontSize: 12,
-    fontWeight: "700",
-    marginBottom: 7,
+    fontWeight: "500",
+    marginBottom: 8,
   },
   otherInput: {
     minHeight: 48,
     borderWidth: 1,
-    borderColor: "#DFE4EC",
+    borderColor: Colors.input,
     borderRadius: 8,
     paddingHorizontal: 12,
-    color: "#061A30",
+    color: Colors.foreground,
     fontSize: 13,
   },
   otherActions: {
@@ -362,31 +362,31 @@ const styles = StyleSheet.create({
   },
   secondary: {
     minHeight: 46,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "#DFE4EC",
+    borderColor: Colors.input,
     borderRadius: 8,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
   },
   secondaryText: {
-    color: "#061A30",
+    color: Colors.foreground,
     fontSize: 12,
-    fontWeight: "700",
+    fontWeight: "500",
   },
   primary: {
     minHeight: 46,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: 8,
-    backgroundColor: "#E1225F",
+    backgroundColor: Colors.primary,
   },
   primaryText: {
-    color: "#FFFFFF",
+    color: Colors.surface,
     fontSize: 12,
-    fontWeight: "700",
+    fontWeight: "500",
   },
   disabled: {
     opacity: 0.45,
@@ -397,14 +397,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   noResultsTitle: {
-    color: "#061A30",
+    color: Colors.foreground,
     fontSize: 14,
-    fontWeight: "700",
+    fontWeight: "500",
   },
   noResultsText: {
-    color: "#556274",
-    fontSize: 11,
-    lineHeight: 17,
+    color: Colors.muted,
+    fontSize: 12,
+    lineHeight: 20,
     textAlign: "center",
     marginTop: 4,
     marginBottom: 12,

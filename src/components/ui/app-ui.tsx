@@ -1,14 +1,11 @@
 import { AppPressable as Pressable, AppText as Text } from "./primitives";
-import { useReducedMotion } from "../../hooks/use-reduced-motion";
 import { Colors, Fonts, Radius } from "../../constants/theme";
 import {
-  Animated,
   StyleSheet,
   View,
   type AccessibilityRole,
   type ViewStyle,
 } from "react-native";
-import { useEffect, useState } from "react";
 import { AlertCircle, Inbox } from "lucide-react-native";
 
 type ScreenHeaderProps = {
@@ -55,7 +52,7 @@ export function EmptyState({
   return (
     <View style={styles.empty}>
       <View style={styles.emptyIcon}>
-        <Inbox size={22} color={Colors.primary} strokeWidth={2} />
+        <Inbox size={18} color={Colors.primary} strokeWidth={1.5} />
       </View>
 
       <Text style={styles.emptyTitle} maxFontSizeMultiplier={1.35}>
@@ -91,7 +88,7 @@ type InlineErrorStateProps = {
 export function InlineErrorState({ message, onRetry }: InlineErrorStateProps) {
   return (
     <View style={styles.error}>
-      <AlertCircle size={18} color={Colors.error} />
+      <AlertCircle strokeWidth={1.5} size={18} color={Colors.error} />
       <View style={styles.errorCopy}>
         <Text accessibilityRole="alert" style={styles.errorText}>
           {message}
@@ -146,36 +143,9 @@ export function PressableRow({
 }
 
 export function SkeletonJobCard() {
-  const reducedMotion = useReducedMotion();
-  const [opacity] = useState(() => new Animated.Value(0.55));
-
-  useEffect(() => {
-    if (reducedMotion) {
-      opacity.setValue(0.7);
-      return;
-    }
-    const animation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(opacity, {
-          toValue: 1,
-          duration: 650,
-          useNativeDriver: true,
-        }),
-        Animated.timing(opacity, {
-          toValue: 0.55,
-          duration: 650,
-          useNativeDriver: true,
-        }),
-      ]),
-    );
-
-    animation.start();
-    return () => animation.stop();
-  }, [opacity, reducedMotion]);
-
   return (
-    <Animated.View
-      style={[styles.skeletonCard, { opacity }]}
+    <View
+      style={[styles.skeletonCard, { opacity: 0.7 }]}
       accessibilityLabel="Loading opportunity"
     >
       <View style={styles.skeletonLogo} />
@@ -184,7 +154,7 @@ export function SkeletonJobCard() {
         <View style={[styles.skeletonLine, { width: "54%" }]} />
         <View style={[styles.skeletonLineSmall, { width: "68%" }]} />
       </View>
-    </Animated.View>
+    </View>
   );
 }
 
@@ -194,23 +164,23 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingTop: 18,
-    paddingBottom: 14,
+    paddingTop: 20,
+    paddingBottom: 16,
   },
   headerCopy: { flex: 1, paddingRight: 12 },
   title: {
     color: Colors.foreground,
     fontFamily: Fonts.editorial,
-    fontWeight: "700",
+    fontWeight: "400",
     fontSize: 26,
     lineHeight: 32,
   },
   subtitle: {
     color: Colors.muted,
     fontFamily: Fonts.editorial,
-    fontWeight: "500",
+    fontWeight: "400",
     fontSize: 13,
-    lineHeight: 19,
+    lineHeight: 20,
     marginTop: 4,
   },
   empty: {
@@ -225,13 +195,13 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primarySoft,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 14,
+    marginBottom: 16,
   },
   emptyTitle: {
     color: Colors.foreground,
     fontFamily: Fonts.editorial,
-    fontWeight: "700",
-    fontSize: 17,
+    fontWeight: "400",
+    fontSize: 18,
     textAlign: "center",
   },
   emptyMessage: {
@@ -239,14 +209,14 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.medium,
     fontWeight: "500",
     fontSize: 13,
-    lineHeight: 19,
+    lineHeight: 20,
     textAlign: "center",
     maxWidth: 320,
-    marginTop: 6,
+    marginTop: 8,
   },
   secondaryButton: {
     minHeight: 44,
-    marginTop: 18,
+    marginTop: 20,
     paddingHorizontal: 16,
     borderRadius: Radius.sm,
     borderWidth: 1,
@@ -258,7 +228,7 @@ const styles = StyleSheet.create({
   secondaryButtonText: {
     color: Colors.foreground,
     fontFamily: Fonts.bold,
-    fontWeight: "700",
+    fontWeight: "500",
     fontSize: 13,
   },
   pressed: { opacity: 0.72 },
@@ -266,19 +236,19 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     marginHorizontal: 16,
-    padding: 13,
+    padding: 12,
     borderRadius: Radius.sm,
     borderWidth: 1,
     borderColor: Colors.errorBorder,
     backgroundColor: Colors.surface,
   },
-  errorCopy: { flex: 1, marginLeft: 9 },
+  errorCopy: { flex: 1, marginLeft: 8 },
   errorText: {
     color: Colors.foreground,
     fontFamily: Fonts.medium,
     fontWeight: "500",
     fontSize: 13,
-    lineHeight: 18,
+    lineHeight: 20,
   },
   retry: {
     alignSelf: "flex-start",
@@ -286,9 +256,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   retryText: {
-    color: Colors.primary,
+    color: Colors.primaryPressed,
     fontFamily: Fonts.bold,
-    fontWeight: "700",
+    fontWeight: "500",
     fontSize: 13,
   },
   card: {
@@ -314,8 +284,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
     borderRadius: Radius.sm,
-    padding: 14,
-    marginBottom: 10,
+    padding: 16,
+    marginBottom: 12,
   },
   skeletonLogo: {
     width: 48,

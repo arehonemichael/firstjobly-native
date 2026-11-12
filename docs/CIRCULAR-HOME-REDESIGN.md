@@ -1,5 +1,9 @@
 # Circular navigation and editorial Home
 
+The subsequent app-wide refinement is documented in [UNSLOP.md](UNSLOP.md). It
+retains this navigation and editorial direction while updating copy, type and UI
+details.
+
 These are source changes based on GitHub main, not an update ZIP. The pink/navy brand colours, existing API integration, native ad behaviour, and all seven destinations are preserved.
 
 ## What changed
@@ -15,8 +19,8 @@ These are source changes based on GitHub main, not an update ZIP. The pink/navy 
 
 These screenshots contain isolated test fixtures, not real users, companies, account progress, or job listings.
 
-| Mobile Home | Expanded navigation |
-| --- | --- |
+| Mobile Home                                                                   | Expanded navigation                                                                         |
+| ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
 | ![Editorial Home using a test profile](screenshots/editorial-home-mobile.png) | ![Six labelled destinations arranged in an arc](screenshots/circular-navigation-mobile.png) |
 
 ![Desktop Home with full navigation, using test fixtures](screenshots/editorial-home-desktop.png)

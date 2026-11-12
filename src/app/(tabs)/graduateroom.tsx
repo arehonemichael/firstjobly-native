@@ -1,14 +1,16 @@
-import { Fonts } from "../../constants/theme";
+import {
+  AppText as Text,
+  AppTextInput as TextInput,
+  AppPressable as Pressable,
+} from "../../components/ui/primitives";
+import { Fonts, Colors } from "../../constants/theme";
 import {
   ActivityIndicator,
   FlatList,
   Modal,
-  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   View,
 } from "react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -39,34 +41,29 @@ import {
   type VerificationState,
 } from "../../lib/graduateroom";
 
-const PINK = "#E1225F";
-const NAVY = "#061A30";
-const MUTED = "#556274";
-const BORDER = "#E8EBF0";
-const SURFACE = "#F6F7F9";
+const PINK = Colors.primary;
+const NAVY = Colors.foreground;
+const MUTED = Colors.muted;
+const BORDER = Colors.border;
+const SURFACE = Colors.background;
 
-const TYPE_ACCENTS: Record<string, { bg: string; fg: string }> = {
-  question: { bg: "#EEF2FF", fg: "#4338CA" },
-  cv_review: { bg: "#FDEEF3", fg: "#B0164A" },
-  interview_experience: { bg: "#ECFDF5", fg: "#047857" },
-  referral_request: { bg: "#FFF7ED", fg: "#C2410C" },
-  company_review: { bg: "#F0F9FF", fg: "#0369A1" },
-  success_story: { bg: "#FEFCE8", fg: "#A16207" },
-};
-
-const AVATAR_PALETTE = [
-  "#E1225F",
-  "#7057FF",
-  "#0369A1",
-  "#047857",
-  "#C2410C",
-  "#A16207",
-  "#4338CA",
-];
+const TYPE_ACCENTS: Record<string, { bg: string; fg: string }> =
+  Object.fromEntries(
+    [
+      "question",
+      "cv_review",
+      "interview_experience",
+      "referral_request",
+      "company_review",
+      "success_story",
+    ].map((type) => [type, { bg: Colors.secondary, fg: Colors.muted }]),
+  );
+const AVATAR_PALETTE = [Colors.foreground, Colors.muted];
 
 function avatarColor(seed: string) {
   let hash = 0;
-  for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
+  for (let i = 0; i < seed.length; i++)
+    hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
   return AVATAR_PALETTE[hash % AVATAR_PALETTE.length];
 }
 
@@ -130,7 +127,7 @@ function PostCard({
               {displayName}
             </Text>
             {post.author.verified ? (
-              <ShieldCheck size={13} color={PINK} />
+              <ShieldCheck strokeWidth={1.5} size={18} color={PINK} />
             ) : null}
           </View>
           <Text style={s.authorMeta} numberOfLines={1}>
@@ -143,10 +140,7 @@ function PostCard({
         </View>
 
         <View style={[s.typeBadge, { backgroundColor: accent.bg }]}>
-          <Text
-            style={[s.typeText, { color: accent.fg }]}
-            numberOfLines={1}
-          >
+          <Text style={[s.typeText, { color: accent.fg }]} numberOfLines={1}>
             {POST_TYPE_LABELS[post.postType]}
           </Text>
         </View>
@@ -170,7 +164,8 @@ function PostCard({
           }}
         >
           <ChevronUp
-            size={17}
+            strokeWidth={1.5}
+            size={18}
             color={post.viewerVoted ? PINK : MUTED}
           />
           <Text style={[s.actionText, post.viewerVoted && s.actionTextActive]}>
@@ -179,7 +174,7 @@ function PostCard({
         </Pressable>
 
         <View style={s.action}>
-          <MessageCircle size={16} color={MUTED} />
+          <MessageCircle strokeWidth={1.5} size={18} color={MUTED} />
           <Text style={s.actionText}>{post.commentCount}</Text>
         </View>
 
@@ -195,9 +190,10 @@ function PostCard({
           }}
         >
           <Bookmark
-            size={16}
+            strokeWidth={1.5}
+            size={18}
             color={post.viewerSaved ? PINK : MUTED}
-            fill={post.viewerSaved ? "#FDEEF3" : "transparent"}
+            fill={post.viewerSaved ? Colors.primarySoft : "transparent"}
           />
           <Text style={[s.actionText, post.viewerSaved && s.actionTextActive]}>
             {post.viewerSaved ? "Saved" : "Save"}
@@ -212,8 +208,9 @@ export default function GraduateRoom() {
   const { userId, loading: authLoading, isAuthenticated } = useAuth();
   const bottom = useScreenBottomPadding(true);
 
-  const [verification, setVerification] =
-    useState<VerificationState | null>(null);
+  const [verification, setVerification] = useState<VerificationState | null>(
+    null,
+  );
   const [posts, setPosts] = useState<CommunityPost[]>([]);
   const [scope, setScope] = useState<PostScope>("all");
   const [postType, setPostType] = useState("");
@@ -232,9 +229,8 @@ export default function GraduateRoom() {
     if (!userId) return;
     try {
       setError("");
-      const state = await graduateRoomApi<VerificationState>(
-        "verification-state",
-      );
+      const state =
+        await graduateRoomApi<VerificationState>("verification-state");
       setVerification(state);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not load GraduateRoom.");
@@ -253,8 +249,7 @@ export default function GraduateRoom() {
     [institution, postType, scope, search],
   );
 
-  const activeFilterCount =
-    (postType ? 1 : 0) + (institution ? 1 : 0);
+  const activeFilterCount = (postType ? 1 : 0) + (institution ? 1 : 0);
 
   const loadPosts = useCallback(
     async (refresh = false) => {
@@ -313,13 +308,21 @@ export default function GraduateRoom() {
     return (
       <SafeAreaView style={s.centerPage} edges={["top", "bottom"]}>
         <View style={s.gateIcon}>
-          <GraduationCap size={26} color={PINK} />
+          <GraduationCap strokeWidth={1.5} size={26} color={PINK} />
         </View>
         <Text style={s.gateTitle}>GraduateRoom</Text>
         <Text style={s.gateText}>
           Sign in to join the verified student and graduate community.
         </Text>
-        <Pressable style={s.primary} onPress={() => router.push({ pathname: "/auth", params: { returnTo: "/graduateroom" } })}>
+        <Pressable
+          style={s.primary}
+          onPress={() =>
+            router.push({
+              pathname: "/auth",
+              params: { returnTo: "/graduateroom" },
+            })
+          }
+        >
           <Text style={s.primaryText}>Sign in</Text>
         </Pressable>
       </SafeAreaView>
@@ -331,7 +334,7 @@ export default function GraduateRoom() {
     return (
       <SafeAreaView style={s.centerPage} edges={["top", "bottom"]}>
         <View style={s.gateIcon}>
-          <ShieldCheck size={26} color={PINK} />
+          <ShieldCheck strokeWidth={1.5} size={26} color={PINK} />
         </View>
         <Text style={s.gateTitle}>Verify to join GraduateRoom</Text>
         <Text style={s.gateText}>
@@ -394,20 +397,20 @@ export default function GraduateRoom() {
                 style={({ pressed }) => [s.newButton, pressed && s.pressed]}
                 onPress={() => router.push("/graduateroom/new")}
               >
-                <Plus size={17} color="#FFFFFF" />
+                <Plus strokeWidth={1.5} size={18} color={Colors.surface} />
                 <Text style={s.newButtonText}>Post</Text>
               </Pressable>
             </View>
 
             <View style={s.searchRow}>
               <View style={s.searchBox}>
-                <Search size={17} color={MUTED} />
+                <Search strokeWidth={1.5} size={18} color={MUTED} />
                 <TextInput
                   value={searchDraft}
                   onChangeText={setSearchDraft}
                   onSubmitEditing={() => setSearch(searchDraft)}
                   placeholder="Search discussions"
-                  placeholderTextColor="#94A3B8"
+                  placeholderTextColor={Colors.mutedSubtle}
                   style={s.searchInput}
                   returnKeyType="search"
                 />
@@ -419,7 +422,7 @@ export default function GraduateRoom() {
                       setSearch("");
                     }}
                   >
-                    <X size={16} color="#94A3B8" />
+                    <X strokeWidth={1.5} size={18} color={Colors.mutedSubtle} />
                   </Pressable>
                 ) : null}
               </View>
@@ -432,7 +435,8 @@ export default function GraduateRoom() {
                 onPress={() => setFilterOpen(true)}
               >
                 <Filter
-                  size={17}
+                  strokeWidth={1.5}
+                  size={18}
                   color={activeFilterCount > 0 ? PINK : MUTED}
                 />
                 {activeFilterCount > 0 ? (
@@ -470,7 +474,7 @@ export default function GraduateRoom() {
           loadingPosts ? null : (
             <View style={s.empty}>
               <View style={s.emptyIcon}>
-                <MessageCircle size={26} color={PINK} />
+                <MessageCircle strokeWidth={1.5} size={26} color={PINK} />
               </View>
               <Text style={s.emptyTitle}>No discussions found</Text>
               <Text style={s.emptyText}>
@@ -498,7 +502,7 @@ export default function GraduateRoom() {
             <View style={s.sheetHeader}>
               <Text style={s.sheetTitle}>Filter discussions</Text>
               <Pressable style={s.icon44} onPress={() => setFilterOpen(false)}>
-                <X size={20} color={NAVY} />
+                <X strokeWidth={1.5} size={18} color={NAVY} />
               </Pressable>
             </View>
 
@@ -513,7 +517,8 @@ export default function GraduateRoom() {
                 </Text>
               </Pressable>
               {POST_TYPES.map((type) => {
-                const accent = TYPE_ACCENTS[type.value] ?? TYPE_ACCENTS.question;
+                const accent =
+                  TYPE_ACCENTS[type.value] ?? TYPE_ACCENTS.question;
                 const active = postType === type.value;
                 return (
                   <Pressable
@@ -524,9 +529,7 @@ export default function GraduateRoom() {
                     <View
                       style={[s.optionDot, { backgroundColor: accent.fg }]}
                     />
-                    <Text
-                      style={[s.optionText, active && s.optionTextActive]}
-                    >
+                    <Text style={[s.optionText, active && s.optionTextActive]}>
                       {type.label}
                     </Text>
                   </Pressable>
@@ -578,36 +581,38 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingTop: 16,
-    paddingBottom: 14,
+    paddingBottom: 16,
   },
-  title: { fontFamily: Fonts.editorial, fontWeight: "400",
+  title: {
+    fontFamily: Fonts.editorial,
+    fontWeight: "400",
     color: NAVY,
     fontSize: 25,
-    lineHeight: 31,
+    lineHeight: 32,
   },
   subtitle: {
     color: MUTED,
     fontSize: 12,
-    lineHeight: 18,
+    lineHeight: 20,
     marginTop: 2,
-    fontFamily: "PlusJakartaSans_500Medium",
+    fontFamily: Fonts.medium,
     fontWeight: "500",
   },
   newButton: {
     minHeight: 42,
     flexDirection: "row",
-    gap: 6,
+    gap: 8,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 15,
+    paddingHorizontal: 16,
     borderRadius: 10,
     backgroundColor: PINK,
   },
   newButtonText: {
-    color: "#FFFFFF",
+    color: Colors.surface,
     fontSize: 13,
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontWeight: "700",
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
   },
   searchRow: { flexDirection: "row", gap: 8, marginBottom: 12 },
   searchBox: {
@@ -615,9 +620,9 @@ const s = StyleSheet.create({
     minHeight: 46,
     flexDirection: "row",
     alignItems: "center",
-    gap: 9,
-    paddingHorizontal: 13,
-    backgroundColor: "#FFFFFF",
+    gap: 8,
+    paddingHorizontal: 12,
+    backgroundColor: Colors.surface,
     borderWidth: 1,
     borderColor: BORDER,
     borderRadius: 10,
@@ -626,7 +631,7 @@ const s = StyleSheet.create({
     flex: 1,
     color: NAVY,
     fontSize: 14,
-    fontFamily: "PlusJakartaSans_500Medium",
+    fontFamily: Fonts.medium,
     fontWeight: "500",
   },
   filterButton: {
@@ -635,11 +640,14 @@ const s = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
     borderColor: BORDER,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
     alignItems: "center",
     justifyContent: "center",
   },
-  filterButtonActive: { backgroundColor: "#FDEEF3", borderColor: PINK },
+  filterButtonActive: {
+    backgroundColor: Colors.primarySoft,
+    borderColor: PINK,
+  },
   filterCount: {
     position: "absolute",
     top: -4,
@@ -652,13 +660,13 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  filterCountText: { color: "#FFFFFF", fontSize: 9, fontWeight: "800" },
+  filterCountText: { color: Colors.surface, fontSize: 12, fontWeight: "500" },
   segmented: {
     flexDirection: "row",
-    backgroundColor: "#EEF0F3",
+    backgroundColor: Colors.secondary,
     borderRadius: 10,
     padding: 3,
-    marginBottom: 14,
+    marginBottom: 16,
   },
   segment: {
     flex: 1,
@@ -668,7 +676,7 @@ const s = StyleSheet.create({
     borderRadius: 8,
   },
   segmentActive: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
     shadowColor: "#000000",
     shadowOpacity: 0.06,
     shadowRadius: 4,
@@ -678,17 +686,17 @@ const s = StyleSheet.create({
   segmentText: {
     color: MUTED,
     fontSize: 12,
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontWeight: "600",
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
   },
   segmentTextActive: { color: NAVY },
   postCard: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
     borderWidth: 1,
     borderColor: BORDER,
     borderRadius: 12,
-    padding: 14,
-    marginBottom: 10,
+    padding: 16,
+    marginBottom: 12,
   },
   authorRow: { flexDirection: "row", alignItems: "center" },
   avatar: {
@@ -699,58 +707,58 @@ const s = StyleSheet.create({
     justifyContent: "center",
   },
   avatarText: {
-    color: "#FFFFFF",
+    color: Colors.surface,
     fontSize: 13,
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontWeight: "700",
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
   },
-  authorCopy: { flex: 1, minWidth: 0, marginLeft: 10, marginRight: 8 },
+  authorCopy: { flex: 1, minWidth: 0, marginLeft: 12, marginRight: 8 },
   authorNameRow: { flexDirection: "row", alignItems: "center", gap: 4 },
   authorName: {
     color: NAVY,
     fontSize: 12.5,
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontWeight: "700",
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
   },
   authorMeta: {
-    color: "#94A3B8",
-    fontSize: 10,
+    color: Colors.mutedSubtle,
+    fontSize: 12,
     marginTop: 2,
-    fontFamily: "PlusJakartaSans_500Medium",
+    fontFamily: Fonts.medium,
     fontWeight: "500",
   },
   typeBadge: {
     maxWidth: 110,
     paddingHorizontal: 8,
-    paddingVertical: 5,
+    paddingVertical: 4,
     borderRadius: 7,
   },
   typeText: {
-    fontSize: 9.5,
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontWeight: "700",
+    fontSize: 12,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
   },
   postTitle: {
     color: NAVY,
     fontSize: 15.5,
-    lineHeight: 21,
+    lineHeight: 24,
     marginTop: 12,
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontWeight: "700",
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
   },
   postBody: {
     color: MUTED,
     fontSize: 13,
-    lineHeight: 19.5,
-    marginTop: 5,
-    fontFamily: "PlusJakartaSans_400Regular",
+    lineHeight: 20,
+    marginTop: 4,
+    fontFamily: Fonts.regular,
     fontWeight: "400",
   },
   actionRow: {
     flexDirection: "row",
-    gap: 6,
+    gap: 8,
     marginTop: 12,
-    paddingTop: 10,
+    paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: BORDER,
   },
@@ -758,42 +766,42 @@ const s = StyleSheet.create({
     minHeight: 34,
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
-    paddingHorizontal: 9,
+    gap: 4,
+    paddingHorizontal: 8,
     borderRadius: 7,
   },
-  actionActive: { backgroundColor: "#FDEEF3" },
+  actionActive: { backgroundColor: Colors.primarySoft },
   actionText: {
     color: MUTED,
-    fontSize: 11,
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontWeight: "600",
+    fontSize: 12,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
   },
-  actionTextActive: { color: "#B0164A" },
+  actionTextActive: { color: Colors.primaryPressed },
   gateIcon: {
     width: 52,
     height: 52,
     borderRadius: 12,
-    backgroundColor: "#FDEEF3",
+    backgroundColor: Colors.primarySoft,
     alignItems: "center",
     justifyContent: "center",
   },
   gateTitle: {
     color: NAVY,
-    fontSize: 21,
+    fontSize: 20,
     textAlign: "center",
     marginTop: 16,
-    fontFamily: "PlusJakartaSans_800ExtraBold",
-    fontWeight: "800",
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
   },
   gateText: {
     color: MUTED,
     fontSize: 13,
     lineHeight: 20,
     textAlign: "center",
-    marginTop: 7,
+    marginTop: 8,
     maxWidth: 330,
-    fontFamily: "PlusJakartaSans_500Medium",
+    fontFamily: Fonts.medium,
     fontWeight: "500",
   },
   primary: {
@@ -803,28 +811,28 @@ const s = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: PINK,
     borderRadius: 10,
-    marginTop: 18,
+    marginTop: 20,
   },
   primarySmall: {
     minHeight: 46,
-    paddingHorizontal: 18,
+    paddingHorizontal: 20,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: PINK,
     borderRadius: 10,
   },
   primaryText: {
-    color: "#FFFFFF",
+    color: Colors.surface,
     fontSize: 13,
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontWeight: "700",
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
   },
   secondary: {
     minHeight: 46,
-    paddingHorizontal: 18,
+    paddingHorizontal: 20,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
     borderWidth: 1,
     borderColor: BORDER,
     borderRadius: 10,
@@ -832,15 +840,15 @@ const s = StyleSheet.create({
   secondaryText: {
     color: NAVY,
     fontSize: 13,
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontWeight: "700",
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
   },
   error: {
-    color: "#DC2626",
+    color: Colors.error,
     fontSize: 12,
-    lineHeight: 18,
-    marginBottom: 10,
-    fontFamily: "PlusJakartaSans_500Medium",
+    lineHeight: 20,
+    marginBottom: 12,
+    fontFamily: Fonts.medium,
     fontWeight: "500",
   },
   empty: {
@@ -852,21 +860,23 @@ const s = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 14,
-    backgroundColor: "#FDEEF3",
+    backgroundColor: Colors.primarySoft,
     alignItems: "center",
     justifyContent: "center",
   },
-  emptyTitle: { fontFamily: Fonts.editorial, fontWeight: "400",
+  emptyTitle: {
+    fontFamily: Fonts.editorial,
+    fontWeight: "400",
     color: NAVY,
     fontSize: 16,
-    marginTop: 14,
+    marginTop: 16,
   },
   emptyText: {
     color: MUTED,
     fontSize: 12,
-    lineHeight: 18,
+    lineHeight: 20,
     textAlign: "center",
-    marginTop: 5,
+    marginTop: 4,
   },
   pressed: { opacity: 0.72 },
   modalBackdrop: {
@@ -875,7 +885,7 @@ const s = StyleSheet.create({
     backgroundColor: "rgba(6,26,48,0.28)",
   },
   sheet: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
     padding: 16,
     paddingBottom: 28,
     borderTopLeftRadius: 14,
@@ -885,13 +895,13 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 10,
+    marginBottom: 12,
   },
   sheetTitle: {
     color: NAVY,
     fontSize: 18,
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontWeight: "700",
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
   },
   icon44: {
     width: 44,
@@ -903,56 +913,56 @@ const s = StyleSheet.create({
     color: NAVY,
     fontSize: 12,
     marginTop: 12,
-    marginBottom: 6,
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontWeight: "700",
+    marginBottom: 8,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
   },
   option: {
     minHeight: 44,
     flexDirection: "row",
     alignItems: "center",
-    gap: 9,
+    gap: 8,
     paddingHorizontal: 12,
     borderRadius: 8,
   },
-  optionActive: { backgroundColor: "#FDEEF3" },
+  optionActive: { backgroundColor: Colors.primarySoft },
   optionDot: { width: 8, height: 8, borderRadius: 4 },
   optionText: { color: MUTED, fontSize: 13 },
-  optionTextActive: { color: "#B0164A", fontWeight: "700" },
+  optionTextActive: { color: Colors.primaryPressed, fontWeight: "500" },
   sheetActions: {
     flexDirection: "row",
     justifyContent: "flex-end",
     gap: 8,
-    marginTop: 18,
+    marginTop: 20,
   },
   skeletonWrap: { paddingVertical: 8, paddingHorizontal: 16 },
   skeletonCard: {
     height: 164,
     borderRadius: 12,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
     borderWidth: 1,
     borderColor: BORDER,
-    padding: 14,
-    marginBottom: 10,
+    padding: 16,
+    marginBottom: 12,
   },
   skeletonLineShort: {
     width: "35%",
     height: 10,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: Colors.secondary,
     borderRadius: 4,
   },
   skeletonTitle: {
     width: "78%",
     height: 17,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: Colors.secondary,
     borderRadius: 4,
-    marginTop: 22,
+    marginTop: 24,
   },
   skeletonLine: {
     width: "94%",
     height: 11,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: Colors.secondary,
     borderRadius: 4,
-    marginTop: 10,
+    marginTop: 12,
   },
 });

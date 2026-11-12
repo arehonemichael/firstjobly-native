@@ -1,20 +1,23 @@
-import { Fonts } from "../../constants/theme";
+import { JobMetadata } from "../../components/ui/job-metadata";
+import {
+  AppText as Text,
+  AppTextInput as TextInput,
+  AppTouchableOpacity as TouchableOpacity,
+  AppPressable as Pressable,
+} from "../../components/ui/primitives";
+import { Fonts, Colors } from "../../constants/theme";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
   Modal,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
   View,
 } from "react-native";
 
-import { Ionicons } from "@expo/vector-icons";
+import { Icon as Ionicons } from "../../components/ui/icon";
 import { Image as ExpoImage } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -58,17 +61,11 @@ function SelectBlock({
 
       <View style={styles.optionWrap}>
         <TouchableOpacity
-          style={[
-            styles.option,
-            !value && styles.optionSelected,
-          ]}
+          style={[styles.option, !value && styles.optionSelected]}
           onPress={() => onChange(undefined)}
         >
           <Text
-            style={[
-              styles.optionText,
-              !value && styles.optionSelectedText,
-            ]}
+            style={[styles.optionText, !value && styles.optionSelectedText]}
           >
             Any
           </Text>
@@ -80,10 +77,7 @@ function SelectBlock({
           return (
             <TouchableOpacity
               key={item.value}
-              style={[
-                styles.option,
-                selected && styles.optionSelected,
-              ]}
+              style={[styles.option, selected && styles.optionSelected]}
               onPress={() => onChange(item.value)}
             >
               <Text
@@ -109,9 +103,7 @@ const JobCard = memo(function JobCard({
   job: Job;
   onPress: () => void;
 }) {
-  const location = job.city
-    ? `${job.city}, ${job.province}`
-    : job.province;
+  const location = job.city ? `${job.city}, ${job.province}` : job.province;
 
   const closing = daysUntil(job.closing_date);
 
@@ -139,9 +131,7 @@ const JobCard = memo(function JobCard({
 
       <View style={styles.jobInfo}>
         <View style={styles.titleRow}>
-          <Text style={styles.jobTitle} numberOfLines={2}>
-            {job.title}
-          </Text>
+          <Text style={styles.jobTitle}>{job.title}</Text>
 
           {job.is_urgent && (
             <View style={styles.urgent}>
@@ -150,22 +140,17 @@ const JobCard = memo(function JobCard({
           )}
         </View>
 
-        <Text style={styles.company}>
-          {job.company_name}
-        </Text>
+        <Text style={styles.company}>{job.company_name}</Text>
 
         <View style={styles.meta}>
-          <Ionicons
-            name="location-outline"
-            size={14}
-            color="#556274"
-          />
+          <Ionicons name="location-outline" size={18} color={Colors.muted} />
 
           <Text style={styles.metaText} numberOfLines={1}>
             {location}
           </Text>
         </View>
 
+        <JobMetadata job={job} />
         <View style={styles.cardFooter}>
           <View style={styles.categoryBadge}>
             <Text style={styles.categoryText}>
@@ -174,25 +159,14 @@ const JobCard = memo(function JobCard({
           </View>
 
           {closing !== null && closing >= 0 && (
-            <Text
-              style={[
-                styles.closing,
-                closing <= 7 && styles.closingSoon,
-              ]}
-            >
-              {closing === 0
-                ? "Closes today"
-                : `${closing} days left`}
+            <Text style={[styles.closing, closing <= 7 && styles.closingSoon]}>
+              {closing === 0 ? "Closes today" : `${closing} days left`}
             </Text>
           )}
         </View>
       </View>
 
-      <Ionicons
-        name="chevron-forward"
-        size={19}
-        color="#94A3B8"
-      />
+      <Ionicons name="chevron-forward" size={18} color={Colors.mutedSubtle} />
     </TouchableOpacity>
   );
 });
@@ -210,25 +184,16 @@ export default function JobsScreen() {
   const [filters, setFilters] = useState<JobFilters>(() => ({
     ...EMPTY_FILTERS,
     q: typeof params.q === "string" ? params.q : "",
-    category:
-      typeof params.category === "string"
-        ? params.category
-        : undefined,
+    category: typeof params.category === "string" ? params.category : undefined,
     experience:
-      typeof params.experience === "string"
-        ? params.experience
-        : undefined,
-    province:
-      typeof params.province === "string"
-        ? params.province
-        : undefined,
+      typeof params.experience === "string" ? params.experience : undefined,
+    province: typeof params.province === "string" ? params.province : undefined,
   }));
 
-  const [draftFilters, setDraftFilters] =
-    useState<JobFilters>(filters);
+  const [draftFilters, setDraftFilters] = useState<JobFilters>(filters);
 
   const [keyword, setKeyword] = useState(
-    typeof params.q === "string" ? params.q : ""
+    typeof params.q === "string" ? params.q : "",
   );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -240,11 +205,7 @@ export default function JobsScreen() {
       .then(setJobs)
       .catch((err) => {
         console.error("Search jobs failed:", err);
-        setError(
-          err instanceof Error
-            ? err.message
-            : "Could not load jobs"
-        );
+        setError(err instanceof Error ? err.message : "Could not load jobs");
       })
       .finally(() => setLoading(false));
   }, []);
@@ -254,38 +215,24 @@ export default function JobsScreen() {
       ...EMPTY_FILTERS,
       q: typeof params.q === "string" ? params.q : "",
       category:
-        typeof params.category === "string"
-          ? params.category
-          : undefined,
+        typeof params.category === "string" ? params.category : undefined,
       experience:
-        typeof params.experience === "string"
-          ? params.experience
-          : undefined,
+        typeof params.experience === "string" ? params.experience : undefined,
       province:
-        typeof params.province === "string"
-          ? params.province
-          : undefined,
+        typeof params.province === "string" ? params.province : undefined,
     };
 
     setKeyword(next.q);
     setFilters(next);
     setDraftFilters(next);
     setVisibleCount(PAGE_SIZE);
-  }, [
-    params.q,
-    params.category,
-    params.experience,
-    params.province,
-  ]);
+  }, [params.q, params.category, params.experience, params.province]);
 
-  const results = useMemo(
-    () => filterJobs(jobs, filters),
-    [jobs, filters]
-  );
+  const results = useMemo(() => filterJobs(jobs, filters), [jobs, filters]);
 
   const visibleJobs = useMemo(
     () => results.slice(0, visibleCount),
-    [results, visibleCount]
+    [results, visibleCount],
   );
 
   const activeFilters = useMemo(() => {
@@ -403,7 +350,7 @@ export default function JobsScreen() {
                 router.push({
                   pathname: "/jobs/[id]",
                   params: { id: item.id },
-                })
+                }),
               )
             }
           />
@@ -411,14 +358,12 @@ export default function JobsScreen() {
         </>
       );
     },
-    [openJobWithEarlyInterstitial]
+    [openJobWithEarlyInterstitial],
   );
 
   const handleEndReached = useCallback(() => {
     if (visibleCount < results.length) {
-      setVisibleCount((count) =>
-        Math.min(count + PAGE_SIZE, results.length)
-      );
+      setVisibleCount((count) => Math.min(count + PAGE_SIZE, results.length));
     }
   }, [results.length, visibleCount]);
   if (loading) {
@@ -437,12 +382,10 @@ export default function JobsScreen() {
         <Ionicons
           name="cloud-offline-outline"
           size={44}
-          color="#E1225F"
+          color={Colors.primary}
         />
 
-        <Text style={styles.errorTitle}>
-          Could not load jobs
-        </Text>
+        <Text style={styles.errorTitle}>Could not load jobs</Text>
 
         <Text style={styles.errorText}>{error}</Text>
       </SafeAreaView>
@@ -450,15 +393,15 @@ export default function JobsScreen() {
   }
 
   return (
-    <SafeAreaView
-      style={styles.page}
-      edges={["top", "bottom"]}
-    >
+    <SafeAreaView style={styles.page} edges={["top", "bottom"]}>
       <FlatList
         data={visibleJobs}
         keyExtractor={keyExtractor}
         renderItem={renderJob}
-        contentContainerStyle={[styles.list, { paddingBottom: bottomContentPadding }]}
+        contentContainerStyle={[
+          styles.list,
+          { paddingBottom: bottomContentPadding },
+        ]}
         showsVerticalScrollIndicator={false}
         onEndReached={handleEndReached}
         onEndReachedThreshold={0.4}
@@ -469,9 +412,7 @@ export default function JobsScreen() {
         removeClippedSubviews={Platform.OS === "android"}
         ListHeaderComponent={
           <>
-            <Text style={styles.title}>
-              Search jobs
-            </Text>
+            <Text style={styles.title}>Search jobs</Text>
 
             <Text style={styles.subtitle}>
               {results.length} opportunities match your search
@@ -481,8 +422,8 @@ export default function JobsScreen() {
               <View style={styles.searchBox}>
                 <Ionicons
                   name="search-outline"
-                  size={19}
-                  color="#556274"
+                  size={18}
+                  color={Colors.muted}
                 />
 
                 <TextInput
@@ -491,20 +432,14 @@ export default function JobsScreen() {
                   onSubmitEditing={runSearch}
                   returnKeyType="search"
                   placeholder="Job title, company or town"
-                  placeholderTextColor="#94A3B8"
+                  placeholderTextColor={Colors.mutedSubtle}
+                  accessibilityLabel="Search jobs or companies"
                   style={styles.searchInput}
                 />
               </View>
 
-              <TouchableOpacity
-                style={styles.searchButton}
-                onPress={runSearch}
-              >
-                <Ionicons
-                  name="search"
-                  size={20}
-                  color="#FFFFFF"
-                />
+              <TouchableOpacity style={styles.searchButton} onPress={runSearch}>
+                <Ionicons name="search" size={18} color={Colors.surface} />
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -513,8 +448,8 @@ export default function JobsScreen() {
               >
                 <Ionicons
                   name="options-outline"
-                  size={21}
-                  color="#061A30"
+                  size={18}
+                  color={Colors.foreground}
                 />
 
                 {activeFilters.length > 0 && (
@@ -539,15 +474,9 @@ export default function JobsScreen() {
                     style={styles.activeChip}
                     onPress={() => removeFilter(item.key)}
                   >
-                    <Text style={styles.activeChipText}>
-                      {item.label}
-                    </Text>
+                    <Text style={styles.activeChipText}>{item.label}</Text>
 
-                    <Ionicons
-                      name="close"
-                      size={14}
-                      color="#556274"
-                    />
+                    <Ionicons name="close" size={18} color={Colors.muted} />
                   </TouchableOpacity>
                 ))}
               </ScrollView>
@@ -565,16 +494,14 @@ export default function JobsScreen() {
                   key={value}
                   style={[
                     styles.sortButton,
-                    filters.sort === value &&
-                      styles.sortButtonActive,
+                    filters.sort === value && styles.sortButtonActive,
                   ]}
                   onPress={() => changeSort(value)}
                 >
                   <Text
                     style={[
                       styles.sortText,
-                      filters.sort === value &&
-                        styles.sortTextActive,
+                      filters.sort === value && styles.sortTextActive,
                     ]}
                   >
                     {label}
@@ -595,15 +522,13 @@ export default function JobsScreen() {
         ListFooterComponent={
           visibleJobs.length < results.length ? (
             <View style={styles.loadMore}>
-              <ActivityIndicator color="#E1225F" />
+              <ActivityIndicator color={Colors.primary} />
               <Text style={styles.loadMoreText}>
                 Loading more opportunities...
               </Text>
             </View>
           ) : results.length > 0 ? (
-            <Text style={styles.endText}>
-              You've reached all matching opportunities.
-            </Text>
+            <Text style={styles.endText}>All matching opportunities shown</Text>
           ) : null
         }
       />
@@ -620,15 +545,10 @@ export default function JobsScreen() {
             onPress={() => setFilterOpen(false)}
           />
 
-          <SafeAreaView
-            style={styles.sheet}
-            edges={["bottom"]}
-          >
+          <SafeAreaView style={styles.sheet} edges={["bottom"]}>
             <View style={styles.sheetHeader}>
               <View>
-                <Text style={styles.sheetTitle}>
-                  Filters
-                </Text>
+                <Text style={styles.sheetTitle}>Filters</Text>
                 <Text style={styles.sheetSubtitle}>
                   Narrow down your opportunities
                 </Text>
@@ -638,11 +558,7 @@ export default function JobsScreen() {
                 style={styles.closeButton}
                 onPress={() => setFilterOpen(false)}
               >
-                <Ionicons
-                  name="close"
-                  size={23}
-                  color="#061A30"
-                />
+                <Ionicons name="close" size={18} color={Colors.foreground} />
               </TouchableOpacity>
             </View>
 
@@ -681,9 +597,7 @@ export default function JobsScreen() {
               />
 
               <View style={styles.filterSection}>
-                <Text style={styles.filterLabel}>
-                  City / town
-                </Text>
+                <Text style={styles.filterLabel}>City / town</Text>
 
                 <TextInput
                   value={draftFilters.city ?? ""}
@@ -694,7 +608,7 @@ export default function JobsScreen() {
                     }))
                   }
                   placeholder="e.g. Polokwane"
-                  placeholderTextColor="#94A3B8"
+                  placeholderTextColor={Colors.mutedSubtle}
                   style={styles.filterInput}
                 />
               </View>
@@ -732,43 +646,42 @@ export default function JobsScreen() {
               <View style={styles.filterSection}>
                 <Text style={styles.filterLabel}>
                   Minimum salary: R
-                  {(draftFilters.minSalary ?? 0).toLocaleString(
-                    "en-ZA"
-                  )}{" "}
-                  p/m
+                  {(draftFilters.minSalary ?? 0).toLocaleString("en-ZA")} p/m
                 </Text>
 
                 <View style={styles.salaryOptions}>
-                  {[0, 5000, 10000, 15000, 20000, 30000, 40000].map((amount) => {
-                    const selected = (draftFilters.minSalary ?? 0) === amount;
+                  {[0, 5000, 10000, 15000, 20000, 30000, 40000].map(
+                    (amount) => {
+                      const selected = (draftFilters.minSalary ?? 0) === amount;
 
-                    return (
-                      <TouchableOpacity
-                        key={amount}
-                        style={[
-                          styles.salaryOption,
-                          selected && styles.salaryOptionSelected,
-                        ]}
-                        onPress={() =>
-                          setDraftFilters((current) => ({
-                            ...current,
-                            minSalary: amount === 0 ? undefined : amount,
-                          }))
-                        }
-                      >
-                        <Text
+                      return (
+                        <TouchableOpacity
+                          key={amount}
                           style={[
-                            styles.salaryOptionText,
-                            selected && styles.salaryOptionTextSelected,
+                            styles.salaryOption,
+                            selected && styles.salaryOptionSelected,
                           ]}
+                          onPress={() =>
+                            setDraftFilters((current) => ({
+                              ...current,
+                              minSalary: amount === 0 ? undefined : amount,
+                            }))
+                          }
                         >
-                          {amount === 0
-                            ? "Any salary"
-                            : `R${amount.toLocaleString("en-ZA")}+`}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
+                          <Text
+                            style={[
+                              styles.salaryOptionText,
+                              selected && styles.salaryOptionTextSelected,
+                            ]}
+                          >
+                            {amount === 0
+                              ? "Any salary"
+                              : `R${amount.toLocaleString("en-ZA")}+`}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    },
+                  )}
                 </View>
               </View>
 
@@ -796,9 +709,7 @@ export default function JobsScreen() {
                 onChange={(value) =>
                   setDraftFilters((current) => ({
                     ...current,
-                    closingWithin: value
-                      ? Number(value)
-                      : undefined,
+                    closingWithin: value ? Number(value) : undefined,
                   }))
                 }
               />
@@ -807,9 +718,7 @@ export default function JobsScreen() {
                 style={styles.clearButton}
                 onPress={clearFilters}
               >
-                <Text style={styles.clearText}>
-                  Clear filters
-                </Text>
+                <Text style={styles.clearText}>Clear filters</Text>
               </TouchableOpacity>
             </ScrollView>
 
@@ -818,9 +727,7 @@ export default function JobsScreen() {
                 style={styles.applyFiltersButton}
                 onPress={applyFilters}
               >
-                <Text style={styles.applyFiltersText}>
-                  Show matching jobs
-                </Text>
+                <Text style={styles.applyFiltersText}>Show matching jobs</Text>
               </TouchableOpacity>
             </View>
           </SafeAreaView>
@@ -833,7 +740,7 @@ export default function JobsScreen() {
 const styles = StyleSheet.create({
   page: {
     flex: 1,
-    backgroundColor: "#F6F7F9",
+    backgroundColor: Colors.background,
   },
 
   center: {
@@ -841,23 +748,25 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     padding: 24,
-    backgroundColor: "#F6F7F9",
+    backgroundColor: Colors.background,
   },
 
   list: {
     paddingHorizontal: 16,
-    paddingTop: 18,
-    paddingBottom: 110,
+    paddingTop: 20,
+    paddingBottom: 112,
   },
 
-  title: { fontFamily: Fonts.editorial, fontWeight: "400",
+  title: {
+    fontFamily: Fonts.editorial,
+    fontWeight: "400",
     fontSize: 22,
-    color: "#061A30",
+    color: Colors.foreground,
   },
 
   subtitle: {
-    marginTop: 3,
-    color: "#556274",
+    marginTop: 4,
+    color: Colors.muted,
     fontSize: 13,
   },
 
@@ -871,10 +780,10 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 48,
     borderWidth: 1,
-    borderColor: "#DFE4EC",
-    backgroundColor: "#FFFFFF",
+    borderColor: Colors.input,
+    backgroundColor: Colors.surface,
     borderRadius: 8,
-    paddingHorizontal: 13,
+    paddingHorizontal: 12,
     flexDirection: "row",
     alignItems: "center",
   },
@@ -883,14 +792,14 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 8,
     fontSize: 14,
-    color: "#061A30",
+    color: Colors.foreground,
   },
 
   searchButton: {
     width: 48,
     height: 48,
     borderRadius: 8,
-    backgroundColor: "#E1225F",
+    backgroundColor: Colors.primary,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -900,8 +809,8 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#DFE4EC",
-    backgroundColor: "#FFFFFF",
+    borderColor: Colors.input,
+    backgroundColor: Colors.surface,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -914,93 +823,97 @@ const styles = StyleSheet.create({
     height: 19,
     paddingHorizontal: 4,
     borderRadius: 10,
-    backgroundColor: "#E1225F",
+    backgroundColor: Colors.primary,
     alignItems: "center",
     justifyContent: "center",
   },
 
   filterCountText: {
-    color: "#FFFFFF",
-    fontSize: 10,
-    fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800",
+    color: Colors.surface,
+    fontSize: 12,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
   },
 
   activeFilters: {
-    gap: 7,
+    gap: 8,
     paddingTop: 12,
   },
 
   activeChip: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
-    backgroundColor: "#F1F5F9",
-    paddingHorizontal: 10,
-    paddingVertical: 7,
+    gap: 4,
+    backgroundColor: Colors.secondary,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: 6,
   },
 
   activeChipText: {
-    color: "#556274",
-    fontSize: 11,
-    fontFamily: "PlusJakartaSans_600SemiBold", fontWeight: "600",
+    color: Colors.muted,
+    fontSize: 12,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
   },
 
   sortRow: {
     flexDirection: "row",
-    gap: 5,
-    marginTop: 14,
+    gap: 4,
+    marginTop: 16,
   },
 
   sortButton: {
-    paddingHorizontal: 13,
+    paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 7,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: Colors.secondary,
   },
 
   sortButtonActive: {
-    backgroundColor: "#061A30",
+    backgroundColor: Colors.foreground,
   },
 
   sortText: {
     fontSize: 12,
-    fontFamily: "PlusJakartaSans_700Bold", fontWeight: "700",
-    color: "#556274",
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
+    color: Colors.muted,
   },
 
   sortTextActive: {
-    color: "#FFFFFF",
+    color: Colors.surface,
   },
 
   divider: {
     height: 1,
-    backgroundColor: "#E8EBF0",
+    backgroundColor: Colors.border,
     marginTop: 16,
-    marginBottom: 10,
+    marginBottom: 12,
   },
 
   card: {
     flexDirection: "row",
     alignItems: "flex-start",
-    paddingVertical: 15,
+    paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#E8EBF0",
+    borderBottomColor: Colors.border,
   },
 
   logo: {
     width: 48,
     height: 48,
     borderRadius: 8,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: Colors.secondary,
     alignItems: "center",
     justifyContent: "center",
   },
 
   logoText: {
-    color: "#E1225F",
-    fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800",
-    fontSize: 19,
+    color: Colors.primaryPressed,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
+    fontSize: 20,
   },
 
   jobInfo: {
@@ -1011,32 +924,33 @@ const styles = StyleSheet.create({
   titleRow: {
     flexDirection: "row",
     alignItems: "flex-start",
-    gap: 6,
+    gap: 8,
   },
 
   jobTitle: {
     flex: 1,
-    color: "#061A30",
+    color: Colors.foreground,
     fontSize: 14,
-    fontFamily: "PlusJakartaSans_700Bold", fontWeight: "700",
-    lineHeight: 19,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
+    lineHeight: 20,
   },
 
   company: {
-    marginTop: 3,
-    color: "#556274",
+    marginTop: 4,
+    color: Colors.muted,
     fontSize: 12,
   },
 
   meta: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 7,
+    marginTop: 8,
   },
 
   metaText: {
-    color: "#556274",
-    fontSize: 11,
+    color: Colors.muted,
+    fontSize: 12,
     marginLeft: 4,
     flex: 1,
   },
@@ -1049,39 +963,42 @@ const styles = StyleSheet.create({
   },
 
   categoryBadge: {
-    backgroundColor: "#F1F5F9",
+    backgroundColor: Colors.secondary,
     borderRadius: 5,
-    paddingHorizontal: 7,
+    paddingHorizontal: 8,
     paddingVertical: 4,
   },
 
   categoryText: {
-    fontSize: 9,
-    fontFamily: "PlusJakartaSans_700Bold", fontWeight: "700",
-    color: "#556274",
+    fontSize: 12,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
+    color: Colors.muted,
   },
 
   urgent: {
-    backgroundColor: "#FDEEF3",
+    backgroundColor: Colors.primarySoft,
     borderRadius: 5,
-    paddingHorizontal: 6,
-    paddingVertical: 3,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
 
   urgentText: {
-    color: "#E1225F",
-    fontSize: 9,
-    fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800",
+    color: Colors.primaryPressed,
+    fontSize: 12,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
   },
 
   closing: {
-    color: "#556274",
-    fontSize: 10,
+    color: Colors.muted,
+    fontSize: 12,
   },
 
   closingSoon: {
-    color: "#E1225F",
-    fontFamily: "PlusJakartaSans_700Bold", fontWeight: "700",
+    color: Colors.primaryPressed,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
   },
 
   modalRoot: {
@@ -1096,15 +1013,15 @@ const styles = StyleSheet.create({
 
   sheet: {
     maxHeight: "88%",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
   },
 
   sheetHeader: {
-    padding: 18,
+    padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: "#E8EBF0",
+    borderBottomColor: Colors.border,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
@@ -1112,12 +1029,13 @@ const styles = StyleSheet.create({
 
   sheetTitle: {
     fontSize: 20,
-    fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800",
-    color: "#061A30",
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
+    color: Colors.foreground,
   },
 
   sheetSubtitle: {
-    color: "#556274",
+    color: Colors.muted,
     fontSize: 12,
     marginTop: 2,
   },
@@ -1130,8 +1048,8 @@ const styles = StyleSheet.create({
   },
 
   sheetContent: {
-    padding: 18,
-    paddingBottom: 30,
+    padding: 20,
+    paddingBottom: 32,
   },
 
   filterSection: {
@@ -1139,49 +1057,51 @@ const styles = StyleSheet.create({
   },
 
   filterLabel: {
-    marginBottom: 10,
-    color: "#556274",
+    marginBottom: 12,
+    color: Colors.muted,
     fontSize: 13,
-    fontFamily: "PlusJakartaSans_700Bold", fontWeight: "700",
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
   },
 
   optionWrap: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 7,
+    gap: 8,
   },
 
   option: {
     borderWidth: 1,
-    borderColor: "#DFE4EC",
+    borderColor: Colors.input,
     borderRadius: 7,
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     paddingVertical: 8,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
   },
 
   optionSelected: {
-    borderColor: "#E1225F",
-    backgroundColor: "#FDEEF3",
+    borderColor: Colors.primary,
+    backgroundColor: Colors.primarySoft,
   },
 
   optionText: {
-    color: "#556274",
-    fontSize: 11,
-    fontFamily: "PlusJakartaSans_600SemiBold", fontWeight: "600",
+    color: Colors.muted,
+    fontSize: 12,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
   },
 
   optionSelectedText: {
-    color: "#E1225F",
+    color: Colors.primaryPressed,
   },
 
   filterInput: {
     height: 48,
     borderWidth: 1,
-    borderColor: "#DFE4EC",
+    borderColor: Colors.input,
     borderRadius: 8,
-    paddingHorizontal: 13,
-    color: "#061A30",
+    paddingHorizontal: 12,
+    color: Colors.foreground,
   },
 
   salaryOptions: {
@@ -1192,27 +1112,29 @@ const styles = StyleSheet.create({
 
   salaryOption: {
     borderWidth: 1,
-    borderColor: "#DFE4EC",
-    backgroundColor: "#FFFFFF",
-    paddingHorizontal: 11,
-    paddingVertical: 9,
+    borderColor: Colors.input,
+    backgroundColor: Colors.surface,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: 7,
   },
 
   salaryOptionSelected: {
-    borderColor: "#E1225F",
-    backgroundColor: "#FDEEF3",
+    borderColor: Colors.primary,
+    backgroundColor: Colors.primarySoft,
   },
 
   salaryOptionText: {
-    color: "#556274",
-    fontSize: 11,
-    fontFamily: "PlusJakartaSans_600SemiBold", fontWeight: "600",
+    color: Colors.muted,
+    fontSize: 12,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
   },
 
   salaryOptionTextSelected: {
-    color: "#E1225F",
-    fontFamily: "PlusJakartaSans_700Bold", fontWeight: "700",
+    color: Colors.primaryPressed,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
   },
 
   salaryEnds: {
@@ -1221,95 +1143,100 @@ const styles = StyleSheet.create({
   },
 
   salaryLabel: {
-    color: "#94A3B8",
-    fontSize: 10,
+    color: Colors.mutedSubtle,
+    fontSize: 12,
   },
 
   clearButton: {
     height: 48,
     borderWidth: 1,
-    borderColor: "#DFE4EC",
+    borderColor: Colors.input,
     borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
   },
 
   clearText: {
-    color: "#556274",
-    fontFamily: "PlusJakartaSans_700Bold", fontWeight: "700",
+    color: Colors.muted,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
   },
 
   sheetFooter: {
     padding: 16,
     borderTopWidth: 1,
-    borderTopColor: "#E8EBF0",
+    borderTopColor: Colors.border,
   },
 
   applyFiltersButton: {
     height: 54,
     borderRadius: 10,
-    backgroundColor: "#E1225F",
+    backgroundColor: Colors.primary,
     alignItems: "center",
     justifyContent: "center",
   },
 
   applyFiltersText: {
-    color: "#FFFFFF",
-    fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800",
+    color: Colors.surface,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
     fontSize: 15,
   },
 
   empty: {
     alignItems: "center",
-    paddingVertical: 70,
-    paddingHorizontal: 25,
+    paddingVertical: 72,
+    paddingHorizontal: 24,
   },
 
-  emptyTitle: { fontFamily: Fonts.editorial, fontWeight: "400",
+  emptyTitle: {
+    fontFamily: Fonts.editorial,
+    fontWeight: "400",
     marginTop: 12,
-    color: "#061A30",
+    color: Colors.foreground,
   },
 
   emptyText: {
-    marginTop: 5,
-    color: "#556274",
+    marginTop: 4,
+    color: Colors.muted,
     fontSize: 12,
     textAlign: "center",
   },
 
   loadMore: {
     alignItems: "center",
-    paddingVertical: 25,
+    paddingVertical: 24,
   },
 
   loadMoreText: {
-    marginTop: 7,
-    color: "#556274",
-    fontSize: 11,
+    marginTop: 8,
+    color: Colors.muted,
+    fontSize: 12,
   },
 
   endText: {
     textAlign: "center",
-    color: "#94A3B8",
-    fontSize: 11,
+    color: Colors.mutedSubtle,
+    fontSize: 12,
     paddingVertical: 28,
   },
 
   loadingText: {
     marginTop: 12,
-    color: "#556274",
+    color: Colors.muted,
   },
 
   errorTitle: {
     marginTop: 12,
-    color: "#061A30",
-    fontSize: 19,
-    fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800",
+    color: Colors.foreground,
+    fontSize: 20,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
   },
 
   errorText: {
-    marginTop: 5,
+    marginTop: 4,
     textAlign: "center",
-    color: "#556274",
+    color: Colors.muted,
   },
 });

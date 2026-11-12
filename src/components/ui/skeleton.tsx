@@ -1,56 +1,15 @@
-﻿import {
-  Animated,
+import {
   StyleSheet,
   View,
   type DimensionValue,
   type ViewStyle,
 } from "react-native";
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  type ReactNode,
-} from "react";
+import type { ReactNode } from "react";
+import { Colors } from "../../constants/theme";
 
-const SkeletonOpacityContext =
-  createContext<Animated.Value | null>(null);
-
-export function SkeletonGroup({
-  children,
-}: {
-  children: ReactNode;
-}) {
-  const opacity = useRef(new Animated.Value(0.52)).current;
-
-  useEffect(() => {
-    const animation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(opacity, {
-          toValue: 0.9,
-          duration: 650,
-          useNativeDriver: true,
-        }),
-        Animated.timing(opacity, {
-          toValue: 0.52,
-          duration: 650,
-          useNativeDriver: true,
-        }),
-      ])
-    );
-
-    animation.start();
-    return () => animation.stop();
-  }, [opacity]);
-
-  return (
-    <SkeletonOpacityContext.Provider value={opacity}>
-      {children}
-    </SkeletonOpacityContext.Provider>
-  );
+export function SkeletonGroup({ children }: { children: ReactNode }) {
+  return <>{children}</>;
 }
-
 export function Skeleton({
   width = "100%",
   height = 12,
@@ -64,45 +23,18 @@ export function Skeleton({
   circle?: boolean;
   style?: ViewStyle;
 }) {
-  const inheritedOpacity = useContext(SkeletonOpacityContext);
-  const ownOpacity = useRef(new Animated.Value(0.58)).current;
-
-  useEffect(() => {
-    if (inheritedOpacity) return;
-
-    const animation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(ownOpacity, {
-          toValue: 0.9,
-          duration: 650,
-          useNativeDriver: true,
-        }),
-        Animated.timing(ownOpacity, {
-          toValue: 0.58,
-          duration: 650,
-          useNativeDriver: true,
-        }),
-      ])
-    );
-
-    animation.start();
-    return () => animation.stop();
-  }, [inheritedOpacity, ownOpacity]);
-
-  const opacity = inheritedOpacity ?? ownOpacity;
-
-  const shape = useMemo<ViewStyle>(
-    () => ({
-      width,
-      height,
-      borderRadius: circle ? height / 2 : radius,
-    }),
-    [circle, height, radius, width]
-  );
-
   return (
-    <Animated.View
-      style={[styles.base, shape, style, { opacity }]}
+    <View
+      style={[
+        styles.base,
+        {
+          width,
+          height,
+          borderRadius: circle ? height / 2 : radius,
+          opacity: 0.7,
+        },
+        style,
+      ]}
       accessible={false}
       importantForAccessibility="no"
     />
@@ -116,11 +48,7 @@ export function JobSkeletonCard() {
 
       <View style={styles.jobBody}>
         <Skeleton width="82%" height={13} />
-        <Skeleton
-          width="52%"
-          height={10}
-          style={styles.lineGap}
-        />
+        <Skeleton width="52%" height={10} style={styles.lineGap} />
 
         <View style={styles.metaRow}>
           <Skeleton width={14} height={14} circle />
@@ -136,11 +64,7 @@ export function JobSkeletonCard() {
   );
 }
 
-export function JobListSkeleton({
-  count = 5,
-}: {
-  count?: number;
-}) {
+export function JobListSkeleton({ count = 5 }: { count?: number }) {
   return (
     <SkeletonGroup>
       <View>
@@ -157,11 +81,7 @@ export function JobDetailSkeleton() {
     <SkeletonGroup>
       <View style={styles.detail}>
         <Skeleton width={72} height={72} radius={8} />
-        <Skeleton
-          width="88%"
-          height={22}
-          style={styles.detailTitle}
-        />
+        <Skeleton width="88%" height={22} style={styles.detailTitle} />
         <Skeleton width="52%" height={12} />
         <Skeleton
           width="100%"
@@ -170,17 +90,9 @@ export function JobDetailSkeleton() {
           style={styles.detailBlock}
         />
         <Skeleton width="42%" height={16} />
-        <Skeleton
-          width="100%"
-          height={11}
-          style={styles.detailLine}
-        />
+        <Skeleton width="100%" height={11} style={styles.detailLine} />
         <Skeleton width="94%" height={11} />
-        <Skeleton
-          width="86%"
-          height={11}
-          style={styles.detailLine}
-        />
+        <Skeleton width="86%" height={11} style={styles.detailLine} />
         <Skeleton
           width="100%"
           height={52}
@@ -200,11 +112,7 @@ export function ProfileSkeleton() {
           <Skeleton width={48} height={48} circle />
           <View style={styles.profileCopy}>
             <Skeleton width="56%" height={13} />
-            <Skeleton
-              width="74%"
-              height={10}
-              style={styles.lineGap}
-            />
+            <Skeleton width="74%" height={10} style={styles.lineGap} />
           </View>
         </View>
 
@@ -227,18 +135,18 @@ export function ProfileSkeleton() {
 
 const styles = StyleSheet.create({
   base: {
-    backgroundColor: "#F1F5F9",
+    backgroundColor: Colors.secondary,
   },
   jobCard: {
     minHeight: 112,
     flexDirection: "row",
     alignItems: "flex-start",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
     borderWidth: 1,
-    borderColor: "#E8EBF0",
+    borderColor: Colors.border,
     borderRadius: 8,
-    padding: 14,
-    marginBottom: 10,
+    padding: 16,
+    marginBottom: 12,
   },
   jobBody: {
     flex: 1,
@@ -248,10 +156,10 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   metaRow: {
-    marginTop: 11,
+    marginTop: 12,
     flexDirection: "row",
     alignItems: "center",
-    gap: 7,
+    gap: 8,
   },
   chipRow: {
     marginTop: 12,
@@ -262,15 +170,15 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   detailTitle: {
-    marginTop: 18,
-    marginBottom: 9,
+    marginTop: 20,
+    marginBottom: 8,
   },
   detailBlock: {
-    marginTop: 18,
-    marginBottom: 22,
+    marginTop: 20,
+    marginBottom: 24,
   },
   detailLine: {
-    marginTop: 9,
+    marginTop: 8,
   },
   detailCta: {
     marginTop: 28,
@@ -287,6 +195,6 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
   profileBlock: {
-    marginTop: 14,
+    marginTop: 16,
   },
 });

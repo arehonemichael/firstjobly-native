@@ -1,14 +1,12 @@
-import { useMemo, useState } from "react";
 import {
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+  AppText as Text,
+  AppTouchableOpacity as TouchableOpacity,
+  AppPressable as Pressable,
+} from "../ui/primitives";
+import { Colors, Fonts } from "../../constants/theme";
+import { useMemo, useState } from "react";
+import { Modal, ScrollView, StyleSheet, View } from "react-native";
+import { Icon as Ionicons } from "../ui/icon";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export const SOUTH_AFRICAN_PROVINCES = [
@@ -48,15 +46,30 @@ export const SOUTH_AFRICAN_LANGUAGES = [
 
 export const DOCUMENT_KINDS = [
   { key: "cv", label: "CV", required: true, hint: "PDF or Word, max 5 MB" },
-  { key: "matric_certificate", label: "Matric certificate", required: false, hint: "Certified copy" },
-  { key: "academic_transcript", label: "Academic transcript", required: false, hint: "Latest results" },
+  {
+    key: "matric_certificate",
+    label: "Matric certificate",
+    required: false,
+    hint: "Certified copy",
+  },
+  {
+    key: "academic_transcript",
+    label: "Academic transcript",
+    required: false,
+    hint: "Latest results",
+  },
   {
     key: "qualification_certificate",
     label: "Qualification certificate",
     required: false,
     hint: "Diploma or degree certificate",
   },
-  { key: "cover_letter", label: "Cover letter", required: false, hint: "Optional" },
+  {
+    key: "cover_letter",
+    label: "Cover letter",
+    required: false,
+    hint: "Optional",
+  },
 ] as const;
 
 type SingleSelectProps = {
@@ -98,7 +111,7 @@ export function SingleSelectField({
         >
           {value || placeholder}
         </Text>
-        <Ionicons name="chevron-down" size={18} color="#556274" />
+        <Ionicons name="chevron-down" size={18} color={Colors.muted} />
       </TouchableOpacity>
 
       <Modal
@@ -113,7 +126,7 @@ export function SingleSelectField({
           <View style={styles.sheetHeader}>
             <Text style={styles.sheetTitle}>{label}</Text>
             <TouchableOpacity onPress={() => setOpen(false)}>
-              <Ionicons name="close" size={22} color="#061A30" />
+              <Ionicons name="close" size={18} color={Colors.foreground} />
             </TouchableOpacity>
           </View>
 
@@ -154,8 +167,8 @@ export function SingleSelectField({
                   {active && (
                     <Ionicons
                       name="checkmark"
-                      size={19}
-                      color="#E1225F"
+                      size={18}
+                      color={Colors.primary}
                     />
                   )}
                 </TouchableOpacity>
@@ -217,7 +230,10 @@ export function MultiSelectField({
       >
         <Text
           numberOfLines={1}
-          style={[styles.inputText, selected.length === 0 && styles.placeholder]}
+          style={[
+            styles.inputText,
+            selected.length === 0 && styles.placeholder,
+          ]}
         >
           {selected.length > 0 ? selected.join(", ") : placeholder}
         </Text>
@@ -228,7 +244,7 @@ export function MultiSelectField({
               <Text style={styles.countText}>{selected.length}</Text>
             </View>
           )}
-          <Ionicons name="chevron-down" size={18} color="#556274" />
+          <Ionicons name="chevron-down" size={18} color={Colors.muted} />
         </View>
       </TouchableOpacity>
 
@@ -240,7 +256,7 @@ export function MultiSelectField({
             onPress={() => toggle(item)}
           >
             <Text style={styles.chipText}>{item}</Text>
-            <Ionicons name="close" size={13} color="#B0164A" />
+            <Ionicons name="close" size={18} color={Colors.primaryPressed} />
           </TouchableOpacity>
         ))}
       </View>
@@ -257,13 +273,11 @@ export function MultiSelectField({
           <View style={styles.sheetHeader}>
             <View>
               <Text style={styles.sheetTitle}>{label}</Text>
-              <Text style={styles.sheetHint}>
-                Select all that apply
-              </Text>
+              <Text style={styles.sheetHint}>Select all that apply</Text>
             </View>
 
             <TouchableOpacity onPress={() => setOpen(false)}>
-              <Ionicons name="close" size={22} color="#061A30" />
+              <Ionicons name="close" size={18} color={Colors.foreground} />
             </TouchableOpacity>
           </View>
 
@@ -299,16 +313,13 @@ export function MultiSelectField({
                   </View>
 
                   <View
-                    style={[
-                      styles.checkbox,
-                      active && styles.checkboxActive,
-                    ]}
+                    style={[styles.checkbox, active && styles.checkboxActive]}
                   >
                     {active && (
                       <Ionicons
                         name="checkmark"
-                        size={14}
-                        color="#FFFFFF"
+                        size={18}
+                        color={Colors.surface}
                       />
                     )}
                   </View>
@@ -374,9 +385,8 @@ export function DateOfBirthField({ value, onChange }: DobProps) {
   const [year, setYear] = useState(parsed.year);
 
   const currentYear = new Date().getFullYear();
-  const years = Array.from(
-    { length: currentYear - 1950 + 1 },
-    (_, index) => String(currentYear - index)
+  const years = Array.from({ length: currentYear - 1950 + 1 }, (_, index) =>
+    String(currentYear - index),
   );
 
   const months = MONTHS.map((name, index) => ({
@@ -385,30 +395,20 @@ export function DateOfBirthField({ value, onChange }: DobProps) {
   }));
 
   const daysInMonth =
-    month && year
-      ? new Date(Number(year), Number(month), 0).getDate()
-      : 31;
+    month && year ? new Date(Number(year), Number(month), 0).getDate() : 31;
 
-  const days = Array.from({ length: daysInMonth }, (_, i) =>
-    String(i + 1)
-  );
+  const days = Array.from({ length: daysInMonth }, (_, i) => String(i + 1));
 
   function commit(nextDay: string, nextMonth: string, nextYear: string) {
     if (!nextDay || !nextMonth || !nextYear) {
       return;
     }
 
-    const maxDay = new Date(
-      Number(nextYear),
-      Number(nextMonth),
-      0
-    ).getDate();
+    const maxDay = new Date(Number(nextYear), Number(nextMonth), 0).getDate();
 
     const safeDay = Math.min(Number(nextDay), maxDay);
 
-    onChange(
-      `${nextYear}-${pad(Number(nextMonth))}-${pad(safeDay)}`
-    );
+    onChange(`${nextYear}-${pad(Number(nextMonth))}-${pad(safeDay)}`);
   }
 
   function setDobDay(next: string) {
@@ -466,11 +466,7 @@ export function DateOfBirthField({ value, onChange }: DobProps) {
         />
       </View>
 
-      {!!value && (
-        <Text style={styles.dateValue}>
-          Saved as {value}
-        </Text>
-      )}
+      {!!value && <Text style={styles.dateValue}>Saved as {value}</Text>}
     </View>
   );
 }
@@ -504,14 +500,11 @@ function CompactSelect({
       >
         <Text
           numberOfLines={1}
-          style={[
-            styles.compactText,
-            !value && styles.placeholder,
-          ]}
+          style={[styles.compactText, !value && styles.placeholder]}
         >
           {selectedLabel || label}
         </Text>
-        <Ionicons name="chevron-down" size={15} color="#556274" />
+        <Ionicons name="chevron-down" size={18} color={Colors.muted} />
       </TouchableOpacity>
 
       <Modal
@@ -526,7 +519,7 @@ function CompactSelect({
           <View style={styles.sheetHeader}>
             <Text style={styles.sheetTitle}>{label}</Text>
             <TouchableOpacity onPress={() => setOpen(false)}>
-              <Ionicons name="close" size={22} color="#061A30" />
+              <Ionicons name="close" size={18} color={Colors.foreground} />
             </TouchableOpacity>
           </View>
 
@@ -558,8 +551,8 @@ function CompactSelect({
                   {active && (
                     <Ionicons
                       name="checkmark"
-                      size={19}
-                      color="#E1225F"
+                      size={18}
+                      color={Colors.primary}
                     />
                   )}
                 </TouchableOpacity>
@@ -580,9 +573,8 @@ export function YearCompletedField({
   onChange: (value: string) => void;
 }) {
   const currentYear = new Date().getFullYear();
-  const years = Array.from(
-    { length: currentYear - 1950 + 1 },
-    (_, index) => String(currentYear - index)
+  const years = Array.from({ length: currentYear - 1950 + 1 }, (_, index) =>
+    String(currentYear - index),
   );
 
   return (
@@ -598,78 +590,78 @@ export function YearCompletedField({
 
 const styles = StyleSheet.create({
   field: {
-    marginBottom: 14,
+    marginBottom: 16,
   },
   label: {
-    color: "#061A30",
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontWeight: "600",
+    color: Colors.foreground,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
     fontSize: 13,
-    marginBottom: 7,
+    marginBottom: 8,
   },
   inputButton: {
     minHeight: 48,
     borderWidth: 1,
-    borderColor: "#DFE4EC",
-    backgroundColor: "#FFFFFF",
+    borderColor: Colors.input,
+    backgroundColor: Colors.surface,
     borderRadius: 8,
-    paddingHorizontal: 13,
+    paddingHorizontal: 12,
     flexDirection: "row",
     alignItems: "center",
   },
   inputText: {
     flex: 1,
-    color: "#061A30",
-    fontFamily: "PlusJakartaSans_500Medium",
+    color: Colors.foreground,
+    fontFamily: Fonts.medium,
     fontWeight: "500",
     fontSize: 14,
     marginRight: 8,
   },
   placeholder: {
-    color: "#94A3B8",
+    color: Colors.mutedSubtle,
   },
   multiEnd: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 7,
+    gap: 8,
   },
   countBadge: {
     minWidth: 22,
     height: 22,
     borderRadius: 11,
-    paddingHorizontal: 6,
-    backgroundColor: "#FDEEF3",
+    paddingHorizontal: 8,
+    backgroundColor: Colors.primarySoft,
     alignItems: "center",
     justifyContent: "center",
   },
   countText: {
-    color: "#B0164A",
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontWeight: "700",
-    fontSize: 10,
+    color: Colors.primaryPressed,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
+    fontSize: 12,
   },
   chips: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 7,
+    gap: 8,
     marginTop: 8,
   },
   chip: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
-    backgroundColor: "#FDEEF3",
+    gap: 4,
+    backgroundColor: Colors.primarySoft,
     borderWidth: 1,
-    borderColor: "#F6C9D9",
+    borderColor: Colors.primaryBorder,
     borderRadius: 6,
-    paddingHorizontal: 9,
-    paddingVertical: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
   },
   chipText: {
-    color: "#B0164A",
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontWeight: "600",
-    fontSize: 11,
+    color: Colors.primaryPressed,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
+    fontSize: 12,
   },
   backdrop: {
     ...StyleSheet.absoluteFill,
@@ -681,32 +673,32 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     maxHeight: "72%",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
     borderTopLeftRadius: 10,
     borderTopRightRadius: 10,
     borderTopWidth: 1,
-    borderColor: "#E8EBF0",
+    borderColor: Colors.border,
   },
   sheetHeader: {
     minHeight: 58,
-    paddingHorizontal: 18,
+    paddingHorizontal: 20,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     borderBottomWidth: 1,
-    borderBottomColor: "#E8EBF0",
+    borderBottomColor: Colors.border,
   },
   sheetTitle: {
-    color: "#061A30",
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontWeight: "700",
+    color: Colors.foreground,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
     fontSize: 16,
   },
   sheetHint: {
-    color: "#556274",
-    fontFamily: "PlusJakartaSans_500Medium",
+    color: Colors.muted,
+    fontFamily: Fonts.medium,
     fontWeight: "500",
-    fontSize: 11,
+    fontSize: 12,
     marginTop: 2,
   },
   options: {
@@ -726,28 +718,28 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   optionActive: {
-    backgroundColor: "#FDEEF3",
+    backgroundColor: Colors.primarySoft,
   },
   optionCopy: {
     flex: 1,
-    marginRight: 10,
+    marginRight: 12,
   },
   optionText: {
-    color: "#061A30",
-    fontFamily: "PlusJakartaSans_500Medium",
+    color: Colors.foreground,
+    fontFamily: Fonts.medium,
     fontWeight: "500",
     fontSize: 14,
   },
   optionTextActive: {
-    color: "#B0164A",
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontWeight: "700",
+    color: Colors.primaryPressed,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
   },
   legacyText: {
-    color: "#94A3B8",
-    fontFamily: "PlusJakartaSans_500Medium",
+    color: Colors.mutedSubtle,
+    fontFamily: Fonts.medium,
     fontWeight: "500",
-    fontSize: 10,
+    fontSize: 12,
     marginTop: 2,
   },
   checkbox: {
@@ -755,13 +747,13 @@ const styles = StyleSheet.create({
     height: 21,
     borderRadius: 5,
     borderWidth: 1,
-    borderColor: "#DFE4EC",
+    borderColor: Colors.input,
     alignItems: "center",
     justifyContent: "center",
   },
   checkboxActive: {
-    backgroundColor: "#E1225F",
-    borderColor: "#E1225F",
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
   },
   doneButton: {
     marginHorizontal: 16,
@@ -769,14 +761,14 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     minHeight: 48,
     borderRadius: 8,
-    backgroundColor: "#E1225F",
+    backgroundColor: Colors.primary,
     alignItems: "center",
     justifyContent: "center",
   },
   doneText: {
-    color: "#FFFFFF",
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontWeight: "700",
+    color: Colors.surface,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
     fontSize: 14,
   },
   dateRow: {
@@ -789,27 +781,26 @@ const styles = StyleSheet.create({
   compactButton: {
     minHeight: 48,
     borderWidth: 1,
-    borderColor: "#DFE4EC",
-    backgroundColor: "#FFFFFF",
+    borderColor: Colors.input,
+    backgroundColor: Colors.surface,
     borderRadius: 8,
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     flexDirection: "row",
     alignItems: "center",
   },
   compactText: {
     flex: 1,
-    color: "#061A30",
-    fontFamily: "PlusJakartaSans_500Medium",
+    color: Colors.foreground,
+    fontFamily: Fonts.medium,
     fontWeight: "500",
     fontSize: 12,
-    marginRight: 5,
+    marginRight: 4,
   },
   dateValue: {
-    color: "#556274",
-    fontFamily: "PlusJakartaSans_500Medium",
+    color: Colors.muted,
+    fontFamily: Fonts.medium,
     fontWeight: "500",
-    fontSize: 11,
-    marginTop: 6,
+    fontSize: 12,
+    marginTop: 8,
   },
 });
-

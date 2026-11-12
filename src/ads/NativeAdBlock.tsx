@@ -1,5 +1,7 @@
+import { AppText as Text } from "../components/ui/primitives";
+import { Colors } from "../constants/theme";
 import { useEffect, useState } from "react";
-import { Image, StyleSheet, Text, View } from "react-native";
+import { Image, StyleSheet, View } from "react-native";
 import {
   NativeAd,
   NativeAdView,
@@ -103,20 +105,20 @@ const styles = StyleSheet.create({
   },
   feedOuter: {
     paddingHorizontal: 0,
-    marginTop: 10,
-    marginBottom: 10,
+    marginTop: 12,
+    marginBottom: 12,
   },
   card: {
     borderWidth: 1,
-    borderColor: "#E4E7EC",
+    borderColor: Colors.border,
     borderRadius: 16,
-    padding: 14,
-    backgroundColor: "#FAFAFA",
+    padding: 16,
+    backgroundColor: Colors.background,
   },
   feedCard: {
     borderRadius: 12,
     padding: 12,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
   },
   topRow: {
     flexDirection: "row",
@@ -137,22 +139,22 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   sponsored: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: "#667085",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
+    fontSize: 12,
+    fontWeight: "600",
+    color: Colors.muted,
+    textTransform: "none",
+    letterSpacing: 0,
     marginBottom: 4,
   },
   headline: {
     fontSize: 16,
-    lineHeight: 21,
-    fontWeight: "800",
-    color: "#0B1F30",
+    lineHeight: 24,
+    fontWeight: "600",
+    color: Colors.foreground,
   },
   feedHeadline: {
     fontSize: 14,
-    lineHeight: 19,
+    lineHeight: 20,
   },
   media: {
     width: "100%",
@@ -163,34 +165,34 @@ const styles = StyleSheet.create({
   },
   feedMedia: {
     height: 120,
-    marginTop: 10,
+    marginTop: 12,
     borderRadius: 10,
   },
   body: {
-    marginTop: 10,
-    color: "#475467",
+    marginTop: 12,
+    color: Colors.muted,
     fontSize: 14,
     lineHeight: 20,
   },
   feedBody: {
     fontSize: 12,
-    lineHeight: 17,
+    lineHeight: 20,
     marginTop: 8,
   },
   cta: {
     marginTop: 12,
     alignSelf: "flex-start",
-    backgroundColor: "#0B1F30",
-    color: "#FFFFFF",
+    backgroundColor: Colors.foreground,
+    color: Colors.surface,
     fontSize: 14,
-    fontWeight: "800",
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    fontWeight: "600",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderRadius: 10,
     overflow: "hidden",
   },
   feedCta: {
-    marginTop: 9,
+    marginTop: 8,
     fontSize: 12,
     paddingHorizontal: 12,
     paddingVertical: 8,

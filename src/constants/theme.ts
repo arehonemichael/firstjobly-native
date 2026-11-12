@@ -16,11 +16,11 @@ export const Colors = {
   secondary: "#F1F5F9",
   mutedSurface: "#F1F5F9",
   muted: "#556274",
-  mutedSubtle: "#94A3B8",
+  mutedSubtle: "#627088",
 
   border: "#E8EBF0",
-  input: "#DFE4EC",
-  ring: "#E1225F",
+  input: "#8793A4",
+  ring: "#B0164A",
 
   error: "#DC2626",
   errorBorder: "#FECACA",
@@ -34,10 +34,10 @@ export const Colors = {
 } as const;
 
 export const Radius = {
-  xs: 8,
-  sm: 12,
+  xs: 4,
+  sm: 8,
   md: 16,
-  lg: 24,
+  lg: 20,
   pill: 999,
 } as const;
 
@@ -47,10 +47,24 @@ export const Fonts = {
   regular: "PlusJakartaSans_400Regular",
   medium: "PlusJakartaSans_500Medium",
   semibold: "PlusJakartaSans_600SemiBold",
-  bold: "PlusJakartaSans_700Bold",
-  extraBold: "PlusJakartaSans_800ExtraBold",
+  bold: "PlusJakartaSans_600SemiBold",
+  extraBold: "PlusJakartaSans_600SemiBold",
 } as const;
 
-export const Space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32, xxxl: 48 } as const;
+export const Space = {
+  xs: 4,
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 24,
+  xxl: 32,
+  xxxl: 48,
+} as const;
 export const Layout = { desktop: 900, content: 1120, reading: 800 } as const;
-export const Type = { caption: 12, body: 14, lead: 16, section: 24, title: 36 } as const;
+export const Type = {
+  caption: 12,
+  body: 14,
+  lead: 16,
+  section: 24,
+  title: 36,
+} as const;

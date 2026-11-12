@@ -1,14 +1,11 @@
-import { Fonts } from "../../constants/theme";
-import { useCallback, useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  FlatList,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+  AppText as Text,
+  AppTouchableOpacity as TouchableOpacity,
+} from "../../components/ui/primitives";
+import { Fonts, Colors } from "../../constants/theme";
+import { useCallback, useEffect, useState } from "react";
+import { ActivityIndicator, FlatList, StyleSheet, View } from "react-native";
+import { Icon as Ionicons } from "../../components/ui/icon";
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -121,7 +118,7 @@ export default function ApplicationsScreen() {
   if (authLoading || loading) {
     return (
       <SafeAreaView style={styles.center}>
-        <ActivityIndicator color="#E1225F" />
+        <ActivityIndicator color={Colors.primary} />
       </SafeAreaView>
     );
   }
@@ -130,12 +127,20 @@ export default function ApplicationsScreen() {
     return (
       <SafeAreaView style={styles.page}>
         <View style={styles.empty}>
-          <Ionicons name="briefcase-outline" size={45} color="#E1225F" />
+          <Ionicons name="briefcase-outline" size={45} color={Colors.primary} />
           <Text style={styles.emptyTitle}>Track your applications</Text>
           <Text style={styles.emptyText}>
             Sign in to see every FirstJobly application and its latest status.
           </Text>
-          <TouchableOpacity style={styles.primary} onPress={() => router.push({ pathname: "/auth", params: { returnTo: "/applications" } })}>
+          <TouchableOpacity
+            style={styles.primary}
+            onPress={() =>
+              router.push({
+                pathname: "/auth",
+                params: { returnTo: "/applications" },
+              })
+            }
+          >
             <Text style={styles.primaryText}>Sign in</Text>
           </TouchableOpacity>
         </View>
@@ -148,19 +153,29 @@ export default function ApplicationsScreen() {
       <FlatList
         data={items}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={[styles.list, { paddingBottom: bottomContentPadding }]}
+        contentContainerStyle={[
+          styles.list,
+          { paddingBottom: bottomContentPadding },
+        ]}
         refreshing={loading}
         onRefresh={() => void load()}
         ListHeaderComponent={
           <View style={styles.header}>
             <View style={styles.headerRow}>
-              <TouchableOpacity style={styles.back} onPress={() => router.back()}>
-                <Ionicons name="arrow-back" size={22} color="#061A30" />
+              <TouchableOpacity
+                style={styles.back}
+                onPress={() => router.back()}
+              >
+                <Ionicons
+                  name="arrow-back"
+                  size={18}
+                  color={Colors.foreground}
+                />
               </TouchableOpacity>
               <View>
                 <Text style={styles.title}>My applications</Text>
                 <Text style={styles.subtitle}>
-                  Track jobs you applied for through FirstJobly.
+                  Jobs you applied for through FirstJobly
                 </Text>
               </View>
             </View>
@@ -168,16 +183,23 @@ export default function ApplicationsScreen() {
         }
         ListEmptyComponent={
           <View style={styles.emptyList}>
-            <Ionicons name="briefcase-outline" size={38} color="#94A3B8" />
+            <Ionicons
+              name="briefcase-outline"
+              size={38}
+              color={Colors.mutedSubtle}
+            />
             <Text style={styles.emptyListTitle}>No applications yet</Text>
-            <TouchableOpacity style={styles.secondary} onPress={() => router.push("/jobs")}>
+            <TouchableOpacity
+              style={styles.secondary}
+              onPress={() => router.push("/jobs")}
+            >
               <Text style={styles.secondaryText}>Search jobs</Text>
             </TouchableOpacity>
           </View>
         }
         renderItem={({ item }) => {
           const timeline = history.filter(
-            (entry) => entry.application_id === item.id
+            (entry) => entry.application_id === item.id,
           );
           const latestNote = timeline.find((entry) => entry.message);
           const expanded = openId === item.id;
@@ -199,17 +221,19 @@ export default function ApplicationsScreen() {
                 </Text>
                 <Text style={styles.company}>
                   {item.jobs?.company_name ?? ""}
-                  {item.jobs ? " � " : ""}
+                  {item.jobs ? " · " : ""}
                   {formatDate(item.applied_at)}
                 </Text>
               </TouchableOpacity>
 
               <View style={styles.statusRow}>
-                <View style={[styles.badge, item.is_draft && styles.draftBadge]}>
+                <View
+                  style={[styles.badge, item.is_draft && styles.draftBadge]}
+                >
                   <Text style={styles.badgeText}>
                     {item.is_draft
                       ? "Draft"
-                      : STATUS_LABEL[item.status] ?? item.status}
+                      : (STATUS_LABEL[item.status] ?? item.status)}
                   </Text>
                 </View>
               </View>
@@ -218,8 +242,8 @@ export default function ApplicationsScreen() {
                 <View style={styles.note}>
                   <Ionicons
                     name="chatbox-outline"
-                    size={15}
-                    color="#E1225F"
+                    size={18}
+                    color={Colors.primary}
                   />
                   <Text style={styles.noteText} numberOfLines={2}>
                     {latestNote.message}
@@ -239,8 +263,8 @@ export default function ApplicationsScreen() {
                   </Text>
                   <Ionicons
                     name={expanded ? "chevron-up" : "chevron-down"}
-                    size={17}
-                    color="#E1225F"
+                    size={18}
+                    color={Colors.primary}
                   />
                 </TouchableOpacity>
               ) : null}
@@ -257,7 +281,7 @@ export default function ApplicationsScreen() {
                         <Text style={styles.timelineDate}>
                           {formatDateTime(entry.changed_at)}
                           {entry.changed_by === "employer"
-                            ? " � from the employer"
+                            ? " · from the employer"
                             : ""}
                         </Text>
                         {entry.message ? (
@@ -279,14 +303,14 @@ export default function ApplicationsScreen() {
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: "#F6F7F9" },
+  page: { flex: 1, backgroundColor: Colors.background },
   center: {
     flex: 1,
-    backgroundColor: "#F6F7F9",
+    backgroundColor: Colors.background,
     alignItems: "center",
     justifyContent: "center",
   },
-  list: { padding: 16, paddingBottom: 110 },
+  list: { padding: 16, paddingBottom: 112 },
   header: { paddingTop: 4, paddingBottom: 16 },
   headerRow: { flexDirection: "row", alignItems: "center" },
   back: {
@@ -295,44 +319,49 @@ const styles = StyleSheet.create({
     borderRadius: 21,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 6,
+    marginRight: 8,
   },
-  title: { fontFamily: Fonts.editorial, fontWeight: "400",  color: "#061A30", fontSize: 23,},
-  subtitle: { color: "#556274", fontSize: 12, marginTop: 3 },
+  title: {
+    fontFamily: Fonts.editorial,
+    fontWeight: "400",
+    color: Colors.foreground,
+    fontSize: 24,
+  },
+  subtitle: { color: Colors.muted, fontSize: 12, marginTop: 4 },
   card: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
     borderWidth: 1,
-    borderColor: "#E8EBF0",
+    borderColor: Colors.border,
     borderRadius: 8,
-    padding: 15,
-    marginBottom: 11,
+    padding: 16,
+    marginBottom: 12,
   },
-  jobTitle: { color: "#061A30", fontSize: 15, fontWeight: "800" },
-  company: { color: "#556274", fontSize: 12, marginTop: 4 },
-  statusRow: { flexDirection: "row", marginTop: 11 },
+  jobTitle: { color: Colors.foreground, fontSize: 15, fontWeight: "500" },
+  company: { color: Colors.muted, fontSize: 12, marginTop: 4 },
+  statusRow: { flexDirection: "row", marginTop: 12 },
   badge: {
     borderRadius: 8,
-    backgroundColor: "#FDEEF3",
-    paddingHorizontal: 9,
-    paddingVertical: 5,
+    backgroundColor: Colors.primarySoft,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
   draftBadge: {
-    backgroundColor: "#F1F5F9",
+    backgroundColor: Colors.secondary,
   },
-  badgeText: { color: "#556274", fontSize: 11, fontWeight: "700" },
+  badgeText: { color: Colors.muted, fontSize: 12, fontWeight: "500" },
   note: {
     marginTop: 12,
-    padding: 11,
+    padding: 12,
     borderRadius: 9,
-    backgroundColor: "#F9FAFB",
+    backgroundColor: Colors.background,
     flexDirection: "row",
-    gap: 7,
+    gap: 8,
   },
   noteText: {
     flex: 1,
-    color: "#556274",
+    color: Colors.muted,
     fontSize: 12,
-    lineHeight: 18,
+    lineHeight: 20,
   },
   historyButton: {
     minHeight: 44,
@@ -341,33 +370,33 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
-  historyText: { color: "#E1225F", fontSize: 12, fontWeight: "700" },
+  historyText: { color: Colors.primaryPressed, fontSize: 12, fontWeight: "500" },
   timeline: {
     marginTop: 4,
     borderLeftWidth: 1,
-    borderLeftColor: "#E8EBF0",
-    marginLeft: 5,
+    borderLeftColor: Colors.border,
+    marginLeft: 4,
   },
   timelineItem: {
     flexDirection: "row",
-    marginBottom: 15,
+    marginBottom: 16,
   },
   dot: {
     width: 9,
     height: 9,
     borderRadius: 5,
-    backgroundColor: "#E1225F",
+    backgroundColor: Colors.primary,
     marginLeft: -5,
-    marginTop: 5,
+    marginTop: 4,
   },
   timelineBody: { flex: 1, marginLeft: 12 },
-  timelineStatus: { color: "#061A30", fontSize: 13, fontWeight: "700" },
-  timelineDate: { color: "#94A3B8", fontSize: 10, marginTop: 2 },
+  timelineStatus: { color: Colors.foreground, fontSize: 13, fontWeight: "500" },
+  timelineDate: { color: Colors.mutedSubtle, fontSize: 12, marginTop: 2 },
   timelineMessage: {
-    color: "#556274",
+    color: Colors.muted,
     fontSize: 12,
-    lineHeight: 18,
-    marginTop: 6,
+    lineHeight: 20,
+    marginTop: 8,
   },
   empty: {
     flex: 1,
@@ -375,46 +404,44 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  emptyTitle: { fontFamily: Fonts.editorial, fontWeight: "400",
-    color: "#061A30",
+  emptyTitle: {
+    fontFamily: Fonts.editorial,
+    fontWeight: "400",
+    color: Colors.foreground,
     fontSize: 20,
-    marginTop: 14,
+    marginTop: 16,
   },
   emptyText: {
-    color: "#556274",
+    color: Colors.muted,
     textAlign: "center",
     lineHeight: 20,
-    marginTop: 7,
+    marginTop: 8,
   },
   emptyList: { alignItems: "center", paddingTop: 80 },
   emptyListTitle: {
-    color: "#061A30",
-    fontWeight: "800",
+    color: Colors.foreground,
+    fontWeight: "500",
     marginTop: 12,
   },
   primary: {
     width: "100%",
     height: 52,
     borderRadius: 10,
-    backgroundColor: "#E1225F",
+    backgroundColor: Colors.primary,
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 22,
+    marginTop: 24,
   },
-  primaryText: { color: "#FFFFFF", fontWeight: "800" },
+  primaryText: { color: Colors.surface, fontWeight: "500" },
   secondary: {
     height: 48,
-    paddingHorizontal: 22,
+    paddingHorizontal: 24,
     borderRadius: 9,
     borderWidth: 1,
-    borderColor: "#DFE4EC",
+    borderColor: Colors.input,
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 18,
+    marginTop: 20,
   },
-  secondaryText: { color: "#061A30", fontWeight: "700" },
+  secondaryText: { color: Colors.foreground, fontWeight: "500" },
 });
-
-
-
-

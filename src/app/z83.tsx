@@ -1,15 +1,18 @@
+import {
+  AppText as Text,
+  AppTextInput as TextInput,
+  AppTouchableOpacity as TouchableOpacity,
+} from "../components/ui/primitives";
+import { Colors, Fonts } from "../constants/theme";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
   View,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Icon as Ionicons } from "../components/ui/icon";
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -123,7 +126,8 @@ export default function Z83Screen() {
 
     const surname = (p.last_name ?? "").toUpperCase();
     const first = p.first_name ?? "";
-    const full = surname && first ? `${surname}, ${first}` : p.full_name ?? "";
+    const full =
+      surname && first ? `${surname}, ${first}` : (p.full_name ?? "");
     const contact = [
       p.email,
       p.phone,
@@ -152,9 +156,7 @@ export default function Z83Screen() {
       jobs:
         (workRes.data ?? []).length > 0
           ? (workRes.data ?? []).slice(0, 3).map((w) => {
-              const from = w.start_date
-                ? new Date(w.start_date)
-                : null;
+              const from = w.start_date ? new Date(w.start_date) : null;
               const to = w.end_date ? new Date(w.end_date) : null;
               return {
                 ...emptyJob(),
@@ -163,9 +165,7 @@ export default function Z83Screen() {
                 fromMonth: from
                   ? String(from.getMonth() + 1).padStart(2, "0")
                   : "",
-                fromYear: from
-                  ? String(from.getFullYear()).slice(-2)
-                  : "",
+                fromYear: from ? String(from.getFullYear()).slice(-2) : "",
                 toMonth:
                   w.currently_working || !to
                     ? ""
@@ -190,7 +190,7 @@ export default function Z83Screen() {
 
     Alert.alert(
       "Z83",
-      "Profile details added. Check every field before downloading."
+      "Profile details added. Check every field before downloading.",
     );
   }
 
@@ -205,7 +205,7 @@ export default function Z83Screen() {
             { text: "Go back", style: "cancel", onPress: () => resolve(false) },
             { text: "Download anyway", onPress: () => resolve(true) },
           ],
-          { cancelable: true, onDismiss: () => resolve(false) }
+          { cancelable: true, onDismiss: () => resolve(false) },
         );
       });
       if (!proceed) return;
@@ -237,7 +237,7 @@ export default function Z83Screen() {
       console.error("Z83 PDF failed:", e);
       Alert.alert(
         "Z83",
-        "Could not create the official PDF. Check your connection and try again."
+        "Could not create the official PDF. Check your connection and try again.",
       );
     } finally {
       setBusy(false);
@@ -247,7 +247,7 @@ export default function Z83Screen() {
   if (!loaded) {
     return (
       <SafeAreaView style={s.center}>
-        <ActivityIndicator color="#E1225F" />
+        <ActivityIndicator color={Colors.primary} />
       </SafeAreaView>
     );
   }
@@ -256,7 +256,10 @@ export default function Z83Screen() {
     <SafeAreaView style={s.page} edges={["top", "bottom"]}>
       <Header />
       <ScrollView
-        contentContainerStyle={[s.content, { paddingBottom: bottomContentPadding }]}
+        contentContainerStyle={[
+          s.content,
+          { paddingBottom: bottomContentPadding },
+        ]}
         keyboardShouldPersistTaps="handled"
         scrollEnabled={formScrollEnabled}
       >
@@ -267,8 +270,8 @@ export default function Z83Screen() {
         <View style={s.privacy}>
           <Ionicons
             name="shield-checkmark-outline"
-            size={20}
-            color="#E1225F"
+            size={18}
+            color={Colors.primary}
           />
           <Text style={s.privacyText}>
             Your ID number, employment-equity answers, criminal/disciplinary
@@ -283,7 +286,11 @@ export default function Z83Screen() {
             disabled={busy}
             onPress={() => void prefill()}
           >
-            <Ionicons name="person-circle-outline" size={20} color="#061A30" />
+            <Ionicons
+              name="person-circle-outline"
+              size={18}
+              color={Colors.foreground}
+            />
             <Text style={s.profileText}>Use my FirstJobly profile</Text>
           </TouchableOpacity>
         ) : null}
@@ -324,8 +331,7 @@ export default function Z83Screen() {
             onChangeText={(surnameAndNames) =>
               patch({
                 surnameAndNames,
-                initials:
-                  data.initials || deriveInitials(surnameAndNames),
+                initials: data.initials || deriveInitials(surnameAndNames),
               })
             }
           />
@@ -403,18 +409,14 @@ export default function Z83Screen() {
           <YesNo
             label="Have you been convicted or found guilty of a criminal offence (including an admission of guilt)?"
             value={data.criminalConviction}
-            onChange={(criminalConviction) =>
-              patch({ criminalConviction })
-            }
+            onChange={(criminalConviction) => patch({ criminalConviction })}
           />
           {data.criminalConviction === "yes" ? (
             <Field
               label="Provide details"
               value={data.criminalDetail}
               multiline
-              onChangeText={(criminalDetail) =>
-                patch({ criminalDetail })
-              }
+              onChangeText={(criminalDetail) => patch({ criminalDetail })}
             />
           ) : null}
 
@@ -446,18 +448,14 @@ export default function Z83Screen() {
               label="Provide details"
               value={data.dismissedDetail}
               multiline
-              onChangeText={(dismissedDetail) =>
-                patch({ dismissedDetail })
-              }
+              onChangeText={(dismissedDetail) => patch({ dismissedDetail })}
             />
           ) : null}
 
           <YesNo
             label="Do you have any pending disciplinary case against you?"
             value={data.pendingDisciplinary}
-            onChange={(pendingDisciplinary) =>
-              patch({ pendingDisciplinary })
-            }
+            onChange={(pendingDisciplinary) => patch({ pendingDisciplinary })}
           />
           {data.pendingDisciplinary === "yes" ? (
             <Field
@@ -482,32 +480,24 @@ export default function Z83Screen() {
               label="Provide details"
               value={data.resignedDetail}
               multiline
-              onChangeText={(resignedDetail) =>
-                patch({ resignedDetail })
-              }
+              onChangeText={(resignedDetail) => patch({ resignedDetail })}
             />
           ) : null}
 
           <YesNo
             label="Have you been discharged or retired from the Public Service on grounds of ill-health, or on a condition preventing re-employment?"
             value={data.dischargedIllHealth}
-            onChange={(dischargedIllHealth) =>
-              patch({ dischargedIllHealth })
-            }
+            onChange={(dischargedIllHealth) => patch({ dischargedIllHealth })}
           />
           <YesNo
             label="Are you conducting business with the State, or a director of a company doing business with the State?"
             value={data.businessWithState}
-            onChange={(businessWithState) =>
-              patch({ businessWithState })
-            }
+            onChange={(businessWithState) => patch({ businessWithState })}
           />
           <YesNo
             label="If employed in the Public Service, will you immediately relinquish those business interests?"
             value={data.relinquishBusiness}
-            onChange={(relinquishBusiness) =>
-              patch({ relinquishBusiness })
-            }
+            onChange={(relinquishBusiness) => patch({ relinquishBusiness })}
           />
 
           <Field
@@ -526,16 +516,12 @@ export default function Z83Screen() {
             label="Professional registration date"
             value={data.registrationDate}
             placeholder="02/2024"
-            onChangeText={(registrationDate) =>
-              patch({ registrationDate })
-            }
+            onChangeText={(registrationDate) => patch({ registrationDate })}
           />
           <Field
             label="Registration number"
             value={data.registrationNumber}
-            onChangeText={(registrationNumber) =>
-              patch({ registrationNumber })
-            }
+            onChangeText={(registrationNumber) => patch({ registrationNumber })}
           />
         </Section>
 
@@ -544,9 +530,7 @@ export default function Z83Screen() {
             label="Preferred language for correspondence"
             value={data.preferredLanguage}
             options={SA_LANGUAGES.map((x) => [x, x])}
-            onChange={(preferredLanguage) =>
-              patch({ preferredLanguage })
-            }
+            onChange={(preferredLanguage) => patch({ preferredLanguage })}
           />
           <Choice
             label="Preferred method of correspondence"
@@ -566,9 +550,7 @@ export default function Z83Screen() {
             hint="One per line — email, phone and postal address."
             value={data.contactDetails}
             multiline
-            onChangeText={(contactDetails) =>
-              patch({ contactDetails })
-            }
+            onChangeText={(contactDetails) => patch({ contactDetails })}
           />
         </Section>
 
@@ -585,7 +567,7 @@ export default function Z83Screen() {
                 onChange={(name) =>
                   patch({
                     languages: data.languages.map((v, i) =>
-                      i === index ? { ...v, name } : v
+                      i === index ? { ...v, name } : v,
                     ),
                   })
                 }
@@ -601,7 +583,7 @@ export default function Z83Screen() {
                 onChange={(speak) =>
                   patch({
                     languages: data.languages.map((v, i) =>
-                      i === index ? { ...v, speak } : v
+                      i === index ? { ...v, speak } : v,
                     ),
                   })
                 }
@@ -617,7 +599,7 @@ export default function Z83Screen() {
                 onChange={(write) =>
                   patch({
                     languages: data.languages.map((v, i) =>
-                      i === index ? { ...v, write } : v
+                      i === index ? { ...v, write } : v,
                     ),
                   })
                 }
@@ -626,9 +608,7 @@ export default function Z83Screen() {
                 label="Remove language"
                 onPress={() =>
                   patch({
-                    languages: data.languages.filter(
-                      (_, i) => i !== index
-                    ),
+                    languages: data.languages.filter((_, i) => i !== index),
                   })
                 }
               />
@@ -661,7 +641,7 @@ export default function Z83Screen() {
                 onChangeText={(institution) =>
                   patch({
                     qualifications: data.qualifications.map((v, i) =>
-                      i === index ? { ...v, institution } : v
+                      i === index ? { ...v, institution } : v,
                     ),
                   })
                 }
@@ -672,7 +652,7 @@ export default function Z83Screen() {
                 onChangeText={(qualification) =>
                   patch({
                     qualifications: data.qualifications.map((v, i) =>
-                      i === index ? { ...v, qualification } : v
+                      i === index ? { ...v, qualification } : v,
                     ),
                   })
                 }
@@ -684,7 +664,7 @@ export default function Z83Screen() {
                 onChangeText={(year) =>
                   patch({
                     qualifications: data.qualifications.map((v, i) =>
-                      i === index ? { ...v, year } : v
+                      i === index ? { ...v, year } : v,
                     ),
                   })
                 }
@@ -694,7 +674,7 @@ export default function Z83Screen() {
                 onPress={() =>
                   patch({
                     qualifications: data.qualifications.filter(
-                      (_, i) => i !== index
+                      (_, i) => i !== index,
                     ),
                   })
                 }
@@ -733,7 +713,7 @@ export default function Z83Screen() {
                 onChangeText={(employer) =>
                   patch({
                     jobs: data.jobs.map((v, i) =>
-                      i === index ? { ...v, employer } : v
+                      i === index ? { ...v, employer } : v,
                     ),
                   })
                 }
@@ -744,7 +724,7 @@ export default function Z83Screen() {
                 onChangeText={(post) =>
                   patch({
                     jobs: data.jobs.map((v, i) =>
-                      i === index ? { ...v, post } : v
+                      i === index ? { ...v, post } : v,
                     ),
                   })
                 }
@@ -757,7 +737,7 @@ export default function Z83Screen() {
                 onChangeText={(fromMonth) =>
                   patch({
                     jobs: data.jobs.map((v, i) =>
-                      i === index ? { ...v, fromMonth } : v
+                      i === index ? { ...v, fromMonth } : v,
                     ),
                   })
                 }
@@ -770,7 +750,7 @@ export default function Z83Screen() {
                 onChangeText={(fromYear) =>
                   patch({
                     jobs: data.jobs.map((v, i) =>
-                      i === index ? { ...v, fromYear } : v
+                      i === index ? { ...v, fromYear } : v,
                     ),
                   })
                 }
@@ -783,7 +763,7 @@ export default function Z83Screen() {
                 onChangeText={(toMonth) =>
                   patch({
                     jobs: data.jobs.map((v, i) =>
-                      i === index ? { ...v, toMonth } : v
+                      i === index ? { ...v, toMonth } : v,
                     ),
                   })
                 }
@@ -796,7 +776,7 @@ export default function Z83Screen() {
                 onChangeText={(toYear) =>
                   patch({
                     jobs: data.jobs.map((v, i) =>
-                      i === index ? { ...v, toYear } : v
+                      i === index ? { ...v, toYear } : v,
                     ),
                   })
                 }
@@ -807,7 +787,7 @@ export default function Z83Screen() {
                 onChangeText={(reason) =>
                   patch({
                     jobs: data.jobs.map((v, i) =>
-                      i === index ? { ...v, reason } : v
+                      i === index ? { ...v, reason } : v,
                     ),
                   })
                 }
@@ -825,9 +805,7 @@ export default function Z83Screen() {
           {data.jobs.length < 3 ? (
             <Add
               label="Add position"
-              onPress={() =>
-                patch({ jobs: [...data.jobs, emptyJob()] })
-              }
+              onPress={() => patch({ jobs: [...data.jobs, emptyJob()] })}
             />
           ) : null}
           <YesNo
@@ -861,7 +839,7 @@ export default function Z83Screen() {
                 onChangeText={(name) =>
                   patch({
                     references: data.references.map((v, i) =>
-                      i === index ? { ...v, name } : v
+                      i === index ? { ...v, name } : v,
                     ),
                   })
                 }
@@ -872,7 +850,7 @@ export default function Z83Screen() {
                 onChangeText={(relationship) =>
                   patch({
                     references: data.references.map((v, i) =>
-                      i === index ? { ...v, relationship } : v
+                      i === index ? { ...v, relationship } : v,
                     ),
                   })
                 }
@@ -884,7 +862,7 @@ export default function Z83Screen() {
                 onChangeText={(phone) =>
                   patch({
                     references: data.references.map((v, i) =>
-                      i === index ? { ...v, phone } : v
+                      i === index ? { ...v, phone } : v,
                     ),
                   })
                 }
@@ -893,9 +871,7 @@ export default function Z83Screen() {
                 label="Remove reference"
                 onPress={() =>
                   patch({
-                    references: data.references.filter(
-                      (_, i) => i !== index
-                    ),
+                    references: data.references.filter((_, i) => i !== index),
                   })
                 }
               />
@@ -966,19 +942,13 @@ export default function Z83Screen() {
           <Field
             label="Declaration date"
             value={data.declarationDate}
-            onChangeText={(declarationDate) =>
-              patch({ declarationDate })
-            }
+            onChangeText={(declarationDate) => patch({ declarationDate })}
           />
         </Section>
 
         {missingRequired(data).length > 0 ? (
           <View style={s.warning}>
-            <Ionicons
-              name="warning-outline"
-              size={20}
-              color="#E1225F"
-            />
+            <Ionicons name="warning-outline" size={18} color={Colors.primary} />
             <View style={{ flex: 1 }}>
               <Text style={s.warningTitle}>Still to complete</Text>
               {missingRequired(data).map((x) => (
@@ -996,17 +966,15 @@ export default function Z83Screen() {
           onPress={() => void download()}
         >
           {busy ? (
-            <ActivityIndicator color="#FFFFFF" />
+            <ActivityIndicator color={Colors.surface} />
           ) : (
             <>
               <Ionicons
                 name="download-outline"
-                size={20}
-                color="#FFFFFF"
+                size={18}
+                color={Colors.surface}
               />
-              <Text style={s.primaryText}>
-                Download completed official Z83
-              </Text>
+              <Text style={s.primaryText}>Download completed official Z83</Text>
             </>
           )}
         </TouchableOpacity>
@@ -1038,7 +1006,7 @@ function Header() {
   return (
     <View style={s.header}>
       <TouchableOpacity style={s.headerIcon} onPress={() => router.back()}>
-        <Ionicons name="arrow-back" size={22} color="#061A30" />
+        <Ionicons name="arrow-back" size={18} color={Colors.foreground} />
       </TouchableOpacity>
       <Text style={s.headerTitle}>Z83 Form Filler</Text>
       <View style={s.headerIcon} />
@@ -1095,9 +1063,10 @@ function Field({
     <View style={s.field}>
       <Text style={s.label}>{label}</Text>
       <TextInput
+        accessibilityLabel={label}
         {...props}
         multiline={multiline}
-        placeholderTextColor="#94A3B8"
+        placeholderTextColor={Colors.mutedSubtle}
         style={[s.input, multiline && s.multiline]}
       />
       {hint ? <Text style={s.hint}>{hint}</Text> : null}
@@ -1124,12 +1093,7 @@ function YesNo({
             style={[s.choice, value === v && s.choiceActive]}
             onPress={() => onChange(value === v ? "" : v)}
           >
-            <Text
-              style={[
-                s.choiceText,
-                value === v && s.choiceTextActive,
-              ]}
-            >
+            <Text style={[s.choiceText, value === v && s.choiceTextActive]}>
               {v === "yes" ? "Yes" : "No"}
             </Text>
           </TouchableOpacity>
@@ -1164,12 +1128,7 @@ function Choice({
               style={[s.choice, value === key && s.choiceActive]}
               onPress={() => onChange(value === key ? "" : key)}
             >
-              <Text
-                style={[
-                  s.choiceText,
-                  value === key && s.choiceTextActive,
-                ]}
-              >
+              <Text style={[s.choiceText, value === key && s.choiceTextActive]}>
                 {text}
               </Text>
             </TouchableOpacity>
@@ -1180,44 +1139,32 @@ function Choice({
   );
 }
 
-function Add({
-  label,
-  onPress,
-}: {
-  label: string;
-  onPress: () => void;
-}) {
+function Add({ label, onPress }: { label: string; onPress: () => void }) {
   return (
     <TouchableOpacity style={s.add} onPress={onPress}>
-      <Ionicons name="add" size={17} color="#061A30" />
+      <Ionicons name="add" size={18} color={Colors.foreground} />
       <Text style={s.addText}>{label}</Text>
     </TouchableOpacity>
   );
 }
 
-function Remove({
-  label,
-  onPress,
-}: {
-  label: string;
-  onPress: () => void;
-}) {
+function Remove({ label, onPress }: { label: string; onPress: () => void }) {
   return (
     <TouchableOpacity style={s.remove} onPress={onPress}>
-      <Ionicons name="trash-outline" size={16} color="#DC2626" />
+      <Ionicons name="trash-outline" size={18} color={Colors.error} />
       <Text style={s.removeText}>{label}</Text>
     </TouchableOpacity>
   );
 }
 
 const s = StyleSheet.create({
-  page: { flex: 1, backgroundColor: "#F6F7F9" },
+  page: { flex: 1, backgroundColor: Colors.background },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   header: {
     height: 62,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: "#E8EBF0",
+    borderBottomColor: Colors.border,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -1229,147 +1176,199 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  headerTitle: { color: "#061A30", fontSize: 17, fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800" },
-  content: { padding: 16, paddingBottom: 46 },
-  intro: { color: "#556274", fontSize: 13, lineHeight: 20 },
+  headerTitle: {
+    color: Colors.foreground,
+    fontSize: 18,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
+  },
+  content: { padding: 16, paddingBottom: 48 },
+  intro: { color: Colors.muted, fontSize: 13, lineHeight: 20 },
   privacy: {
     marginTop: 12,
-    padding: 13,
+    padding: 12,
     borderRadius: 11,
     borderWidth: 1,
-    borderColor: "#F8D3E0",
-    backgroundColor: "#FDEEF3",
+    borderColor: Colors.primaryBorder,
+    backgroundColor: Colors.primarySoft,
     flexDirection: "row",
-    gap: 9,
+    gap: 8,
   },
-  privacyText: { flex: 1, color: "#556274", fontSize: 11, lineHeight: 18 },
+  privacyText: { flex: 1, color: Colors.muted, fontSize: 12, lineHeight: 20 },
   profileBtn: {
     height: 48,
     marginTop: 12,
     borderWidth: 1,
-    borderColor: "#DFE4EC",
+    borderColor: Colors.input,
     borderRadius: 10,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
     flexDirection: "row",
-    gap: 7,
+    gap: 8,
     alignItems: "center",
     justifyContent: "center",
   },
-  profileText: { color: "#061A30", fontFamily: "PlusJakartaSans_700Bold", fontWeight: "700" },
+  profileText: {
+    color: Colors.foreground,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
+  },
   section: {
-    marginTop: 14,
-    backgroundColor: "#FFFFFF",
+    marginTop: 16,
+    backgroundColor: Colors.surface,
     borderWidth: 1,
-    borderColor: "#E8EBF0",
+    borderColor: Colors.border,
     borderRadius: 8,
     overflow: "hidden",
   },
   sectionHead: {
-    padding: 14,
+    padding: 16,
     borderBottomWidth: 2,
-    borderBottomColor: "#E1225F",
+    borderBottomColor: Colors.primary,
   },
-  sectionTitle: { color: "#061A30", fontSize: 15, fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800" },
-  sectionBody: { padding: 14 },
-  hint: { color: "#556274", fontSize: 10.5, lineHeight: 16, marginTop: 4 },
+  sectionTitle: {
+    color: Colors.foreground,
+    fontSize: 15,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
+  },
+  sectionBody: { padding: 16 },
+  hint: { color: Colors.muted, fontSize: 12, lineHeight: 16, marginTop: 4 },
   sub: {
-    backgroundColor: "#F9FAFB",
+    backgroundColor: Colors.background,
     borderWidth: 1,
-    borderColor: "#E8EBF0",
+    borderColor: Colors.border,
     borderRadius: 10,
-    padding: 11,
-    marginTop: 10,
+    padding: 12,
+    marginTop: 12,
   },
-  subTitle: { color: "#556274", fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800", fontSize: 11 },
-  field: { marginTop: 11 },
-  label: { color: "#556274", fontSize: 12, fontFamily: "PlusJakartaSans_700Bold", fontWeight: "700", marginBottom: 6 },
+  subTitle: {
+    color: Colors.muted,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
+    fontSize: 12,
+  },
+  field: { marginTop: 12 },
+  label: {
+    color: Colors.muted,
+    fontSize: 12,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
+    marginBottom: 8,
+  },
   input: {
     minHeight: 46,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
     borderWidth: 1,
-    borderColor: "#DFE4EC",
+    borderColor: Colors.input,
     borderRadius: 9,
-    paddingHorizontal: 11,
-    color: "#061A30",
+    paddingHorizontal: 12,
+    color: Colors.foreground,
   },
-  multiline: { minHeight: 88, paddingTop: 10, textAlignVertical: "top" },
+  multiline: { minHeight: 88, paddingTop: 12, textAlignVertical: "top" },
   yesNo: {
     borderBottomWidth: 1,
-    borderBottomColor: "#E8EBF0",
+    borderBottomColor: Colors.border,
     paddingVertical: 12,
   },
-  yesNoLabel: { color: "#556274", fontSize: 12, lineHeight: 18 },
-  yesNoButtons: { flexDirection: "row", gap: 7, marginTop: 8 },
-  choiceWrap: { flexDirection: "row", flexWrap: "wrap", gap: 7 },
+  yesNoLabel: { color: Colors.muted, fontSize: 12, lineHeight: 20 },
+  yesNoButtons: { flexDirection: "row", gap: 8, marginTop: 8 },
+  choiceWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   choice: {
     minHeight: 38,
-    paddingHorizontal: 13,
+    paddingHorizontal: 12,
     borderWidth: 1,
-    borderColor: "#DFE4EC",
+    borderColor: Colors.input,
     borderRadius: 8,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
     alignItems: "center",
     justifyContent: "center",
   },
-  choiceActive: { backgroundColor: "#E1225F", borderColor: "#E1225F" },
-  choiceText: { color: "#556274", fontSize: 11, fontFamily: "PlusJakartaSans_700Bold", fontWeight: "700" },
-  choiceTextActive: { color: "#FFFFFF" },
+  choiceActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  choiceText: {
+    color: Colors.muted,
+    fontSize: 12,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
+  },
+  choiceTextActive: { color: Colors.surface },
   add: {
     height: 43,
     borderWidth: 1,
-    borderColor: "#DFE4EC",
+    borderColor: Colors.input,
     borderRadius: 9,
     flexDirection: "row",
-    gap: 5,
+    gap: 4,
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 11,
+    marginTop: 12,
   },
-  addText: { color: "#061A30", fontSize: 11, fontFamily: "PlusJakartaSans_700Bold", fontWeight: "700" },
+  addText: {
+    color: Colors.foreground,
+    fontSize: 12,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
+  },
   remove: {
     flexDirection: "row",
-    gap: 5,
+    gap: 4,
     alignItems: "center",
-    marginTop: 10,
+    marginTop: 12,
   },
-  removeText: { color: "#DC2626", fontSize: 10.5, fontFamily: "PlusJakartaSans_700Bold", fontWeight: "700" },
-  signatureWrap: { marginTop: 11 },
+  removeText: {
+    color: Colors.error,
+    fontSize: 12,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
+  },
+  signatureWrap: { marginTop: 12 },
   signature: {
     height: 240,
     borderWidth: 1,
-    borderColor: "#DFE4EC",
+    borderColor: Colors.input,
     borderRadius: 10,
     overflow: "hidden",
-    marginTop: 6,
+    marginTop: 8,
   },
   warning: {
-    marginTop: 14,
-    padding: 13,
+    marginTop: 16,
+    padding: 12,
     borderWidth: 1,
-    borderColor: "#F8D3E0",
-    backgroundColor: "#FDEEF3",
+    borderColor: Colors.primaryBorder,
+    backgroundColor: Colors.primarySoft,
     borderRadius: 11,
     flexDirection: "row",
     gap: 8,
   },
-  warningTitle: { color: "#061A30", fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800", fontSize: 12 },
-  warningText: { color: "#556274", fontSize: 11, lineHeight: 17 },
+  warningTitle: {
+    color: Colors.foreground,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
+    fontSize: 12,
+  },
+  warningText: { color: Colors.muted, fontSize: 12, lineHeight: 20 },
   primary: {
     height: 55,
     marginTop: 16,
     borderRadius: 11,
-    backgroundColor: "#E1225F",
+    backgroundColor: Colors.primary,
     flexDirection: "row",
-    gap: 7,
+    gap: 8,
     alignItems: "center",
     justifyContent: "center",
   },
-  primaryText: { color: "#FFFFFF", fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800", fontSize: 14 },
+  primaryText: {
+    color: Colors.surface,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
+    fontSize: 14,
+  },
   clear: { height: 48, alignItems: "center", justifyContent: "center" },
-  clearText: { color: "#DC2626", fontFamily: "PlusJakartaSans_700Bold", fontWeight: "700" },
+  clearText: {
+    color: Colors.error,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
+  },
 });
-
-
-
-
-

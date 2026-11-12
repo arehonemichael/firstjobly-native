@@ -4,7 +4,13 @@ import { Colors, Fonts } from "../../constants/theme";
 import type { Job } from "../../lib/jobs";
 
 const currency = (value: number) => `R${value.toLocaleString("en-ZA")}`;
-export function JobMetadata({ job, showJobType = true }: { job: Job; showJobType?: boolean }) {
+export function JobMetadata({
+  job,
+  showJobType = true,
+}: {
+  job: Job;
+  showJobType?: boolean;
+}) {
   const min = job.salary_min;
   const max = job.salary_max;
   const salary =
@@ -40,12 +46,12 @@ export function JobMetadata({ job, showJobType = true }: { job: Job; showJobType
   );
 }
 const styles = StyleSheet.create({
-  row: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 8 },
+  row: { flexDirection: "row", flexWrap: "wrap", gap: 12, marginTop: 8 },
   salary: {
     color: Colors.foreground,
-    fontFamily: Fonts.semibold,
+    fontFamily: Fonts.medium,
     fontSize: 12,
-    lineHeight: 18,
+    lineHeight: 20,
   },
-  meta: { color: Colors.muted, fontSize: 12, lineHeight: 18 },
+  meta: { color: Colors.muted, fontSize: 12, lineHeight: 20 },
 });

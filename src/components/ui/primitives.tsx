@@ -29,9 +29,19 @@ export const AppText = forwardRef<Text, TextProps>(function AppText(
   ref,
 ) {
   const nested = useContext(TextContext);
+  const textStyle = StyleSheet.flatten(style);
+  const weight = Number(textStyle?.fontWeight);
+  const face =
+    !textStyle?.fontFamily && weight >= 500
+      ? { fontFamily: weight >= 600 ? Fonts.semibold : Fonts.medium }
+      : undefined;
   return (
     <TextContext.Provider value={true}>
-      <Text ref={ref} {...props} style={[!nested && styles.text, style]} />
+      <Text
+        ref={ref}
+        {...props}
+        style={[!nested && styles.text, face, style]}
+      />
     </TextContext.Provider>
   );
 });
@@ -85,7 +95,11 @@ export const AppTouchableOpacity = forwardRef<
 });
 
 type AppPressableProps = Omit<PressableProps, "style"> & {
-  style?: StyleProp<ViewStyle> | ((state: PressableStateCallbackType & { hovered?: boolean }) => StyleProp<ViewStyle>);
+  style?:
+    | StyleProp<ViewStyle>
+    | ((
+        state: PressableStateCallbackType & { hovered?: boolean },
+      ) => StyleProp<ViewStyle>);
 };
 export const AppPressable = forwardRef<
   ComponentRef<typeof Pressable>,
@@ -111,7 +125,12 @@ export const AppPressable = forwardRef<
 });
 
 const styles = StyleSheet.create({
-  text: { fontFamily: Fonts.regular, fontSize: 14, color: Colors.foreground },
+  text: {
+    fontFamily: Fonts.regular,
+    fontSize: 14,
+    color: Colors.foreground,
+    fontVariant: ["tabular-nums"],
+  },
   input: {
     fontFamily: Fonts.regular,
     fontSize: 14,

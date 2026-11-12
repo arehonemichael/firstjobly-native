@@ -1,15 +1,18 @@
-import { Fonts } from "../../constants/theme";
+import { JobMetadata } from "../../components/ui/job-metadata";
+import {
+  AppText as Text,
+  AppTouchableOpacity as TouchableOpacity,
+} from "../../components/ui/primitives";
+import { Fonts, Colors } from "../../constants/theme";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
   Image,
   StyleSheet,
-  Text,
-  TouchableOpacity,
   View,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Icon as Ionicons } from "../../components/ui/icon";
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -50,9 +53,7 @@ export default function SavedScreen() {
       const order = new Map(savedIds.map((id, index) => [id, index]));
 
       rows.sort(
-        (a, b) =>
-          (order.get(a.id) ?? 9999) -
-          (order.get(b.id) ?? 9999)
+        (a, b) => (order.get(a.id) ?? 9999) - (order.get(b.id) ?? 9999),
       );
 
       setJobs(rows);
@@ -70,7 +71,7 @@ export default function SavedScreen() {
   if (authLoading || savedLoading) {
     return (
       <SafeAreaView style={styles.center}>
-        <ActivityIndicator color="#E1225F" />
+        <ActivityIndicator color={Colors.primary} />
       </SafeAreaView>
     );
   }
@@ -79,17 +80,20 @@ export default function SavedScreen() {
     return (
       <SafeAreaView style={styles.page} edges={["top", "bottom"]}>
         <View style={styles.empty}>
-          <Ionicons name="bookmark-outline" size={44} color="#E1225F" />
+          <Ionicons name="bookmark-outline" size={44} color={Colors.primary} />
 
           <Text style={styles.emptyTitle}>Save jobs for later</Text>
 
           <Text style={styles.emptyText}>
-            Sign in to save opportunities and access them from your FirstJobly account.
+            Sign in to save opportunities and access them from your FirstJobly
+            account.
           </Text>
 
           <TouchableOpacity
             style={styles.primary}
-            onPress={() => router.push({ pathname: "/auth", params: { returnTo: "/saved" } })}
+            onPress={() =>
+              router.push({ pathname: "/auth", params: { returnTo: "/saved" } })
+            }
           >
             <Text style={styles.primaryText}>Sign in</Text>
           </TouchableOpacity>
@@ -103,14 +107,18 @@ export default function SavedScreen() {
       <FlatList
         data={jobs}
         keyExtractor={(job) => job.id}
-        contentContainerStyle={[styles.list, { paddingBottom: bottomContentPadding }]}
+        contentContainerStyle={[
+          styles.list,
+          { paddingBottom: bottomContentPadding },
+        ]}
         refreshing={savedLoading || loadingJobs}
         onRefresh={() => void refreshSaved()}
         ListHeaderComponent={
           <View style={styles.header}>
             <Text style={styles.title}>Saved jobs</Text>
             <Text style={styles.subtitle}>
-              {jobs.length} saved {jobs.length === 1 ? "opportunity" : "opportunities"}
+              {jobs.length} saved{" "}
+              {jobs.length === 1 ? "opportunity" : "opportunities"}
             </Text>
           </View>
         }
@@ -155,31 +163,28 @@ export default function SavedScreen() {
             )}
 
             <View style={styles.jobInfo}>
-              <Text style={styles.jobTitle} numberOfLines={2}>
-                {item.title}
-              </Text>
+              <Text style={styles.jobTitle}>{item.title}</Text>
 
               <Text style={styles.company}>{item.company_name}</Text>
 
               <View style={styles.meta}>
                 <Ionicons
                   name="location-outline"
-                  size={14}
-                  color="#556274"
+                  size={18}
+                  color={Colors.muted}
                 />
 
                 <Text style={styles.metaText}>
-                  {item.city
-                    ? `${item.city}, ${item.province}`
-                    : item.province}
+                  {item.city ? `${item.city}, ${item.province}` : item.province}
                 </Text>
               </View>
+              <JobMetadata job={item} />
             </View>
 
             <Ionicons
               name="chevron-forward"
-              size={19}
-              color="#94A3B8"
+              size={18}
+              color={Colors.mutedSubtle}
             />
           </TouchableOpacity>
         )}
@@ -191,34 +196,36 @@ export default function SavedScreen() {
 const styles = StyleSheet.create({
   page: {
     flex: 1,
-    backgroundColor: "#F6F7F9",
+    backgroundColor: Colors.background,
   },
 
   center: {
     flex: 1,
-    backgroundColor: "#F6F7F9",
+    backgroundColor: Colors.background,
     alignItems: "center",
     justifyContent: "center",
   },
 
   list: {
     paddingHorizontal: 16,
-    paddingBottom: 110,
+    paddingBottom: 112,
   },
 
   header: {
-    paddingTop: 18,
-    paddingBottom: 18,
+    paddingTop: 20,
+    paddingBottom: 20,
   },
 
-  title: { fontFamily: Fonts.editorial, fontWeight: "400",
-    color: "#061A30",
+  title: {
+    fontFamily: Fonts.editorial,
+    fontWeight: "400",
+    color: Colors.foreground,
     fontSize: 24,
   },
 
   subtitle: {
     marginTop: 4,
-    color: "#556274",
+    color: Colors.muted,
     fontSize: 13,
   },
 
@@ -229,16 +236,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 
-  emptyTitle: { fontFamily: Fonts.editorial, fontWeight: "400",
-    marginTop: 18,
-    color: "#061A30",
-    fontSize: 21,
+  emptyTitle: {
+    fontFamily: Fonts.editorial,
+    fontWeight: "400",
+    marginTop: 20,
+    color: Colors.foreground,
+    fontSize: 20,
   },
 
   emptyText: {
     maxWidth: 310,
     marginTop: 8,
-    color: "#556274",
+    color: Colors.muted,
     fontSize: 13,
     lineHeight: 20,
     textAlign: "center",
@@ -251,8 +260,9 @@ const styles = StyleSheet.create({
 
   emptyListTitle: {
     marginTop: 12,
-    color: "#061A30",
-    fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800",
+    color: Colors.foreground,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
   },
 
   primary: {
@@ -260,14 +270,15 @@ const styles = StyleSheet.create({
     height: 52,
     marginTop: 24,
     borderRadius: 10,
-    backgroundColor: "#E1225F",
+    backgroundColor: Colors.primary,
     alignItems: "center",
     justifyContent: "center",
   },
 
   primaryText: {
-    color: "#FFFFFF",
-    fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800",
+    color: Colors.surface,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
   },
 
   secondary: {
@@ -275,39 +286,41 @@ const styles = StyleSheet.create({
     height: 48,
     paddingHorizontal: 24,
     borderWidth: 1,
-    borderColor: "#DFE4EC",
+    borderColor: Colors.input,
     borderRadius: 9,
     alignItems: "center",
     justifyContent: "center",
   },
 
   secondaryText: {
-    color: "#061A30",
-    fontFamily: "PlusJakartaSans_700Bold", fontWeight: "700",
+    color: Colors.foreground,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
   },
 
   card: {
     minHeight: 88,
-    paddingVertical: 14,
+    paddingVertical: 16,
     flexDirection: "row",
     alignItems: "flex-start",
     borderBottomWidth: 1,
-    borderBottomColor: "#E8EBF0",
+    borderBottomColor: Colors.border,
   },
 
   logo: {
     width: 48,
     height: 48,
     borderRadius: 8,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: Colors.secondary,
     alignItems: "center",
     justifyContent: "center",
   },
 
   logoText: {
-    color: "#E1225F",
+    color: Colors.primaryPressed,
     fontSize: 18,
-    fontFamily: "PlusJakartaSans_800ExtraBold", fontWeight: "800",
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
   },
 
   jobInfo: {
@@ -316,35 +329,28 @@ const styles = StyleSheet.create({
   },
 
   jobTitle: {
-    color: "#061A30",
+    color: Colors.foreground,
     fontSize: 14,
-    lineHeight: 19,
-    fontFamily: "PlusJakartaSans_700Bold", fontWeight: "700",
+    lineHeight: 20,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
   },
 
   company: {
-    marginTop: 3,
-    color: "#556274",
+    marginTop: 4,
+    color: Colors.muted,
     fontSize: 12,
   },
 
   meta: {
-    marginTop: 7,
+    marginTop: 8,
     flexDirection: "row",
     alignItems: "center",
   },
 
   metaText: {
     marginLeft: 4,
-    color: "#556274",
-    fontSize: 11,
+    color: Colors.muted,
+    fontSize: 12,
   },
 });
-
-
-
-
-
-
-
-

@@ -1,10 +1,7 @@
-﻿import { useEffect, useMemo, useState } from "react";
-import {
-  ActivityIndicator,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { AppText as Text } from "./ui/primitives";
+import { Colors, Fonts } from "../constants/theme";
+import { useEffect, useState } from "react";
+import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { Lightbulb } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -16,29 +13,13 @@ type LaunchSplashProps = {
   onDone: () => void;
 };
 
-const MIN_MS = 1500;
+const MIN_MS = 600;
 const MAX_MS = 5000;
 
-export function LaunchSplash({
-  firstName,
-  ready,
-  onDone,
-}: LaunchSplashProps) {
+export function LaunchSplash({ ready, onDone }: LaunchSplashProps) {
   const [minimumElapsed, setMinimumElapsed] = useState(false);
 
-  const greeting = useMemo(() => {
-    const hour = new Date().getHours();
-    const dayGreeting =
-      hour < 12
-        ? "Good morning"
-        : hour < 18
-          ? "Good afternoon"
-          : "Good evening";
-
-    return firstName
-      ? `${dayGreeting}, ${firstName}`
-      : "Welcome to FirstJobly";
-  }, [firstName]);
+  const greeting = "Your next step into work";
 
   useEffect(() => {
     const minimumTimer = setTimeout(() => {
@@ -70,18 +51,18 @@ export function LaunchSplash({
         </Text>
 
         <Text style={styles.greeting}>{greeting}</Text>
-        <Text style={styles.subtext}>Your career starts here.</Text>
+        <Text style={styles.subtext}>Jobs, internships and learnerships</Text>
 
         <ActivityIndicator
           size="small"
-          color="#E1225F"
+          color={Colors.primary}
           style={styles.spinner}
         />
       </View>
 
       <View style={styles.factCard}>
         <View style={styles.factIcon}>
-          <Lightbulb size={18} color="#E1225F" strokeWidth={2} />
+          <Lightbulb size={18} color={Colors.primary} strokeWidth={1.5} />
         </View>
 
         <View style={styles.factContent}>
@@ -96,8 +77,8 @@ export function LaunchSplash({
 const styles = StyleSheet.create({
   page: {
     flex: 1,
-    backgroundColor: "#061A30",
-    paddingHorizontal: 22,
+    backgroundColor: Colors.background,
+    paddingHorizontal: 24,
     justifyContent: "space-between",
   },
   top: {
@@ -105,67 +86,67 @@ const styles = StyleSheet.create({
   },
   wordmark: {
     fontSize: 28,
-    fontFamily: "PlusJakartaSans_800ExtraBold",
-    fontWeight: "800",
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
   },
   first: {
-    color: "#E1225F",
+    color: Colors.primaryPressed,
   },
   jobly: {
-    color: "#FFFFFF",
+    color: Colors.foreground,
   },
   greeting: {
-    color: "#FFFFFF",
-    fontFamily: "PlusJakartaSans_800ExtraBold",
-    fontWeight: "800",
+    color: Colors.foreground,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
     fontSize: 28,
-    lineHeight: 34,
+    lineHeight: 36,
     marginTop: 72,
   },
   subtext: {
-    color: "#94A3B8",
-    fontFamily: "PlusJakartaSans_500Medium",
+    color: Colors.mutedSubtle,
+    fontFamily: Fonts.medium,
     fontWeight: "500",
     fontSize: 13,
-    marginTop: 7,
+    marginTop: 8,
   },
   spinner: {
-    marginTop: 26,
+    marginTop: 28,
     alignSelf: "flex-start",
   },
   factCard: {
     flexDirection: "row",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
     borderWidth: 1,
-    borderColor: "#E8EBF0",
+    borderColor: Colors.border,
     borderRadius: 8,
-    padding: 14,
-    marginBottom: 18,
+    padding: 16,
+    marginBottom: 20,
   },
   factIcon: {
     width: 34,
     height: 34,
     borderRadius: 6,
-    backgroundColor: "#FDEEF3",
+    backgroundColor: Colors.primarySoft,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 11,
+    marginRight: 12,
   },
   factContent: {
     flex: 1,
   },
   factLabel: {
-    color: "#B0164A",
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontWeight: "700",
-    fontSize: 11,
+    color: Colors.primaryPressed,
+    fontFamily: Fonts.medium,
+    fontWeight: "500",
+    fontSize: 12,
     marginBottom: 4,
   },
   factText: {
-    color: "#556274",
-    fontFamily: "PlusJakartaSans_500Medium",
+    color: Colors.muted,
+    fontFamily: Fonts.medium,
     fontWeight: "500",
     fontSize: 12,
-    lineHeight: 18,
+    lineHeight: 20,
   },
 });
