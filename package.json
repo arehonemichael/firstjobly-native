@@ -61,7 +61,8 @@
     "typecheck": "tsc --noEmit",
     "test:navigation": "node scripts/test-navigation.cjs",
     "test:home-hero": "node scripts/test-home-hero.cjs",
-    "test:recommendations": "node --test scripts/personalization/test-*.cjs"
+    "test:recommendations": "node --test scripts/personalization/test-*.cjs",
+    "test:startup": "node --test scripts/test-startup.cjs"
   },
   "private": true
 }

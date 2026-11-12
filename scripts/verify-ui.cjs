@@ -421,6 +421,11 @@ function check(value, label) {
     await page.goto(
       `${base}/auth${returnTo ? "?returnTo=" + encodeURIComponent(returnTo) : ""}`,
     );
+    // Routes now mount behind an inert startup shell. Wait for real user
+    // interactivity before filling controlled fields, not just DOM presence.
+    await page
+      .locator('[data-testid="application-shell"]:not([inert])')
+      .waitFor();
     await page.getByPlaceholder("you@example.com").fill(user.email);
     await page.getByPlaceholder("Your password").fill("fixture-password");
     await page.getByRole("button", { name: "Sign in", exact: true }).click();
