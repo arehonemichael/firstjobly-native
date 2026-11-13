@@ -60,6 +60,16 @@ function check(v, label) {
   checks++;
   console.log("PASS " + label);
 }
+async function revealActions(container) {
+  await container
+    .getByRole("button", { name: /^(More|Hide) discussion actions$/ })
+    .first()
+    .waitFor();
+  const more = container
+    .getByRole("button", { name: "More discussion actions", exact: true })
+    .first();
+  if (await more.count()) await more.click();
+}
 function sessionFor(id = uid) {
   const user = {
     id,
@@ -255,6 +265,8 @@ function sessionFor(id = uid) {
           }
           if (state.delay && action.startsWith("toggle-"))
             await new Promise((done) => setTimeout(done, state.delay));
+          if (options.slow && action === "list-posts")
+            await new Promise((done) => setTimeout(done, 800));
           if (action === "viewer-state")
             return r.fulfill({ json: state.viewer });
           const reading = ["list-posts", "get-post", "list-comments"];
@@ -435,11 +447,7 @@ function sessionFor(id = uid) {
         })
         .waitFor();
       check(
-        await page
-          .getByText(
-            "Ask questions, share advice and help other job seekers across South Africa.",
-          )
-          .isVisible(),
+        await page.getByText("Ask questions. Share advice.").isVisible(),
         "Community heading and real wording",
       );
       check(
@@ -457,6 +465,10 @@ function sessionFor(id = uid) {
         "anonymous initials avatar",
       );
       const card = page.getByTestId("community-post-canonical-post");
+      await page.screenshot({
+        path: shots + "/feed-320.png",
+        fullPage: true,
+      });
       state.delay = 450;
       await card
         .getByRole("button", { name: "Helpful · 3", exact: true })
@@ -497,6 +509,9 @@ function sessionFor(id = uid) {
         .waitFor();
       check(true, "Save confirmed");
       await page
+        .getByRole("button", { name: "More feeds", exact: true })
+        .click();
+      await page
         .getByRole("button", { name: "Saved", exact: true })
         .first()
         .click();
@@ -507,12 +522,16 @@ function sessionFor(id = uid) {
         ),
         "Saved scope uses shared service",
       );
-      await page.getByRole("button", { name: "For you", exact: true }).click();
+      await page.getByRole("button", { name: "Saved", exact: true }).click();
+      await page
+        .getByRole("button", { name: "Following", exact: true })
+        .click();
       await page
         .getByText("Follow members to see their discussions here.")
         .waitFor();
-      check(true, "For you means followed members");
+      check(true, "Following means followed members");
       await page.getByRole("button", { name: "New", exact: true }).click();
+      await revealActions(card);
       await card.getByRole("button", { name: "Follow", exact: true }).click();
       await card
         .getByRole("button", { name: "Unfollow", exact: true })
@@ -544,6 +563,9 @@ function sessionFor(id = uid) {
         ),
         "Top this week scope",
       );
+      await page
+        .getByRole("button", { name: "More feeds", exact: true })
+        .click();
       await page.getByRole("button", { name: "My posts", exact: true }).click();
       await page
         .getByRole("button", {
@@ -553,6 +575,9 @@ function sessionFor(id = uid) {
         .waitFor();
       check(true, "My posts scope");
       await page.getByRole("button", { name: "New", exact: true }).click();
+      await page
+        .getByRole("button", { name: "Filter by topic", exact: true })
+        .click();
       await page
         .getByRole("button", { name: "CV review", exact: true })
         .click();
@@ -566,6 +591,21 @@ function sessionFor(id = uid) {
       await page
         .getByRole("button", { name: "All topics", exact: true })
         .click();
+      await page
+        .getByRole("textbox", { name: "Search discussions", exact: true })
+        .fill("no-matching-fixture");
+      await page.getByText("No discussions match your filters.").waitFor();
+      check(true, "filtered empty state explains missing results");
+      await page
+        .getByRole("button", { name: "Reset filters", exact: true })
+        .click();
+      await card.waitFor();
+      check(
+        (await page
+          .getByRole("textbox", { name: "Search discussions", exact: true })
+          .inputValue()) === "",
+        "reset clears search and restores feed",
+      );
       const before = state.calls.length;
       await page
         .getByRole("textbox", { name: "Search discussions", exact: true })
@@ -592,6 +632,7 @@ function sessionFor(id = uid) {
         state.calls.some((c) => c.data.cursor === "page-two"),
         "feed cursor pagination",
       );
+      await revealActions(card);
       await card
         .getByRole("button", { name: "Report discussion", exact: true })
         .click();
@@ -617,7 +658,10 @@ function sessionFor(id = uid) {
       check(true, "legacy IDs redirect to canonical Community discussion");
       check(
         (await page
-          .getByRole("button", { name: "Reply to CleverIntern76", exact: true })
+          .getByRole("button", {
+            name: "Reply to CleverIntern76",
+            exact: true,
+          })
           .count()) === 1,
         "second-level reply can receive a third level",
       );
@@ -823,6 +867,7 @@ function sessionFor(id = uid) {
     {
       const { context, page, state, errors } = await setup();
       await page.goto(base + "/community/own-post");
+      await revealActions(page.getByTestId("community-post-own-post"));
       await page
         .getByRole("button", { name: "Edit discussion", exact: true })
         .click();
@@ -846,6 +891,7 @@ function sessionFor(id = uid) {
         ),
         "post editing uses only documented fields",
       );
+      await revealActions(page.getByTestId("community-post-own-post"));
       await page
         .getByRole("button", { name: "Delete discussion", exact: true })
         .click();
@@ -913,7 +959,9 @@ function sessionFor(id = uid) {
         .getByRole("button", { name: "Save draft and close", exact: true })
         .click();
       await page.waitForURL("**/community");
-      await page.getByRole("button", { name: "New post", exact: true }).click();
+      await page
+        .getByRole("button", { name: "Ask or share", exact: true })
+        .click();
       await page.getByText("Your draft was restored on this device.").waitFor();
       check(
         (await page
@@ -943,11 +991,7 @@ function sessionFor(id = uid) {
           ),
       );
       check(true, "SDK sign-out event clears drafts with Community unmounted");
-      await page.getByRole("button", { name: /^Open navigation menu/ }).click();
-      await page
-        .locator("#circular-navigation")
-        .getByRole("button", { name: "Community", exact: true })
-        .click();
+      await page.getByRole("tab", { name: "Community", exact: true }).click();
       await page
         .getByText("Sign in to connect with other job seekers.")
         .waitFor();
@@ -1038,7 +1082,7 @@ function sessionFor(id = uid) {
           .waitFor();
         check(
           (await page
-            .getByRole("button", { name: "New post", exact: true })
+            .getByRole("button", { name: "Ask or share", exact: true })
             .count()) === 0,
           "banned members have no new-post control",
         );
@@ -1048,6 +1092,7 @@ function sessionFor(id = uid) {
             .count()) === 0,
           "banned members have no Save control",
         );
+        await revealActions(page.getByTestId("community-post-canonical-post"));
         check(
           (await page
             .getByRole("button", { name: "Report discussion", exact: true })
@@ -1114,6 +1159,92 @@ function sessionFor(id = uid) {
         })
         .waitFor();
       check(true, "offline feed recovers explicitly");
+      await context.close();
+    }
+    // Presentation stress: real server-shaped content, no live traffic.
+    for (const width of [360, 768]) {
+      const { context, page, state } = await setup({ width, slow: true });
+      state.posts[0].title =
+        "How do I explain a long gap on my CV when applying for my first permanent job in South Africa?";
+      state.posts[0].author.name = "A member with a very long display name";
+      state.posts[0].upvoteCount = 123456;
+      state.posts[0].commentCount = 0;
+      state.posts[0].media = [];
+      await page.goto(base + "/community");
+      await page.getByLabel("Loading discussions", { exact: true }).waitFor();
+      check(true, `lightweight initial loading state at ${width}px`);
+      const card = page.getByTestId("community-post-canonical-post");
+      await card.waitFor();
+      check(
+        (await page
+          .getByRole("button", { name: "Ask or share", exact: true })
+          .count()) === 1,
+        `one posting action at ${width}px`,
+      );
+      check(
+        await card
+          .getByRole("button", { name: "0 replies", exact: true })
+          .isVisible(),
+        `honest zero replies at ${width}px`,
+      );
+      check(
+        await card
+          .getByRole("button", { name: "Helpful · 123456", exact: true })
+          .isVisible(),
+        `large counts at ${width}px`,
+      );
+      await page.addStyleTag({
+        content:
+          '[data-testid="community-feed"] [dir="auto"] {font-size: 24px !important; line-height: 1.5 !important;}',
+      });
+      const overflow = await page.evaluate(
+        () => document.documentElement.scrollWidth > innerWidth,
+      );
+      check(
+        !overflow,
+        `large type and long content stay within ${width}px viewport`,
+      );
+      await page.screenshot({
+        path: `${shots}/feed-large-text-${width}.png`,
+        fullPage: true,
+      });
+      check(
+        (await card
+          .getByRole("button", { name: "Report discussion", exact: true })
+          .count()) === 0,
+        `secondary actions hidden until requested at ${width}px`,
+      );
+      await revealActions(card);
+      check(
+        await card
+          .getByRole("button", { name: "Report discussion", exact: true })
+          .isVisible(),
+        `secondary actions accessible at ${width}px`,
+      );
+      if (width === 360) {
+        const ownTitle = page.getByRole("button", {
+          name: "Open discussion: My editable discussion",
+          exact: true,
+        });
+        await ownTitle.scrollIntoViewIfNeeded();
+        await page.waitForTimeout(200);
+        const offset = await page
+          .getByTestId("community-feed")
+          .evaluate((el) => el.scrollTop);
+        await ownTitle.click();
+        await page
+          .getByRole("button", { name: "Back to Community", exact: true })
+          .click();
+        await page.getByTestId("community-feed").waitFor();
+        await page.waitForTimeout(300);
+        const returned = await page
+          .getByTestId("community-feed")
+          .evaluate((el) => el.scrollTop);
+        check(
+          Math.abs(offset - returned) < 2,
+          `feed retains scroll position after discussion return (${offset} -> ${returned})`,
+        );
+      }
       await context.close();
     }
     console.log(

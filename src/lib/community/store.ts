@@ -1,12 +1,25 @@
 import { supabase } from "../supabase";
 import { createDraftStore } from "./draft-store";
 import { draftStorage } from "./draft-storage";
-import { TOPICS, type Post, type Draft } from "./contract";
+import {
+  TOPICS,
+  type Post,
+  type Draft,
+  type Scope,
+  type Topic,
+} from "./contract";
 export const drafts = createDraftStore(draftStorage);
 export const COMMUNITY_TTL = 5 * 60 * 1000;
 export const MEDIA_REFRESH = 45 * 60 * 1000;
 type Entry = { value: unknown; at: number; stale?: boolean };
 const cache = new Map<string, Entry>();
+type FeedView = {
+  scope: Scope;
+  topic: Topic | "";
+  draft: string;
+  offset: number;
+};
+let feedView: FeedView | undefined;
 const listeners = new Set<() => void>();
 let owner: string | null | undefined;
 let revision = 0;
@@ -34,11 +47,18 @@ export const communityStore = {
     owner = id;
     dataVersion++;
     cache.clear();
+    feedView = undefined;
     mutationLocks.clear();
     emit();
     void drafts.setOwner(id).catch(() => {
       /* No private data is read until owner checks pass. */
     });
+  },
+  readFeedView(id: string) {
+    return owner === id ? feedView : undefined;
+  },
+  saveFeedView(id: string, value: FeedView) {
+    if (owner === id) feedView = value;
   },
   read<T>(id: string, key: string): { value: T; at: number } | undefined {
     if (owner !== id) return;

@@ -291,7 +291,10 @@ function DiscussionBody({
               ({ comment, depth }) => (
                 <View
                   key={comment.id}
-                  style={[s.card, { marginLeft: depth * 12 }]}
+                  style={[
+                    s.card,
+                    { marginLeft: depth * 8, borderLeftWidth: depth ? 2 : 1 },
+                  ]}
                   testID={`community-reply-${comment.id}`}
                 >
                   <AuthorLine
