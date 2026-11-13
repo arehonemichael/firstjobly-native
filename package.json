@@ -73,7 +73,8 @@
     "test:community": "node --test scripts/test-community.cjs",
     "test:hot-jobs": "node --test scripts/test-hot-jobs.cjs",
     "test:circular": "node --test scripts/test-circular.cjs",
-    "test:ios": "node --test scripts/test-ios-build.cjs scripts/test-expo-go.cjs"
+    "test:ios": "node --test scripts/test-ios-build.cjs scripts/test-expo-go.cjs",
+    "test:reminders": "node --test scripts/test-weekly-reminders.cjs"
   },
   "private": true
 }

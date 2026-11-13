@@ -1,3 +1,4 @@
+import { WeeklyReminderCard } from "../../components/weekly-reminders";
 import { governmentHomeDestination } from "../../lib/circular/contract";
 import { LatestCircularCard } from "../../components/circular/latest-card";
 import { categoryPresentation } from "../../lib/home-presentation";
@@ -330,6 +331,7 @@ export default function HomeScreen() {
           </Text>
         </View>
         <HomeSessionHero />
+        <WeeklyReminderCard compact />
         <View style={{ marginVertical: 16 }}>
           <LatestCircularCard compact />
         </View>

@@ -137,3 +137,7 @@ Do not publicly submit the test-ad build as the final release. Before requesting
 - On iPhone/iPad verify cold start, sign-in/restoration/onboarding/deep links, every destination and safe-area/keyboard, Gov/API search/pagination, saves/Community/photos, Apply, CV/Z83/PDF share/mail, consent/test-ad formats/reward completion, background/resume, offline errors and notifications where configured.
 
 AdMob ID update: the release guard also covers `ios-production`. Tests verify the owner IDs, native configuration, matching test/live SDK formats using fake SDK ports, earned/cancelled behavior, intro acceptance/decline and unchanged Android format. No live ad request or deployment was performed. A new signed native build is required to embed the new App ID; Metro reload or OTA JavaScript alone does not change it.
+
+## Weekly reminder build update
+
+`feat/weekly-device-reminders` adds guest-capable local weekly notifications. Its current iOS build number is **2** (Android version code **33**); increase the iOS number to **3** for the next upload after this one. The original first-build instructions above refer to build 1. See [weekly-device-reminders.md](weekly-device-reminders.md) for the new build/install/permission steps. No server push setup is required for these chosen device reminders.

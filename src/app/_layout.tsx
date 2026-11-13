@@ -1,3 +1,4 @@
+import { WeeklyRemindersLifecycle } from "../components/weekly-reminders";
 import { ExtraInterstitialLifecycle } from "../ads/ExtraInterstitialLifecycle";
 import "../global.css";
 // Register private Community cleanup even when its screens are not mounted.
@@ -114,6 +115,7 @@ export default function RootLayout() {
             </Stack>
           </View>
         </View>
+        <WeeklyRemindersLifecycle ready={ready && !showLaunchSplash} />
         <ExtraInterstitialLifecycle
           ready={ready && !showLaunchSplash}
           userId={auth.userId}

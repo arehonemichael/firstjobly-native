@@ -4,6 +4,8 @@ export function notificationDestination(
   data: Record<string, unknown> | undefined,
 ): string | null {
   if (!data) return null;
+  if (data.kind === "weekly_job_reminder" && data.link === "/jobs")
+    return "/jobs";
   const community = communityDestination(data.link);
   if (community) return community;
   const id = (value: unknown) =>

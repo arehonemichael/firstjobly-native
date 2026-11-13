@@ -1,3 +1,4 @@
+import { WeeklyReminderCard } from "../components/weekly-reminders";
 import { useState } from "react";
 import { ScrollView, Switch, View } from "react-native";
 import { AppText as Text } from "../components/ui/primitives";
@@ -34,9 +35,7 @@ export default function Notifications() {
   }
   async function permission() {
     if (isExpoGo) {
-      setNotice(
-        "Use an Android development or production build for push notifications.",
-      );
+      setNotice("Use an iOS or Android native build for notifications.");
       return;
     }
     try {
@@ -53,50 +52,53 @@ export default function Notifications() {
   }
   return (
     <PageShell back title="Notifications">
-      {query.authLoading || (query.loading && !query.data) ? (
-        <Skeleton />
-      ) : !query.userId ? (
-        <SignIn returnTo="/notifications" />
-      ) : (
-        <ScrollView contentContainerStyle={cs.content}>
-          <View style={cs.card}>
-            <View style={[cs.row, { flexWrap: "nowrap" }]}>
-              <View style={{ flex: 1 }}>
-                <Text style={cs.heading}>New government circulars</Text>
-                <Text style={cs.muted}>
-                  Get notified when a new circular is published.
-                </Text>
+      <ScrollView contentContainerStyle={cs.content}>
+        <WeeklyReminderCard />
+        {query.authLoading || (query.loading && !query.data) ? (
+          <Skeleton />
+        ) : !query.userId ? (
+          <SignIn returnTo="/notifications" />
+        ) : (
+          <View style={{ gap: 16 }}>
+            <View style={cs.card}>
+              <View style={[cs.row, { flexWrap: "nowrap" }]}>
+                <View style={{ flex: 1 }}>
+                  <Text style={cs.heading}>New government circulars</Text>
+                  <Text style={cs.muted}>
+                    Get notified when a new circular is published.
+                  </Text>
+                </View>
+                <Switch
+                  accessibilityLabel="New government circulars"
+                  disabled={busy || !query.data}
+                  value={query.data?.enabled ?? false}
+                  trackColor={{ true: Colors.primary, false: Colors.border }}
+                  onValueChange={(value) => void change(value)}
+                />
               </View>
-              <Switch
-                accessibilityLabel="New government circulars"
-                disabled={busy || !query.data}
-                value={query.data?.enabled ?? false}
-                trackColor={{ true: Colors.primary, false: Colors.border }}
-                onValueChange={(value) => void change(value)}
-              />
             </View>
-          </View>
-          <Text style={cs.muted}>
-            This preference is saved to your account. Notification delivery also
-            depends on your device permissions and registration.
-          </Text>
-          <Button
-            label="Check device permission"
-            secondary
-            onPress={() => void permission()}
-          />
-          {!!notice && <Text accessibilityLiveRegion="polite">{notice}</Text>}
-          {(error || query.error) && (
-            <ErrorState
-              error={(error || query.error)!}
-              retry={() => {
-                setError(undefined);
-                void query.refresh();
-              }}
+            <Text style={cs.muted}>
+              This preference is saved to your account. Notification delivery
+              also depends on your device permissions and registration.
+            </Text>
+            <Button
+              label="Check device permission"
+              secondary
+              onPress={() => void permission()}
             />
-          )}
-        </ScrollView>
-      )}
+            {!!notice && <Text accessibilityLiveRegion="polite">{notice}</Text>}
+            {(error || query.error) && (
+              <ErrorState
+                error={(error || query.error)!}
+                retry={() => {
+                  setError(undefined);
+                  void query.refresh();
+                }}
+              />
+            )}
+          </View>
+        )}
+      </ScrollView>
     </PageShell>
   );
 }

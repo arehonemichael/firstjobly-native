@@ -10,14 +10,14 @@
     "ios": {
       "bundleIdentifier": "com.first.firstjobly",
       "supportsTablet": true,
-      "buildNumber": "1",
+      "buildNumber": "2",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
       "package": "com.first.firstjobly",
-      "versionCode": 32,
+      "versionCode": 33,
       "adaptiveIcon": {
         "backgroundColor": "#061A30",
         "foregroundImage": "./assets/images/icon.png"
@@ -49,7 +49,8 @@
           "delayAppMeasurementInit": true
         }
       ],
-      "expo-image"
+      "expo-image",
+      "expo-notifications"
     ],
     "experiments": {
       "typedRoutes": true,
