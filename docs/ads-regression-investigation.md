@@ -1,5 +1,26 @@
 # Missing ads: regression investigation
 
+## Confirmed device regression and repair
+
+The subsequent structured device trace resolves the earlier uncertainty:
+
+```text
+runtime: android / development-client / supported=true / sdkAvailable=true / testMode=true
+consent.update-failed: publisher-configuration
+consent.cached: status=UNKNOWN / canRequestAds=true
+consent.blocked: publisher-configuration
+```
+
+**The app incorrectly rejected permission Google explicitly granted.** The extra NOT_REQUIRED/OBTAINED status whitelist, introduced with the consent gate, treated UNKNOWN as denial even when UMP returned `canRequestAds: true`. Thus SDK initialization and every placement stayed blocked. The publisher-configuration error is real, but it was not by itself evidence that this device lacked permission. Earlier instructions that publishing a form was the only way to unblock this particular device were too strong.
+
+The repair accepts the SDK's recognized UNKNOWN status **only when canRequestAds is explicitly true**, both after a failed update and after a successful update. These requests remain non-personalized. UNKNOWN without permission, REQUIRED status during recovery, unrecognized statuses, refused OBTAINED storage/basic-ad choices and failed privacy withdrawals still do not authorize ads. Required forms are not skipped. No geography, IDs, placements, frequency or native configuration changed.
+
+Changed implementation: `src/ads/consent-controller.ts`; regression tests: `scripts/test-ads.cjs`. The exact supplied trace is now covered, alongside concurrent preparation, no duplicate initialization and the successful UNKNOWN/true path without a forced form. **47 ad tests, 13 runtime tests, TypeScript and focused lint pass.** Real Android rendering still needs verification. No new binary is required.
+
+After pulling the updated branch, expect `initialize.ready`, `consent.result` with `canRequestAds:true`, then placement/request outcomes. The update warning can remain while SDK-authorized NPA requests proceed. It does not establish fill; inspect loaded/error callbacks next. Configure appropriate UMP messages for users/regions that actually require them; do not infer universal permission from this device's result.
+
+The sections below retain the earlier investigation evidence and its limitations for context; this confirmed trace supersedes the previously unresolved cached-permission question.
+
 ## Evidence and affected environment
 
 The supplied device logs show FirstJobly running in an Android Expo **development client**, launched through `firstjobly://expo-development-client/`, on an SM-G973F. They are not Expo Go/web/iOS logs. All formats were reported absent. Google UMP reports:
@@ -80,4 +101,4 @@ Capture the `[FirstJobly ads]` structured lines. On Home, inspect `runtime`, `fo
 - If initialization succeeds, inspect each actual request's code. No-fill is an unsuccessful load, not a successful restoration. With official test units, check device connectivity, VPN/private-DNS/ad blocking and Google Play services. With production units, verify app readiness, ad-unit format/status, app/account serving restrictions, Policy Center/account diagnostics, consent setup and app-ads.txt in AdMob. No restriction or ban has been inferred.
 - If loaded but not visible, use placement width/eligibility and physical layout inspection. For full-screen formats, distinguish intentional cadence/route/launch/cooldown/lock skips from presentation failures. Cold startup deliberately does not show app-open ads.
 
-Actual restoration remains unverified until a supported installed Android build renders Google test creatives and records the corresponding SDK callbacks. The strongest confirmed external blocker remains the supplied UMP publisher-configuration error; the final stop in the latest running pipeline requires the new device trace or dashboard access.
+Actual restoration remains unverified until a supported installed Android build renders Google test creatives and records the corresponding SDK callbacks. The later device trace above confirmed the additional UNKNOWN/true status-rejection bug and its repair; dashboard configuration and downstream fill must still be verified separately.

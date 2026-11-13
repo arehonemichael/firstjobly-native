@@ -16,6 +16,16 @@ export type ConsentPort = {
   }>;
   initialize(): Promise<unknown>;
 };
+/** UMP can explicitly allow requests while its status is UNKNOWN. Status alone
+ * is not permission; Google's canRequestAds boolean remains mandatory. */
+function providerAllows(info: ConsentInfo | undefined): info is ConsentInfo {
+  return (
+    info?.canRequestAds === true &&
+    (info.status === "NOT_REQUIRED" ||
+      info.status === "OBTAINED" ||
+      info.status === "UNKNOWN")
+  );
+}
 export function createAdConsent(port: ConsentPort | null) {
   let state = {
     supported: !!port,
@@ -48,9 +58,7 @@ export function createAdConsent(port: ConsentPort | null) {
   }
   async function apply(info: ConsentInfo) {
     const privacyRequired = info.privacyOptionsRequirementStatus === "REQUIRED";
-    let allowed =
-      info.canRequestAds &&
-      (info.status === "NOT_REQUIRED" || info.status === "OBTAINED");
+    let allowed = providerAllows(info);
     let personalized = info.status === "NOT_REQUIRED";
     if (allowed && info.status === "OBTAINED") {
       const c = await port!.choices();
@@ -132,11 +140,7 @@ export function createAdConsent(port: ConsentPort | null) {
             canRequestAds: cached?.canRequestAds === true,
             cachedPermission: true,
           });
-          if (
-            !cached?.canRequestAds ||
-            (cached.status !== "NOT_REQUIRED" && cached.status !== "OBTAINED")
-          )
-            throw error;
+          if (!providerAllows(cached)) throw error;
           await apply(cached);
           // Still mark the failed update so a later foreground can retry.
           // Use NPA conservatively until an update succeeds.
@@ -152,7 +156,10 @@ export function createAdConsent(port: ConsentPort | null) {
           });
           return;
         }
-        if (info.status === "REQUIRED" || info.status === "UNKNOWN") {
+        if (
+          info.status === "REQUIRED" ||
+          (info.status === "UNKNOWN" && !providerAllows(info))
+        ) {
           if (!canPresent()) return;
           info = await modal(() => port.showFormIfRequired());
         }

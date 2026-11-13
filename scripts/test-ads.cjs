@@ -788,7 +788,7 @@ test("all enabled flags suppress their real request/render paths", async () => {
 });
 
 test("failed UMP update recovers only permission explicitly retained by the SDK", async () => {
-  for (const status of ["NOT_REQUIRED", "OBTAINED"]) {
+  for (const status of ["NOT_REQUIRED", "OBTAINED", "UNKNOWN"]) {
     const p = privacy({ error: true });
     p.port.getConsentInfo = async () => ({ status, canRequestAds: true });
     p.port.choices = async () => ({
@@ -806,10 +806,10 @@ test("failed UMP update recovers only permission explicitly retained by the SDK"
     );
   }
 });
-test("publisher misconfiguration cannot authorize fresh, unknown, denied or unreadable consent", async () => {
+test("publisher misconfiguration cannot authorize denied, required or unreadable consent", async () => {
   for (const cached of [
     { status: "UNKNOWN", canRequestAds: false },
-    { status: "UNKNOWN", canRequestAds: true },
+    { status: "UNRECOGNIZED", canRequestAds: true },
     { status: "REQUIRED", canRequestAds: true },
     { status: "NOT_REQUIRED", canRequestAds: false },
     null,
@@ -950,7 +950,7 @@ test("exact publisher-error trace distinguishes blocked permission from valid ca
       );
     };
     p.port.getConsentInfo = async () => ({
-      status: cachedPermission ? "NOT_REQUIRED" : "UNKNOWN",
+      status: "UNKNOWN",
       canRequestAds: cachedPermission,
     });
     await p.control.prepare(() => true);
@@ -1015,4 +1015,46 @@ test("exact publisher-error trace distinguishes blocked permission from valid ca
       );
     manager._test.reset();
   }
+});
+
+test("device regression: UNKNOWN plus explicit SDK permission initializes once and requests NPA after publisher error", async () => {
+  const p = privacy({ error: true });
+  p.port.getConsentInfo = async () => ({
+    status: "UNKNOWN",
+    canRequestAds: true,
+  });
+  await Promise.all([
+    p.control.prepare(() => true),
+    p.control.prepare(() => true),
+  ]);
+  assert.equal(p.calls.initialize, 1);
+  assert.equal(p.calls.form, 0);
+  assert.equal(p.control.getSnapshot().canRequestAds, true);
+  assert.equal(p.control.getSnapshot().personalized, false);
+  assert.equal(
+    p.control.getRequestOptions().requestNonPersonalizedAdsOnly,
+    true,
+  );
+});
+test("successful UNKNOWN status with explicit permission needs no forced form and remains NPA", async () => {
+  const p = privacy({ status: "UNKNOWN", canRequestAds: true });
+  await p.control.prepare(() => true);
+  assert.equal(p.calls.form, 0);
+  assert.equal(p.calls.initialize, 1);
+  assert.equal(p.control.getSnapshot().canRequestAds, true);
+  assert.equal(
+    p.control.getRequestOptions().requestNonPersonalizedAdsOnly,
+    true,
+  );
+});
+test("UNKNOWN without permission still needs a form and cannot initialize if unresolved", async () => {
+  const p = privacy({ status: "UNKNOWN", canRequestAds: false });
+  p.port.showFormIfRequired = async () => {
+    p.calls.form++;
+    return { status: "UNKNOWN", canRequestAds: false };
+  };
+  await p.control.prepare(() => true);
+  assert.equal(p.calls.form, 1);
+  assert.equal(p.calls.initialize, 0);
+  assert.equal(p.control.getSnapshot().canRequestAds, false);
 });
