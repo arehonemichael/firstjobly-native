@@ -26,7 +26,6 @@ import { useCircularQuery, useCircularSave } from "../../hooks/use-circular";
 import { circularAPI, rememberWithdrawn } from "../../lib/circular/client";
 import type { Detail } from "../../lib/circular/contract";
 import {
-  entryLevel,
   saDate,
   salary,
   titleCase,
@@ -107,18 +106,6 @@ export default function CircularDetail() {
       </PageShell>
     );
   const { job, requirements_match: match } = detail;
-  if (!entryLevel(job))
-    return (
-      <PageShell back title="Government job">
-        <View style={cs.content}>
-          <Text>This role is outside FirstJobly’s entry-level focus.</Text>
-          <Button
-            label="Browse government jobs"
-            onPress={() => router.replace("/circular-jobs")}
-          />
-        </View>
-      </PageShell>
-    );
   const statusColor = {
     meets: Colors.success,
     check: Colors.warning,
@@ -145,7 +132,8 @@ export default function CircularDetail() {
         <Text style={cs.title}>{titleCase(job.post_title)}</Text>
         <Text style={cs.heading}>{job.department}</Text>
         <Text style={cs.muted}>
-          {[job.centre, job.province].filter(Boolean).join(" · ")}
+          {[job.centre, job.province].filter(Boolean).join(" · ") ||
+            "Location not stated"}
         </Text>
         <Text style={cs.heading}>{salary(job.salary_text)}</Text>
         <Text

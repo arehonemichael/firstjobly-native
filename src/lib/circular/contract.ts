@@ -22,9 +22,9 @@ export type CircularJob = {
   post_title: string;
   department: string;
   reference_number: string | null;
-  centre: string;
+  centre: string | null;
   province: string | null;
-  salary_text: string;
+  salary_text: string | null;
   salary_min: number | null;
   salary_max: number | null;
   salary_level: string | null;
@@ -149,7 +149,7 @@ export function saDate(value: string | null) {
 export function titleCase(value: string) {
   return value.toLowerCase().replace(/\b[a-z]/g, (c) => c.toUpperCase());
 }
-export function salary(value: string) {
+export function salary(value: string | null) {
   return (value || "Salary not stated")
     .replace(/per annum/gi, "per year")
     .replace(
@@ -157,16 +157,6 @@ export function salary(value: string) {
       (_, n: string) =>
         "R" + n.replace(/[, ]/g, "").replace(/\B(?=(\d{3})+(?!\d))/g, " "),
     );
-}
-export function entryLevel(
-  job: CircularJob & { min_experience_years?: number | null },
-) {
-  return (
-    !/\b(senior|chief|deputy|principal|director|manager|specialist)\b/i.test(
-      job.post_title,
-    ) &&
-    (job.min_experience_years == null || job.min_experience_years <= 3)
-  );
 }
 export function externalURL(value: string | null | undefined) {
   try {
@@ -242,4 +232,12 @@ export function listPath(filters: Filters, page = 1) {
   params.set("page", String(page));
   params.set("page_size", "20");
   return "/circular-jobs?" + params;
+}
+
+/** Explicit Home entries clear a previous notification batch and UI controls. */
+export function governmentHomeDestination() {
+  return {
+    pathname: "/circular-jobs" as const,
+    params: { batch: "", reset: String(Date.now()) },
+  };
 }

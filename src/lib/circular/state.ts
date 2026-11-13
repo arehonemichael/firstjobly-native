@@ -1,12 +1,31 @@
 import type { Detail, Method } from "./contract";
+function cacheable(value: unknown) {
+  if (value && typeof value === "object") {
+    if (
+      "items" in value &&
+      Array.isArray(value.items) &&
+      value.items.length === 0
+    )
+      return false;
+    if ("batch" in value && value.batch === null) return false;
+  }
+  return true;
+}
 export function createOwnerCache(now: () => number = Date.now) {
   const records = new Map<string, { value: unknown; expires: number }>();
   return {
     get<T>(owner: string, key: string): T | undefined {
       const row = records.get(owner + "|" + key);
-      return row && row.expires > now() ? (row.value as T) : undefined;
+      if (row && row.expires > now() && cacheable(row.value))
+        return row.value as T;
+      records.delete(owner + "|" + key);
+      return undefined;
     },
     set(owner: string, key: string, value: unknown) {
+      if (!cacheable(value)) {
+        records.delete(owner + "|" + key);
+        return;
+      }
       records.set(owner + "|" + key, { value, expires: now() + 300000 });
     },
     clear() {

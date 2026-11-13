@@ -51,7 +51,8 @@ export function CircularCard({
       <View style={cs.row}>
         <MapPin size={15} color={Colors.muted} />
         <Text style={[cs.muted, { flex: 1 }]}>
-          {[job.centre, job.province].filter(Boolean).join(" · ")}
+          {[job.centre, job.province].filter(Boolean).join(" · ") ||
+            "Location not stated"}
         </Text>
       </View>
       <Text style={cs.body}>{salary(job.salary_text)}</Text>

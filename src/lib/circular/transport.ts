@@ -1,3 +1,9 @@
+import { validCircularResponse } from "./response";
+import {
+  emitDiagnostic,
+  responseSummary,
+  type CircularTrace,
+} from "./diagnostics";
 export class CircularError extends Error {
   constructor(
     message: string,
@@ -19,6 +25,7 @@ export function createCircularTransport(
   auth: Auth,
   send: typeof fetch = fetch,
   now: () => number = Date.now,
+  trace?: CircularTrace,
 ) {
   const blocked = new Map<string, number>();
   let refreshing: Promise<Session | null> | null = null;
@@ -47,7 +54,27 @@ export function createCircularTransport(
         429,
         blockedUntil,
       );
-    let current = await session();
+    const url = "https://firstjobly.co.za/api/app" + path;
+    let current: Session;
+    try {
+      current = await session();
+    } catch (error) {
+      emitDiagnostic(
+        trace,
+        {
+          url,
+          method,
+          attempt: 0,
+          authorization: false,
+          xFjToken: false,
+          tokenLength: 0,
+          status: null,
+          bodyPreview: "No signed-in session; request not sent.",
+        },
+        "",
+      );
+      throw error;
+    }
     if (current.user.id !== owner)
       throw new CircularError(
         "Your account changed. Please reopen this screen.",
@@ -59,7 +86,7 @@ export function createCircularTransport(
       let response: Response;
       let payload: unknown;
       try {
-        response = await send("https://firstjobly.co.za/api/app" + path, {
+        response = await send(url, {
           method,
           headers: {
             Authorization: "Bearer " + current.access_token,
@@ -69,9 +96,44 @@ export function createCircularTransport(
           ...(body === undefined ? {} : { body: JSON.stringify(body) }),
           signal: abort.signal,
           redirect: "error",
+          cache: "no-store",
         });
-        payload = await response.json().catch(() => null);
+        const text = await response.text();
+        try {
+          payload = JSON.parse(text);
+        } catch {
+          payload = null;
+        }
+        emitDiagnostic(
+          trace,
+          {
+            url,
+            method,
+            attempt: attempt + 1,
+            authorization: !!current.access_token,
+            xFjToken: !!current.access_token,
+            tokenLength: current.access_token.length,
+            status: response.status,
+            bodyPreview: text,
+            ...responseSummary(payload),
+          },
+          current.access_token,
+        );
       } catch {
+        emitDiagnostic(
+          trace,
+          {
+            url,
+            method,
+            attempt: attempt + 1,
+            authorization: !!current.access_token,
+            xFjToken: !!current.access_token,
+            tokenLength: current.access_token.length,
+            status: null,
+            bodyPreview: "Network request failed or timed out.",
+          },
+          current.access_token,
+        );
         throw new CircularError(
           "Could not connect. Check your connection and try again.",
         );
@@ -105,12 +167,14 @@ export function createCircularTransport(
         throw new CircularError(
           typeof (payload as { error?: unknown })?.error === "string"
             ? (payload as { error: string }).error
-            : "Something went wrong. Please try again.",
+            : response.status === 403
+              ? "The jobs service blocked this request. Please try again."
+              : "Something went wrong. Please try again.",
           response.status,
           response.status === 429 ? blocked.get(owner)! : 0,
         );
       }
-      if (payload === null)
+      if (payload === null || !validCircularResponse(path, method, payload))
         throw new CircularError(
           "Could not read the response. Please try again.",
         );

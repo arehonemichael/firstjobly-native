@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { FlatList, View, ScrollView } from "react-native";
-import { useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import {
   AppText as Text,
   AppTextInput as TextInput,
@@ -18,7 +18,7 @@ import { Button, ErrorState, SignIn, Skeleton, cs } from "./shared";
 export function CircularFeed({ saved = false }: { saved?: boolean }) {
   const { batch } = useLocalSearchParams<{ batch?: string }>();
   const [search, setSearch] = useState("");
-  const [filters, setFilters] = useState<Filters>({ sort: "closing" });
+  const [filters, setFilters] = useState<Filters>({});
   const [internships, setInternships] = useState(false);
   const [picker, setPicker] = useState<"province" | "qualification" | null>(
     null,
@@ -37,6 +37,21 @@ export function CircularFeed({ saved = false }: { saved?: boolean }) {
     { ...filters, ...(batch ? { batch_id: batch } : {}) },
     saved,
   );
+  const hasFilters = !!(
+    search.trim() ||
+    filters.province ||
+    filters.qualification ||
+    filters.closing_soon ||
+    batch ||
+    internships
+  );
+  function clearFilters() {
+    setSearch("");
+    setFilters({});
+    setInternships(false);
+    setPicker(null);
+    router.setParams({ batch: "" });
+  }
   const items = internships
     ? query.items.filter((item) => item.job_type === "internship")
     : query.items;
@@ -131,7 +146,14 @@ export function CircularFeed({ saved = false }: { saved?: boolean }) {
                   )}
                 </View>
               )}
-              {batch && (
+              {hasFilters && (
+                <Button
+                  label="Clear filters"
+                  secondary
+                  onPress={clearFilters}
+                />
+              )}
+              {!!batch && (
                 <Text style={cs.muted}>
                   Showing the circular from your notification.
                 </Text>

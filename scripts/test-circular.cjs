@@ -4,7 +4,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const ts = require("typescript");
-function load(file, mocks = {}) {
+function load(file, mocks = {}, globals = {}) {
   const mod = { exports: {} };
   const js = ts.transpileModule(
     fs.readFileSync(path.join(__dirname, "..", file), "utf8"),
@@ -15,14 +15,23 @@ function load(file, mocks = {}) {
       },
     },
   ).outputText;
-  new Function("module", "exports", "require", js)(mod, mod.exports, (n) => {
-    if (n in mocks) return mocks[n];
-    throw Error("Unexpected dependency " + n);
-  });
+  new Function("module", "exports", "require", ...Object.keys(globals), js)(
+    mod,
+    mod.exports,
+    (n) => {
+      if (n in mocks) return mocks[n];
+      throw Error("Unexpected dependency " + n);
+    },
+    ...Object.values(globals),
+  );
   return mod.exports;
 }
 const { createCircularTransport, CircularError } = load(
   "src/lib/circular/transport.ts",
+  {
+    "./diagnostics": load("src/lib/circular/diagnostics.ts"),
+    "./response": load("src/lib/circular/response.ts"),
+  },
 );
 const { createOwnerCache, createApplications } = load(
   "src/lib/circular/state.ts",
@@ -40,6 +49,13 @@ const ok = (value) =>
     status: 200,
     headers: { "content-type": "application/json" },
   });
+const page = (items = []) => ({
+  items,
+  page: 1,
+  page_size: 20,
+  total: items.length,
+  has_more: false,
+});
 const fail = (status, error) =>
   new Response(JSON.stringify({ error }), { status });
 function fixture(responses) {
@@ -81,7 +97,7 @@ function fixture(responses) {
   };
 }
 test("circular reads use apex API, both token headers and reject redirects", async () => {
-  const f = fixture([ok({ items: [] })]);
+  const f = fixture([ok(page())]);
   await f.client.request("alice", "/circular-jobs?page=1&page_size=20");
   assert.equal(
     f.calls[0].url,
@@ -93,6 +109,7 @@ test("circular reads use apex API, both token headers and reject redirects", asy
   );
   assert.equal(f.calls[0].options.headers["x-fj-token"], "fixture-token");
   assert.equal(f.calls[0].options.redirect, "error");
+  assert.equal(f.calls[0].options.cache, "no-store");
   assert.ok(!f.calls[0].url.includes("token"));
 });
 test("401 refreshes once and retries with both fresh headers", async () => {
@@ -165,7 +182,7 @@ test("429 blocks more requests for exactly 60 seconds", async () => {
   assert.equal(f.calls.length, 2);
 });
 test("rate limits are scoped to owner", async () => {
-  const f = fixture([fail(429, "Wait"), ok({ items: [] })]);
+  const f = fixture([fail(429, "Wait"), ok(page())]);
   await assert.rejects(f.client.request("alice", "/circular-jobs"));
   f.current = session("bob");
   await f.client.request("bob", "/circular-jobs");
@@ -277,31 +294,6 @@ test("South African dates and salary wording use supplied data", () => {
   assert.equal(contract.salary("R487 197 per annum"), "R487 197 per year");
   assert.equal(contract.salary("R487,197 per annum"), "R487 197 per year");
   assert.equal(contract.saDate(null), "Date not provided");
-});
-test("entry-level guard rejects senior titles and experience above three years", () => {
-  assert.ok(
-    contract.entryLevel({
-      post_title: "ADMINISTRATION CLERK",
-      min_experience_years: 0,
-    }),
-  );
-  assert.ok(
-    contract.entryLevel({
-      post_title: "Graduate trainee",
-      min_experience_years: 3,
-    }),
-  );
-  for (const post_title of [
-    "Senior clerk",
-    "Assistant director",
-    "Chief officer",
-    "Deputy manager",
-  ])
-    assert.equal(contract.entryLevel({ post_title }), false);
-  assert.equal(
-    contract.entryLevel({ post_title: "Clerk", min_experience_years: 4 }),
-    false,
-  );
 });
 test("only safe external HTTPS URLs can be opened", () => {
   for (const url of [
@@ -619,4 +611,187 @@ test("failed circular download cannot save or open an error response as a PDF", 
   );
   assert.ok(!f.events.some((e) => e[0] === "save" || e[0] === "viewer"));
   assert.ok(f.events.some((e) => e[0] === "delete"));
+});
+
+test("unfiltered first load sends only page=1 and page_size=20", () => {
+  assert.equal(contract.listPath({}), "/circular-jobs?page=1&page_size=20");
+});
+test("server-approved rows, including nullable metadata, are accepted without eligibility inference", () => {
+  const { validCircularResponse } = load("src/lib/circular/response.ts");
+  const item = {
+    id: "approved-clerk",
+    post_title: "CLERK: OFFICE OF THE DIRECTOR",
+    centre: null,
+    province: null,
+    salary_text: null,
+  };
+  assert.equal(
+    validCircularResponse(
+      "/circular-jobs?page=1&page_size=20",
+      "GET",
+      page([item]),
+    ),
+    true,
+  );
+  assert.equal(contract.salary(item.salary_text), "Salary not stated");
+});
+test("malformed 200 list responses are errors, never an invented empty list", async () => {
+  for (const body of [
+    {},
+    { jobs: [] },
+    { data: [] },
+    { items: null },
+    { ...page(), has_more: "true" },
+  ]) {
+    const f = fixture([ok(body)]);
+    await assert.rejects(
+      f.client.request("alice", "/circular-jobs"),
+      /Could not read the response/,
+    );
+  }
+});
+test("malformed latest/detail responses are errors; batch null is legitimate", async () => {
+  const f = fixture([
+    ok({}),
+    ok({ batch: null }),
+    ok({ job: { id: "missing-fields" } }),
+  ]);
+  await assert.rejects(
+    f.client.request("alice", "/circular-batches/latest"),
+    /Could not read/,
+  );
+  assert.deepEqual(
+    await f.client.request("alice", "/circular-batches/latest"),
+    { batch: null },
+  );
+  await assert.rejects(
+    f.client.request("alice", "/circular-jobs/job"),
+    /Could not read/,
+  );
+});
+test("empty lists and pre-approval null batches never survive in the query cache", () => {
+  const cache = createOwnerCache();
+  cache.set("alice", "list", page());
+  assert.equal(cache.get("alice", "list"), undefined);
+  cache.set("alice", "batch", { batch: null });
+  assert.equal(cache.get("alice", "batch"), undefined);
+  cache.set("alice", "list", page([{ id: "approved", post_title: "Clerk" }]));
+  assert.ok(cache.get("alice", "list"));
+  cache.set("alice", "list", page());
+  assert.equal(cache.get("alice", "list"), undefined);
+});
+test("plain text 403 firewall blocks are visible errors, without User-Agent spoofing", async () => {
+  const f = fixture([new Response("error code: 1010", { status: 403 })]);
+  await assert.rejects(
+    f.client.request("alice", "/circular-jobs"),
+    (e) => e.status === 403 && e.message.includes("blocked"),
+  );
+  assert.equal(f.calls[0].options.headers["User-Agent"], undefined);
+  assert.equal(f.calls.length, 1);
+});
+test("opt-in diagnostics capture URL, booleans, token length, status, preview and counts without leaking tokens", async () => {
+  const entries = [];
+  const token = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJmaXh0dXJlIn0.signature";
+  const auth = {
+    getSession: async () => ({ data: { session: session("alice", token) } }),
+    refreshSession: async () => ({ data: { session: null } }),
+  };
+  const payload = {
+    ...page([{ id: "approved", post_title: "Clerk" }]),
+    total: 128,
+  };
+  const client = createCircularTransport(
+    auth,
+    async () => ok(payload),
+    Date.now,
+    (e) => entries.push(e),
+  );
+  await client.request("alice", "/circular-jobs?page=1&page_size=20");
+  assert.equal(
+    entries[0].url,
+    "https://firstjobly.co.za/api/app/circular-jobs?page=1&page_size=20",
+  );
+  assert.equal(entries[0].authorization, true);
+  assert.equal(entries[0].xFjToken, true);
+  assert.equal(entries[0].tokenLength, token.length);
+  assert.equal(entries[0].status, 200);
+  assert.equal(entries[0].total, 128);
+  assert.equal(entries[0].itemCount, 1);
+  assert.equal(entries[0].bodyPreview, JSON.stringify(payload).slice(0, 300));
+  assert.ok(!JSON.stringify(entries).includes(token));
+  const { emitDiagnostic } = load("src/lib/circular/diagnostics.ts");
+  emitDiagnostic(
+    (e) => entries.push(e),
+    {
+      url: "https://firstjobly.co.za/api/app/circular-jobs",
+      bodyPreview: JSON.stringify({
+        error: token,
+        refresh_token: "private-refresh",
+      }),
+    },
+    token,
+  );
+  assert.ok(!JSON.stringify(entries).includes(token));
+  assert.ok(!JSON.stringify(entries).includes("private-refresh"));
+});
+test("diagnostic callbacks cannot break requests and missing sessions are logged without secrets", async () => {
+  const entries = [];
+  const missing = createCircularTransport(
+    {
+      getSession: async () => ({ data: { session: null } }),
+      refreshSession: async () => ({ data: { session: null } }),
+    },
+    async () => {
+      throw Error("Must not send");
+    },
+    Date.now,
+    (e) => entries.push(e),
+  );
+  await assert.rejects(
+    missing.request("alice", "/circular-jobs"),
+    (e) => e.status === 401,
+  );
+  assert.equal(entries[0].authorization, false);
+  assert.equal(entries[0].tokenLength, 0);
+  assert.equal(entries[0].status, null);
+  const auth = {
+    getSession: async () => ({ data: { session: session() } }),
+    refreshSession: async () => ({ data: { session: null } }),
+  };
+  const loggingFails = createCircularTransport(
+    auth,
+    async () => ok(page()),
+    Date.now,
+    () => {
+      throw Error("Logger unavailable");
+    },
+  );
+  assert.deepEqual(
+    await loggingFails.request("alice", "/circular-jobs"),
+    page(),
+  );
+});
+test("diagnostics stay disabled in production even if the public debug flag is true", () => {
+  function client(dev, flag) {
+    return load(
+      "src/lib/circular/client.ts",
+      {
+        "../supabase": { supabase: { auth: { onAuthStateChange() {} } } },
+        "./transport": {
+          createCircularTransport: (_auth, _send, _now, trace) => ({ trace }),
+        },
+        "./state": { createOwnerCache, createApplications },
+        "./io": { deleteTemporary: async () => {} },
+      },
+      {
+        __DEV__: dev,
+        process: { env: { EXPO_PUBLIC_CIRCULAR_DEBUG: flag } },
+        console: { info() {} },
+      },
+    ).circularAPI;
+  }
+  assert.equal(client(false, "true").trace, undefined);
+  assert.equal(client(true, undefined).trace, undefined);
+  assert.equal(client(true, "false").trace, undefined);
+  assert.equal(typeof client(true, "true").trace, "function");
 });

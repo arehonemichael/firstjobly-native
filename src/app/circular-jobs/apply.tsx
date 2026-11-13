@@ -22,7 +22,6 @@ import {
 import { useCircularQuery, circularChanged } from "../../hooks/use-circular";
 import { applications, circularAPI } from "../../lib/circular/client";
 import {
-  entryLevel,
   methodLabels,
   titleCase,
   type Detail,
@@ -199,7 +198,7 @@ export default function CircularApply() {
         />
       </PageShell>
     );
-  if (!detail || !entryLevel(detail.job))
+  if (!detail)
     return (
       <PageShell back title="Prepare your application">
         <View style={cs.content}>

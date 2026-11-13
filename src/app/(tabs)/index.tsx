@@ -1,3 +1,4 @@
+import { governmentHomeDestination } from "../../lib/circular/contract";
 import { LatestCircularCard } from "../../components/circular/latest-card";
 import { categoryPresentation } from "../../lib/home-presentation";
 import { HotJobsSection } from "../../components/home/hot-jobs";
@@ -654,7 +655,7 @@ export default function HomeScreen() {
               accessibilityLabel={`Browse ${label}`}
               onPress={() =>
                 category === "government"
-                  ? router.push("/circular-jobs")
+                  ? router.push(governmentHomeDestination())
                   : router.push({ pathname: "/jobs", params: { category } })
               }
               style={({ pressed, hovered }) => [
