@@ -303,7 +303,7 @@ const styles = StyleSheet.create({
     padding: 24,
     paddingBottom: 64,
   },
-  title: { fontFamily: Fonts.editorial, fontSize: 28, marginVertical: 16 },
+  title: { fontFamily: Fonts.editorial, fontSize: 24, marginVertical: 16 },
   body: { color: Colors.muted, lineHeight: 22, marginVertical: 12 },
   label: { color: Colors.muted, marginTop: 16, marginBottom: 8 },
   input: {

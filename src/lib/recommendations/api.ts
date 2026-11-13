@@ -25,6 +25,12 @@ export const getRecommendations = (
   filters: FeedFilters = {},
   cursor: string | null = null,
 ) => service.feed(filters, cursor);
+export const getCachedRecommendations = (
+  userId: string | null,
+  filters: FeedFilters = {},
+) => service.peek(userId, filters);
+export const getHomeProfile = (userId: string) =>
+  service.readHomeProfile(userId);
 export const getRecommendationPreferences = () => service.getPreferences();
 export async function saveRecommendationPreferences(preferences: Preferences) {
   await service.savePreferences(preferences);
@@ -46,13 +52,14 @@ export async function recordRecommendationActivity(
   jobId: string,
   kind: ActivityKind,
 ) {
+  let changed = false;
   try {
-    await service.activity(jobId, kind);
+    changed = (await service.activity(jobId, kind)) === true;
   } catch {
-    /* Optional device learning must never block saves or applications. */
-  } finally {
-    invalidateRecommendations();
+    /* Optional learning never blocks core work. */
   }
+  if (changed || ["saved", "unsaved", "application_submitted"].includes(kind))
+    invalidateRecommendations();
 }
 export const latestFallback = (filters: FeedFilters, _userId: string | null) =>
   service.feed(filters, null, true);

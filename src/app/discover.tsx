@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
     padding: 24,
     paddingBottom: 64,
   },
-  title: { fontFamily: Fonts.editorial, fontSize: 28, marginVertical: 16 },
+  title: { fontFamily: Fonts.editorial, fontSize: 24, marginVertical: 16 },
   card: {
     backgroundColor: Colors.surface,
     borderWidth: 1,
