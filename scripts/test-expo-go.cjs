@@ -297,8 +297,10 @@ function app(os, environment, dev = true, forceTest = false, iosEnv = {}) {
       dev,
       {
         env: {
-          EXPO_PUBLIC_ADS_TEST_MODE: forceTest ? "true" : undefined,
           ...iosEnv,
+          EXPO_PUBLIC_ADS_TEST_MODE: forceTest
+            ? "true"
+            : iosEnv.EXPO_PUBLIC_ADS_TEST_MODE,
         },
       },
     );

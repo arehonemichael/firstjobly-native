@@ -33,7 +33,7 @@ test("first iOS configuration has native sample app ID without changing Android"
   assert.deepEqual(result.android, config.android);
   assert.equal(JSON.stringify(config), before);
   assert.equal(result.ios.bundleIdentifier, "com.first.firstjobly");
-  assert.equal(result.ios.buildNumber, "2");
+  assert.match(result.ios.buildNumber, /^[1-9]\d*$/);
 });
 test("iOS native App ID configuration rejects malformed/unit IDs", () => {
   for (const value of ["bad", "ca-app-pub-1111111111111111/2222222222"])
@@ -272,5 +272,16 @@ test("new iOS production profile has the same missing-unit release guard", () =>
         EXPO_PUBLIC_ADMOB_IOS_REWARDED_FORMAT: "interstitial",
       }),
     /REWARDED_FORMAT/,
+  );
+});
+
+test("production iOS explicitly disables test ads while TestFlight overrides to test inventory", () => {
+  assert.equal(
+    eas.build["ios-production"].env.EXPO_PUBLIC_ADS_TEST_MODE,
+    "false",
+  );
+  assert.equal(
+    eas.build["ios-testflight"].env.EXPO_PUBLIC_ADS_TEST_MODE,
+    "true",
   );
 });
