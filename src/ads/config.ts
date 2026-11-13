@@ -15,6 +15,10 @@ const PROD = nativeAdsPlatform === "ios" ? IOS_PRODUCTION_UNITS : ANDROID_PROD;
 export const ADS_TEST_MODE =
   __DEV__ || process.env.EXPO_PUBLIC_ADS_TEST_MODE === "true";
 
+export const USE_REWARDED_INTERSTITIAL =
+  nativeAdsPlatform === "ios" &&
+  process.env.EXPO_PUBLIC_ADMOB_IOS_REWARDED_FORMAT === "rewarded-interstitial";
+
 export const AD_UNITS = {
   banner: ADS_TEST_MODE ? (TestIds?.ADAPTIVE_BANNER ?? "") : PROD.banner,
   appOpen: ADS_TEST_MODE ? (TestIds?.APP_OPEN ?? "") : PROD.appOpen,
@@ -22,7 +26,11 @@ export const AD_UNITS = {
     ? (TestIds?.INTERSTITIAL ?? "")
     : PROD.interstitial,
   native: ADS_TEST_MODE ? (TestIds?.NATIVE ?? "") : PROD.native,
-  rewarded: ADS_TEST_MODE ? (TestIds?.REWARDED ?? "") : PROD.rewarded,
+  rewarded: ADS_TEST_MODE
+    ? USE_REWARDED_INTERSTITIAL
+      ? (TestIds?.REWARDED_INTERSTITIAL ?? "")
+      : (TestIds?.REWARDED ?? "")
+    : PROD.rewarded,
 } as const;
 
 export const ADS_CONFIG = {

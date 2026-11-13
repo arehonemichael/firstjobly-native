@@ -6,7 +6,8 @@ const appPattern = /^ca-app-pub-\d{16}~\d{10}$/;
 const unitPattern = /^ca-app-pub-\d{16}\/\d{10}$/;
 function configureIosAds(config, env, sample = IOS_SAMPLE_APP_ID) {
   const isIosProduction =
-    env.EAS_BUILD_PLATFORM === "ios" && env.EAS_BUILD_PROFILE === "production";
+    env.EAS_BUILD_PLATFORM === "ios" &&
+    ["production", "ios-production"].includes(env.EAS_BUILD_PROFILE);
   const appId = env.EXPO_PUBLIC_ADMOB_IOS_APP_ID?.trim() || sample;
   if (!appPattern.test(appId))
     throw Error(
@@ -26,6 +27,14 @@ function configureIosAds(config, env, sample = IOS_SAMPLE_APP_ID) {
         "Production iOS requires your own iOS AdMob App ID. Create the iOS app in AdMob first; do not reuse Android IDs.",
       );
     }
+    const rewardFormat = env.EXPO_PUBLIC_ADMOB_IOS_REWARDED_FORMAT;
+    if (
+      rewardFormat &&
+      !["rewarded", "rewarded-interstitial"].includes(rewardFormat)
+    )
+      throw Error(
+        "EXPO_PUBLIC_ADMOB_IOS_REWARDED_FORMAT must be rewarded or rewarded-interstitial.",
+      );
     for (const name of unitNames) {
       const value = env[`EXPO_PUBLIC_ADMOB_IOS_${name}_ID`]?.trim() || "";
       if (
