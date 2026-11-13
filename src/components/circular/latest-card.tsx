@@ -1,3 +1,4 @@
+import { useExtraBoundary } from "../../ads/useExtraBoundary";
 import { useState } from "react";
 import { View } from "react-native";
 import { Landmark, ArrowRight } from "lucide-react-native";
@@ -15,6 +16,7 @@ export function LatestCircularCard({ compact = false }: { compact?: boolean }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<Error>();
   const batch = query.data?.batch;
+  useExtraBoundary(null, !busy && !error && !query.error && !query.loading);
   async function download() {
     if (!query.userId || busy) return;
     setBusy(true);

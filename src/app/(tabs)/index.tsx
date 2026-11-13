@@ -333,7 +333,11 @@ export default function HomeScreen() {
         <View style={{ marginVertical: 16 }}>
           <LatestCircularCard compact />
         </View>
-        {authLoading || (userId && summaryLoading && !summary) ? (
+        {authLoading ||
+        (userId &&
+          summaryLoading &&
+          summary?.completion == null &&
+          summary?.applications == null) ? (
           <View accessibilityLabel="Loading your overview">
             <SkeletonJobCard />
           </View>

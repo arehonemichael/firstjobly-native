@@ -5,7 +5,7 @@ import {
   AppTouchableOpacity as TouchableOpacity,
 } from "../../components/ui/primitives";
 import { Fonts, Colors } from "../../constants/theme";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -16,30 +16,51 @@ import {
 import { Icon as Ionicons } from "../../components/ui/icon";
 import { router } from "expo-router";
 
-
 import { useAuth } from "../../hooks/use-auth";
 import { useScreenBottomPadding } from "../../hooks/use-screen-bottom-padding";
-import { EmptyState, SkeletonJobCard } from "../../components/ui/app-ui";
+import {
+  EmptyState,
+  InlineErrorState,
+  SkeletonJobCard,
+} from "../../components/ui/app-ui";
 import { useSavedJobs } from "../../hooks/use-saved-jobs";
 import { supabase } from "../../lib/supabase";
 import type { Job } from "../../lib/jobs";
 
 export default function NormalSavedJobs() {
   const bottomContentPadding = useScreenBottomPadding(true);
-  const { isAuthenticated, loading: authLoading } = useAuth();
-  const { savedIds, loading: savedLoading, refreshSaved } = useSavedJobs();
+  const { userId, isAuthenticated, loading: authLoading } = useAuth();
+  const {
+    savedIds,
+    loading: savedLoading,
+    error: savedError,
+    refreshSaved,
+  } = useSavedJobs();
 
-  const [jobs, setJobs] = useState<Job[]>([]);
+  const [result, setResult] = useState<{
+    owner: string | null;
+    ids: string[];
+    jobs: Job[];
+  } | null>(null);
+  const jobs =
+    result?.owner === userId
+      ? result.jobs.filter((job) => savedIds.includes(job.id))
+      : [];
+  const request = useRef(0);
+  const [loadError, setLoadError] = useState(false);
   const [loadingJobs, setLoadingJobs] = useState(false);
 
   const loadJobs = useCallback(async () => {
-    if (savedIds.length === 0) {
-      setJobs([]);
+    const version = ++request.current;
+    if (savedIds.length === 0 || !userId) {
+      setResult(null);
+      setLoadingJobs(false);
       return;
     }
 
     try {
       setLoadingJobs(true);
+      setLoadError(false);
 
       const { data, error } = await supabase
         .from("jobs")
@@ -57,19 +78,25 @@ export default function NormalSavedJobs() {
         (a, b) => (order.get(a.id) ?? 9999) - (order.get(b.id) ?? 9999),
       );
 
-      setJobs(rows);
+      if (version === request.current)
+        setResult({ owner: userId, ids: savedIds, jobs: rows });
     } catch (error) {
+      if (version === request.current) setLoadError(true);
       console.error("Could not load saved jobs:", error);
     } finally {
-      setLoadingJobs(false);
+      if (version === request.current) setLoadingJobs(false);
     }
-  }, [savedIds]);
+  }, [savedIds, userId]);
 
   useEffect(() => {
+    const sequence = request;
     void loadJobs();
+    return () => {
+      sequence.current++;
+    };
   }, [loadJobs]);
 
-  if (authLoading || savedLoading) {
+  if (authLoading || (savedLoading && !savedIds.length && !jobs.length)) {
     return (
       <View style={styles.center}>
         <ActivityIndicator color={Colors.primary} />
@@ -122,10 +149,29 @@ export default function NormalSavedJobs() {
               {jobs.length === 1 ? "opportunity" : "opportunities"}
             </Text>
             <AdBanner placement="saved" />
+            {!!jobs.length && (savedError || loadError) && (
+              <InlineErrorState
+                message="Saved jobs could not refresh. Showing your last loaded jobs."
+                onRetry={() => {
+                  void refreshSaved();
+                  void loadJobs();
+                }}
+              />
+            )}
           </View>
         }
         ListEmptyComponent={
-          loadingJobs ? (
+          loadError || savedError ? (
+            <EmptyState
+              title="Saved jobs are unavailable"
+              message="Check your connection and try again."
+              actionLabel="Retry"
+              onAction={() => {
+                void refreshSaved();
+                void loadJobs();
+              }}
+            />
+          ) : loadingJobs ? (
             <View>
               <SkeletonJobCard />
               <SkeletonJobCard />

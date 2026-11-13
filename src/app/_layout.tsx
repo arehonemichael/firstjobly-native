@@ -1,3 +1,4 @@
+import { ExtraInterstitialLifecycle } from "../ads/ExtraInterstitialLifecycle";
 import "../global.css";
 // Register private Community cleanup even when its screens are not mounted.
 import "../lib/community/store";
@@ -113,6 +114,10 @@ export default function RootLayout() {
             </Stack>
           </View>
         </View>
+        <ExtraInterstitialLifecycle
+          ready={ready && !showLaunchSplash}
+          userId={auth.userId}
+        />
         <AdMobLifecycle
           ready={ready && !showLaunchSplash}
           pathname={pathname}

@@ -1,3 +1,7 @@
+import {
+  offerExtraHomeTransition,
+  extraTransitionPending,
+} from "../../ads/ExtraInterstitialLifecycle";
 import { signalUserInteraction } from "../../lib/user-interaction";
 import {
   StyleSheet,
@@ -90,7 +94,28 @@ export default function TabsLayout() {
     <Tabs
       initialRouteName="index"
       backBehavior="history"
-      screenListeners={{ tabPress: signalUserInteraction }}
+      screenListeners={({ navigation, route }) => ({
+        tabPress: (event) => {
+          signalUserInteraction();
+          if (extraTransitionPending()) {
+            event.preventDefault();
+            return;
+          }
+          const state = navigation.getState();
+          const source = state.routes[state.index]?.name;
+          if (
+            route.name === "index" &&
+            (source === "jobs" || source === "circular-jobs")
+          ) {
+            if (
+              offerExtraHomeTransition(source, () =>
+                navigation.navigate("index"),
+              )
+            )
+              event.preventDefault();
+          }
+        },
+      })}
       screenOptions={{
         headerShown: false,
         tabBarPosition: "bottom",

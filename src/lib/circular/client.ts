@@ -22,12 +22,14 @@ let owner: string | null = null;
 supabase.auth.onAuthStateChange((_event, session) => {
   const next = session?.user.id ?? null;
   if (next !== owner) {
+    circularAPI.invalidateReads();
     circularCache.clear();
     applications.clear();
     owner = next;
   }
 });
 export function invalidateCircular() {
+  circularAPI.invalidateReads();
   circularCache.clear();
 }
 const withdrawn = new Map<string, Set<string>>();

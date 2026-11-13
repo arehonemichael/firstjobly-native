@@ -991,7 +991,10 @@ function sessionFor(id = uid) {
           ),
       );
       check(true, "SDK sign-out event clears drafts with Community unmounted");
-      await page.getByRole("tab", { name: "Community", exact: true }).click();
+      await page.getByRole("tab", { name: "More", exact: true }).click();
+      await page
+        .getByRole("button", { name: "Community", exact: true })
+        .click();
       await page
         .getByText("Sign in to connect with other job seekers.")
         .waitFor();

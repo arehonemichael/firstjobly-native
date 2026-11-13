@@ -1617,9 +1617,432 @@ test("cancelling the Z83 incomplete-fields prompt requests no ad and releases th
   assert.equal(f.busy.at(-1), false);
 });
 
-test('circular Z83 hands the PDF to the owner session, clears answers and preserves the rewarded gate', async () => {
-  const f=downloadPorts('z83');
-  const deps={...f.deps,circularMode:true,circularApplication:'opaque-application',userId:'alice',applications:{setFile(owner,key,kind,uri){f.events.push('session-file');assert.equal(owner,'alice');assert.equal(key,'opaque-application');assert.equal(kind,'z83');assert.equal(uri,'fixture.pdf');return true;}},emptyZ83:()=>({idNumber:'',signature:''}),setData:value=>{assert.equal(value.idNumber,'');assert.equal(value.signature,'');f.events.push('clear-answers');},router:{back:()=>f.events.push('return-to-apply')}};
-  const handler=downloadHandler('src/app/z83.tsx','download',deps);await handler();assert.deepEqual(f.events,['ad','template','generate','write','session-file','clear-answers','consume','return-to-apply']);assert.ok(!f.events.includes('save'));assert.equal(f.lock.current,false);
+test("circular Z83 hands the PDF to the owner session, clears answers and preserves the rewarded gate", async () => {
+  const f = downloadPorts("z83");
+  const deps = {
+    ...f.deps,
+    circularMode: true,
+    circularApplication: "opaque-application",
+    userId: "alice",
+    applications: {
+      setFile(owner, key, kind, uri) {
+        f.events.push("session-file");
+        assert.equal(owner, "alice");
+        assert.equal(key, "opaque-application");
+        assert.equal(kind, "z83");
+        assert.equal(uri, "fixture.pdf");
+        return true;
+      },
+    },
+    emptyZ83: () => ({ idNumber: "", signature: "" }),
+    setData: (value) => {
+      assert.equal(value.idNumber, "");
+      assert.equal(value.signature, "");
+      f.events.push("clear-answers");
+    },
+    router: { back: () => f.events.push("return-to-apply") },
+  };
+  const handler = downloadHandler("src/app/z83.tsx", "download", deps);
+  await handler();
+  assert.deepEqual(f.events, [
+    "ad",
+    "template",
+    "generate",
+    "write",
+    "session-file",
+    "clear-answers",
+    "consume",
+    "return-to-apply",
+  ]);
+  assert.ok(!f.events.includes("save"));
+  assert.equal(f.lock.current, false);
 });
-test('circular Z83 cancellation never generates or stores private application files',async()=>{const f=downloadPorts('z83',async()=>false);const handler=downloadHandler('src/app/z83.tsx','download',{...f.deps,circularMode:true});await handler();assert.deepEqual(f.events,['ad']);});
+test("circular Z83 cancellation never generates or stores private application files", async () => {
+  const f = downloadPorts("z83", async () => false);
+  const handler = downloadHandler("src/app/z83.tsx", "download", {
+    ...f.deps,
+    circularMode: true,
+  });
+  await handler();
+  assert.deepEqual(f.events, ["ad"]);
+});
+
+const { createExtraInterstitialController } = load(
+  "src/ads/extra-interstitial-controller.ts",
+);
+const { registerExtraBoundary, extraBoundaryReady } = load(
+  "src/ads/extra-boundary.ts",
+);
+function extraClock() {
+  let time = 0;
+  const clock = createExtraInterstitialController(() => time);
+  clock.setActive(true);
+  clock.noteInteraction();
+  clock.noteInteraction();
+  return {
+    clock,
+    advance(ms) {
+      time += ms;
+    },
+  };
+}
+test("extras require five active minutes, never show on a timer, and exclude background", () => {
+  const f = extraClock();
+  let shows = 0;
+  const present = () => {
+    shows++;
+    return true;
+  };
+  f.advance(299999);
+  assert.equal(
+    f.clock.offer(present, () => {}),
+    false,
+  );
+  f.clock.setActive(false);
+  f.advance(3600000);
+  assert.equal(
+    f.clock.offer(present, () => {}),
+    false,
+  );
+  f.clock.setActive(true);
+  assert.equal(
+    f.clock.offer(present, () => {}),
+    false,
+  );
+  f.advance(1);
+  assert.equal(shows, 0);
+  assert.equal(
+    f.clock.offer(present, () => {}),
+    true,
+  );
+  assert.equal(f.clock.state().shown, 0); // A show call is not a presentation.
+});
+test("extras count OPENED once, release once, share a two-show session cap and ignore rapid taps", () => {
+  const f = extraClock();
+  let callbacks,
+    navigation = 0,
+    shows = 0;
+  const present = (done, opened) => {
+    shows++;
+    callbacks = { done, opened };
+    return true;
+  };
+  for (let i = 0; i < 2; i++) {
+    f.advance(300000);
+    f.clock.noteInteraction();
+    f.clock.noteInteraction();
+    assert.equal(
+      f.clock.offer(present, () => navigation++),
+      true,
+    );
+    assert.equal(
+      f.clock.offer(present, () => navigation++),
+      true,
+    );
+    assert.equal(shows, i + 1);
+    callbacks.opened();
+    callbacks.opened();
+    assert.equal(f.clock.state().shown, i + 1);
+    callbacks.done();
+    callbacks.done();
+    assert.equal(navigation, i + 1);
+    assert.equal(
+      f.clock.offer(present, () => navigation++),
+      false,
+    );
+    f.clock.setActive(false);
+    f.advance(100000);
+    f.clock.setActive(true); // remount/resume doesn't reset.
+  }
+  f.advance(9000000);
+  assert.equal(
+    f.clock.offer(present, () => navigation++),
+    false,
+  );
+  assert.equal(shows, 2);
+});
+test("every full-screen release restarts the five-active-minute gap", () => {
+  const f = extraClock();
+  f.advance(600000);
+  f.clock.setActive(false);
+  f.advance(30000);
+  f.clock.fullscreenEnded();
+  f.clock.noteInteraction();
+  f.clock.noteInteraction();
+  f.clock.setActive(true);
+  f.advance(299999);
+  assert.equal(
+    f.clock.offer(
+      () => true,
+      () => {},
+    ),
+    false,
+  );
+  f.advance(1);
+  assert.equal(
+    f.clock.offer(
+      () => true,
+      () => {},
+    ),
+    true,
+  );
+});
+test("missing inventory consumes no attempt, failure consumes one and attempts cap at two", () => {
+  const f = extraClock();
+  f.advance(300000);
+  for (let i = 0; i < 10; i++)
+    assert.equal(
+      f.clock.offer(
+        () => false,
+        () => {},
+      ),
+      false,
+    );
+  assert.equal(f.clock.state().attempts, 0);
+  for (let i = 0; i < 2; i++) {
+    f.clock.noteInteraction();
+    f.clock.noteInteraction();
+    assert.equal(
+      f.clock.offer(
+        (done) => {
+          done();
+          return true;
+        },
+        () => {},
+      ),
+      true,
+    );
+    assert.equal(f.clock.state().shown, 0);
+    f.advance(300000);
+  }
+  assert.equal(
+    f.clock.offer(
+      () => true,
+      () => {},
+    ),
+    false,
+  );
+});
+test("focused feed boundaries reject controls/errors/scrolls and unregistered sensitive pages", () => {
+  let time = 0,
+    ready = false;
+  const entry = registerExtraBoundary(
+    "jobs",
+    () => ready,
+    () => time,
+  );
+  assert.equal(
+    extraBoundaryReady("jobs", () => time),
+    false,
+  );
+  ready = true;
+  time = 1000;
+  assert.equal(
+    extraBoundaryReady("jobs", () => time),
+    true,
+  );
+  const child = registerExtraBoundary(
+    null,
+    () => false,
+    () => time,
+  );
+  assert.equal(
+    extraBoundaryReady("jobs", () => time),
+    false,
+  );
+  child.dispose();
+  entry.scroll();
+  assert.equal(
+    extraBoundaryReady("jobs", () => time),
+    false,
+  );
+  time += 1000;
+  assert.equal(
+    extraBoundaryReady("jobs", () => time),
+    true,
+  );
+  assert.equal(
+    extraBoundaryReady("community", () => time),
+    false,
+  );
+  entry.dispose();
+  assert.equal(
+    extraBoundaryReady("jobs", () => time),
+    false,
+  );
+});
+test("additional path uses loaded inventory only and leaves legacy cadence counters unchanged", (t) => {
+  const f = interstitial(t);
+  let next = 0,
+    opened = 0;
+  assert.equal(
+    f.manager.onAdditionalTransition(
+      () => next++,
+      () => opened++,
+    ),
+    false,
+  );
+  assert.equal(f.ads.length, 1);
+  f.ads[0].emit("loaded");
+  const before = f.manager._test.state();
+  assert.equal(
+    f.manager.onAdditionalTransition(
+      () => next++,
+      () => opened++,
+    ),
+    true,
+  );
+  f.ads[0].emit("opened");
+  f.ads[0].emit("opened");
+  assert.equal(opened, 1);
+  for (const key of ["opens", "shownThisSession", "lastShownAt"])
+    assert.equal(f.manager._test.state()[key], before[key]);
+  f.ads[0].emit("closed");
+  assert.equal(next, 1);
+  // Original first-job eligibility still applies after its unchanged 60s gap.
+  f.ads[1].emit("loaded");
+  t.mock.timers.tick(60000);
+  f.manager.onJobOpen(() => next++);
+  assert.equal(f.ads[1].shows, 1);
+  f.ads[1].emit("opened");
+  f.ads[1].emit("closed");
+  assert.equal(f.manager._test.state().shownThisSession, 1);
+});
+test("extra path requires five-minute lock gap, default legacy callers still require 60 seconds", (t) => {
+  const f = interstitial(t);
+  f.ads[0].emit("loaded");
+  f.lock.tryAcquire("rewarded");
+  f.lock.release("rewarded");
+  t.mock.timers.tick(299999);
+  assert.equal(
+    f.manager.onAdditionalTransition(
+      () => {},
+      () => {},
+    ),
+    false,
+  );
+  t.mock.timers.tick(1);
+  assert.equal(
+    f.manager.onAdditionalTransition(
+      () => {},
+      () => {},
+    ),
+    true,
+  );
+  f.ads[0].emit("closed");
+});
+for (const failure of [
+  "error",
+  "reject",
+  "throws",
+  "start-timeout",
+  "terminal-timeout",
+  "consent",
+]) {
+  test(`extra ${failure} releases navigation/lock once and cannot show a late load`, async (t) => {
+    const f = interstitial(t);
+    let next = 0,
+      opened = 0;
+    f.ads[0].emit("loaded");
+    f.ads[0].reject = failure === "reject";
+    f.ads[0].throws = failure === "throws";
+    assert.equal(
+      f.manager.onAdditionalTransition(
+        () => next++,
+        () => opened++,
+      ),
+      true,
+    );
+    if (failure === "error") f.ads[0].emit("error");
+    if (failure === "consent") f.deny();
+    if (failure === "terminal-timeout") {
+      f.ads[0].emit("opened");
+      t.mock.timers.tick(120000);
+    }
+    if (failure === "start-timeout") t.mock.timers.tick(1500);
+    await tick();
+    assert.equal(next, 1);
+    assert.equal(f.lock.isHeld(), false);
+    f.ads[0].emit("opened");
+    f.ads[0].emit("closed");
+    f.ads[1]?.emit("loaded");
+    t.mock.timers.tick(300000);
+    assert.equal(next, 1);
+    assert.equal(
+      f.ads.reduce((n, a) => n + a.shows, 0),
+      1,
+    );
+    assert.equal(opened, failure === "terminal-timeout" ? 1 : 0);
+  });
+}
+test("lock observers cannot alter legacy ownership or throw through existing ads", () => {
+  let time = 0;
+  const lock = createFullscreenLock(60000, () => time);
+  let calls = 0;
+  const off = lock.subscribe(() => {
+    calls++;
+    throw Error("observer");
+  });
+  assert.equal(lock.tryAcquire("legacy"), true);
+  lock.release("wrong");
+  assert.equal(lock.isHeld(), true);
+  lock.release("legacy");
+  assert.equal(calls, 2);
+  time = 60000;
+  assert.equal(lock.tryAcquire("next"), true);
+  off();
+});
+
+test("an extra also requires two deliberate interactions since the last fullscreen", () => {
+  let time = 0;
+  const clock = createExtraInterstitialController(() => time);
+  clock.setActive(true);
+  time = 300000;
+  clock.noteInteraction();
+  assert.equal(
+    clock.offer(
+      () => true,
+      () => {},
+    ),
+    false,
+  );
+  clock.noteInteraction();
+  assert.equal(
+    clock.offer(
+      (done) => {
+        done();
+        return true;
+      },
+      () => {},
+    ),
+    true,
+  );
+  clock.fullscreenEnded();
+  time += 300000;
+  assert.equal(
+    clock.offer(
+      () => true,
+      () => {},
+    ),
+    false,
+  );
+});
+test("extra interaction observers preserve the existing app-open observer", () => {
+  const events = load("src/lib/user-interaction.ts");
+  let legacy = 0,
+    extra = 0;
+  events.setInteractionObserver(() => legacy++);
+  const off = events.subscribeUserInteraction(() => extra++);
+  const broken = events.subscribeUserInteraction(() => {
+    throw Error("optional");
+  });
+  events.signalUserInteraction();
+  assert.equal(legacy, 1);
+  assert.equal(extra, 1);
+  off();
+  broken();
+  events.signalUserInteraction();
+  assert.equal(legacy, 2);
+  assert.equal(extra, 1);
+  events.setInteractionObserver(null);
+});
