@@ -3,7 +3,9 @@ import { StyleSheet, useWindowDimensions } from "react-native";
 import { AppText as Text } from "./ui/primitives";
 import { BrandColors, Fonts } from "../constants/theme";
 /** A single inline text run keeps both colour spans on the same baseline. The
- * viewport budget leaves room for glyph ink beyond the final y's advance. */
+ * viewport budget leaves room for glyph ink beyond the final y's advance.
+ * Android can clip that ink at a single-line text boundary despite padding;
+ * a measured, nonbreaking trailing space keeps the y inside the text run. */
 export function BrandWordmark({
   availableWidth,
   preferredSize = 22,
@@ -31,6 +33,7 @@ export function BrandWordmark({
       <Text testID="brand-jobly" style={{ color: BrandColors.jobly }}>
         Jobly
       </Text>
+      {"\u00a0"}
     </Text>
   );
 }

@@ -62,7 +62,7 @@ function check(value, label) {
       const brand = page.getByTestId("brand-wordmark");
       if (!before) {
         check(
-          (await brand.innerText()) === "FirstJobly",
+          (await brand.innerText()).trim() === "FirstJobly",
           `complete brand at ${width}px`,
         );
         const colours = await brand.evaluate((el) => [
@@ -312,7 +312,7 @@ function check(value, label) {
           }
           const wordmark = page.getByTestId("brand-wordmark");
           check(
-            (await wordmark.innerText()) === "FirstJobly",
+            (await wordmark.innerText()).trim() === "FirstJobly",
             `${mode} shares complete brand at ${width}px`,
           );
           const colours = await wordmark.evaluate((el) => [
