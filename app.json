@@ -10,7 +10,7 @@
     "ios": {
       "bundleIdentifier": "com.first.firstjobly",
       "supportsTablet": true,
-      "buildNumber": "2",
+      "buildNumber": "3",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
