@@ -33,7 +33,7 @@ test("first iOS configuration has native sample app ID without changing Android"
   assert.deepEqual(result.android, config.android);
   assert.equal(JSON.stringify(config), before);
   assert.equal(result.ios.bundleIdentifier, "com.first.firstjobly");
-  assert.equal(result.ios.buildNumber, "1");
+  assert.equal(result.ios.buildNumber, "2");
 });
 test("iOS native App ID configuration rejects malformed/unit IDs", () => {
   for (const value of ["bad", "ca-app-pub-1111111111111111/2222222222"])
