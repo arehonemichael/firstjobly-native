@@ -10,6 +10,7 @@ export type ConsentPort = {
   choices(): Promise<{
     storeAndAccessInformationOnDevice: boolean;
     selectBasicAds: boolean;
+    selectPersonalisedAds?: boolean;
   }>;
   initialize(): Promise<unknown>;
 };
@@ -22,6 +23,8 @@ export function createAdConsent(port: ConsentPort | null) {
     failed: false,
     presenting: false,
     lastUiAt: 0,
+    failedAt: null as number | null,
+    personalized: false,
   };
   let pending: Promise<void> | null = null,
     initialized: Promise<unknown> | null = null,
@@ -45,8 +48,10 @@ export function createAdConsent(port: ConsentPort | null) {
     let allowed =
       info.canRequestAds &&
       (info.status === "NOT_REQUIRED" || info.status === "OBTAINED");
+    let personalized = info.status === "NOT_REQUIRED";
     if (allowed && info.status === "OBTAINED") {
       const c = await port!.choices();
+      personalized = c.selectPersonalisedAds === true;
       allowed =
         c.storeAndAccessInformationOnDevice === true &&
         c.selectBasicAds === true;
@@ -65,6 +70,8 @@ export function createAdConsent(port: ConsentPort | null) {
       canRequestAds: allowed,
       privacyRequired,
       failed: false,
+      failedAt: null,
+      personalized: allowed && personalized,
     });
   }
   function prepare(canPresent: () => boolean) {
@@ -85,6 +92,8 @@ export function createAdConsent(port: ConsentPort | null) {
           settled: true,
           canRequestAds: false,
           failed: true,
+          failedAt: Date.now(),
+          personalized: false,
         });
       } finally {
         pending = null;
@@ -101,10 +110,30 @@ export function createAdConsent(port: ConsentPort | null) {
       };
     },
     prepare,
+    retryOnForeground(canPresent: () => boolean) {
+      if (
+        state.presenting ||
+        pending ||
+        opening ||
+        !state.failed ||
+        state.failedAt === null ||
+        Date.now() - state.failedAt < 30000
+      )
+        return Promise.resolve();
+      checked = false;
+      return prepare(canPresent);
+    },
+    getRequestOptions() {
+      return {
+        requestNonPersonalizedAdsOnly: !(
+          state.canRequestAds && state.personalized
+        ),
+      };
+    },
     async openPrivacy(canPresent: () => boolean) {
       if (!port || pending || opening || !canPresent()) return;
       opening = true;
-      publish({ ...state, canRequestAds: false });
+      publish({ ...state, canRequestAds: false, personalized: false });
       try {
         if (state.privacyRequired)
           await apply(await modal(() => port.showPrivacyOptions()));
@@ -118,6 +147,8 @@ export function createAdConsent(port: ConsentPort | null) {
           settled: true,
           canRequestAds: false,
           failed: true,
+          failedAt: Date.now(),
+          personalized: false,
         });
       } finally {
         opening = false;

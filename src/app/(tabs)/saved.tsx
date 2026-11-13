@@ -1,3 +1,4 @@
+import { AdBanner } from "../../ads/AdBanner";
 import { JobMetadata } from "../../components/ui/job-metadata";
 import {
   AppText as Text,
@@ -120,6 +121,7 @@ export default function SavedScreen() {
               {jobs.length} saved{" "}
               {jobs.length === 1 ? "opportunity" : "opportunities"}
             </Text>
+            <AdBanner placement="saved" />
           </View>
         }
         ListEmptyComponent={

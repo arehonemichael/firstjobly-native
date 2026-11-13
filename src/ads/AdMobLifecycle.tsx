@@ -2,15 +2,16 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLayoutEffect, useRef } from "react";
 import { AppState, Linking } from "react-native";
 import { mobileAdsSDK } from "./sdk";
-import { adsPrivacy, useAdsConsent } from "./privacy";
+import { adsPrivacy, getRequestOptions, useAdsConsent } from "./privacy";
 import { createAppOpenController } from "./app-open-controller";
-import { AD_FEATURES, AD_LIMITS, AD_UNITS } from "./config";
+import { ADS_CONFIG, AD_UNITS } from "./config";
 import { setInteractionObserver } from "../lib/user-interaction";
 import { getHomeProfile } from "../lib/recommendations/api";
 
 // One controller/subscription per JS app session, including navigator root remounts.
 let runtime: ReturnType<typeof createAppOpenController> | null = null;
 let subscription: { remove(): void } | null = null;
+let privacySubscription: (() => void) | null = null;
 let links: { remove(): void } | null = null;
 let route = {
   ready: false,
@@ -34,16 +35,18 @@ function syncContext(preload = true) {
   );
 }
 function ensureRuntime() {
-  if (runtime || !mobileAdsSDK || !AD_FEATURES.appOpen) return;
+  if (runtime || !mobileAdsSDK) return;
   const sdk = mobileAdsSDK;
   runtime = createAppOpenController({
     storage: AsyncStorage,
-    minLaunches: AD_LIMITS.minAppLaunchesBeforeAppOpen,
-    cooldownMs: AD_LIMITS.appOpenCooldownMs,
+    minLaunches: ADS_CONFIG.appOpen.minLaunches,
+    cooldownMs: ADS_CONFIG.appOpen.cooldownMs,
+    maxAgeMs: ADS_CONFIG.appOpen.maxAdAgeMs,
     createAd: () => {
-      const native = sdk.AppOpenAd.createForAdRequest(AD_UNITS.appOpen, {
-        requestNonPersonalizedAdsOnly: true,
-      });
+      const native = sdk.AppOpenAd.createForAdRequest(
+        AD_UNITS.appOpen,
+        getRequestOptions(),
+      );
       return {
         load: () => native.load(),
         show: () => native.show(),
@@ -60,13 +63,22 @@ function ensureRuntime() {
       };
     },
   });
+  privacySubscription = adsPrivacy.subscribe(() => syncContext());
   setInteractionObserver(markAdInteraction);
   syncContext();
   void runtime.initialize();
   links = Linking.addEventListener("url", () => runtime?.markInteraction());
+  let previousState = AppState.currentState;
+  let backgrounded = false;
   subscription = AppState.addEventListener("change", (next) => {
-    if (next === "active" && canPresentConsent())
-      void adsPrivacy.prepare(canPresentConsent);
+    if (next === "background") backgrounded = true;
+    const wasAway = previousState !== "active";
+    previousState = next;
+    if (next === "active" && wasAway) {
+      if (backgrounded) void adsPrivacy.retryOnForeground(canPresentConsent);
+      backgrounded = false;
+      if (canPresentConsent()) void adsPrivacy.prepare(canPresentConsent);
+    }
     syncContext(false);
     runtime?.onState(next);
   });
@@ -75,6 +87,8 @@ export function markAdInteraction() {
   runtime?.markInteraction();
 }
 export function disposeAdvertisingRuntime() {
+  privacySubscription?.();
+  privacySubscription = null;
   setInteractionObserver(null);
   links?.remove();
   links = null;

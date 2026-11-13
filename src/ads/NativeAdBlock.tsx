@@ -1,12 +1,14 @@
 import { AppText as Text } from "../components/ui/primitives";
 import { Colors } from "../constants/theme";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Image, StyleSheet, View } from "react-native";
 import type { NativeAd as NativeAdInstance } from "react-native-google-mobile-ads";
-import { useAdsConsent } from "./privacy";
+import { getRequestOptions, useAdsConsent } from "./privacy";
 import { mobileAdsSDK } from "./sdk";
 
-import { AD_UNITS } from "./config";
+import { ADS_CONFIG, AD_UNITS } from "./config";
+
+import { createAdRecovery, loadNativeWithTimeout } from "./recovery";
 
 type NativeAdBlockProps = {
   variant?: "detail" | "feed";
@@ -14,39 +16,62 @@ type NativeAdBlockProps = {
 
 export function NativeAdBlock(props: NativeAdBlockProps) {
   const consent = useAdsConsent();
-  return consent.canRequestAds && mobileAdsSDK ? (
-    <AuthorizedNativeAd {...props} />
+  const enabled =
+    props.variant === "feed"
+      ? ADS_CONFIG.native.feedEnabled
+      : ADS_CONFIG.native.detailEnabled;
+  return enabled && consent.canRequestAds && mobileAdsSDK ? (
+    <AuthorizedNativeAd
+      key={`${props.variant || "detail"}:${consent.personalized}`}
+      {...props}
+    />
   ) : null;
 }
 function AuthorizedNativeAd({ variant = "detail" }: NativeAdBlockProps) {
   const [nativeAd, setNativeAd] = useState<NativeAdInstance | null>(null);
   const compact = variant === "feed";
 
+  const [failed, setFailed] = useState(false),
+    [generation, setGeneration] = useState(0);
+  const recovery = useMemo(
+    () =>
+      createAdRecovery([5000], () => {
+        setNativeAd(null);
+        setFailed(false);
+        setGeneration((value) => value + 1);
+      }),
+    [],
+  );
+  useEffect(() => {
+    recovery.reset();
+    return () => recovery.dispose();
+  }, [recovery]);
   useEffect(() => {
     if (!mobileAdsSDK) return;
-    const { NativeAd } = mobileAdsSDK;
-    let alive = true;
-    let loadedAd: NativeAdInstance | null = null;
+    return loadNativeWithTimeout(
+      () =>
+        mobileAdsSDK!.NativeAd.createForAdRequest(
+          AD_UNITS.native,
+          getRequestOptions(),
+        ),
+      (ad) => {
+        setNativeAd(ad);
+        setFailed(false);
+      },
+      () => {
+        setFailed(true);
+        recovery.failed();
+      },
+    );
+  }, [generation, recovery]);
 
-    NativeAd.createForAdRequest(AD_UNITS.native, {
-      requestNonPersonalizedAdsOnly: true,
-    })
-      .then((ad) => {
-        loadedAd = ad;
-        if (alive) setNativeAd(ad);
-        else ad.destroy();
-      })
-      .catch((error) => {
-        if (__DEV__) console.warn("Native ad failed to load", error);
-      });
-
-    return () => {
-      alive = false;
-      loadedAd?.destroy();
-    };
-  }, []);
-
-  if (!nativeAd || !mobileAdsSDK) return null;
+  if (!nativeAd || !mobileAdsSDK)
+    return compact && !failed ? (
+      <View
+        accessibilityLabel="Loading advertisement"
+        style={{ minHeight: 260, marginVertical: 12 }}
+      />
+    ) : null;
   const { NativeAdView, NativeAsset, NativeAssetType, NativeMediaView } =
     mobileAdsSDK;
 

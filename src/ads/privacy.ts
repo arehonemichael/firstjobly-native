@@ -21,3 +21,8 @@ export function useAdsConsent() {
     adsPrivacy.getSnapshot,
   );
 }
+
+/** Fail closed when consent/personalization could not be determined. */
+export function getRequestOptions() {
+  return adsPrivacy.getRequestOptions();
+}

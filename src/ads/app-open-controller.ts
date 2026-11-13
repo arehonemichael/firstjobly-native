@@ -1,3 +1,5 @@
+import { ADS_CONFIG } from "./config";
+import { fullscreenLock } from "./fullscreen-lock";
 type Ad = {
   load(): void;
   show(): Promise<void>;
@@ -16,15 +18,19 @@ type Options = {
   minLaunches?: number;
   cooldownMs?: number;
   maxAgeMs?: number;
+  enabled?: () => boolean;
+  lock?: typeof fullscreenLock;
   schedule?: (action: () => void) => () => void;
 };
 export function createAppOpenController({
   createAd,
   storage,
   now = Date.now,
-  minLaunches = 3,
-  cooldownMs = 14400000,
-  maxAgeMs = 12600000,
+  minLaunches = ADS_CONFIG.appOpen.minLaunches,
+  cooldownMs = ADS_CONFIG.appOpen.cooldownMs,
+  maxAgeMs = ADS_CONFIG.appOpen.maxAdAgeMs,
+  enabled = () => ADS_CONFIG.appOpen.enabled,
+  lock = fullscreenLock,
   schedule = (action) => {
     const timer = setTimeout(action, 75);
     return () => clearTimeout(timer);
@@ -44,6 +50,13 @@ export function createAppOpenController({
   let backgroundAt: number | null = null,
     cancelPending: (() => void) | null = null;
   let listeners: (() => void)[] = [];
+  let safetyTimer: ReturnType<typeof setTimeout> | null = null;
+  const owner = "app-open";
+  const release = () => {
+    if (safetyTimer !== null) clearTimeout(safetyTimer);
+    safetyTimer = null;
+    lock.release(owner);
+  };
   const cancel = () => {
     cancelPending?.();
     cancelPending = null;
@@ -58,7 +71,7 @@ export function createAppOpenController({
     loadedAt = null;
   };
   const preload = () => {
-    if (disposed || !context.consent || ad || showing) return;
+    if (disposed || !enabled() || !context.consent || ad || showing) return;
     try {
       ad = createAd();
       listeners = [
@@ -67,18 +80,25 @@ export function createAppOpenController({
         }),
         ad.addAdEventListener("closed", () => {
           showing = false;
+          release();
           clearAd();
           preload();
         }),
         ad.addAdEventListener("error", () => {
+          const wasShowing = showing;
           showing = false;
+          release();
           clearAd();
+          // Avoid a synchronous no-fill loop. Later foreground/context changes
+          // can retry a failed preload; a failed presentation preloads once.
+          if (wasShowing) preload();
         }),
       ];
       ad.load();
     } catch {
       clearAd();
       showing = false;
+      release();
     }
   };
   const initialize = async () => {
@@ -112,6 +132,7 @@ export function createAppOpenController({
     spent = false;
     interacted = false;
     if (
+      !enabled() ||
       away < 1000 ||
       !context.eligible ||
       !context.consent ||
@@ -142,6 +163,7 @@ export function createAppOpenController({
       cancelPending = null;
       if (
         disposed ||
+        !enabled() ||
         spent ||
         interacted ||
         !active ||
@@ -158,7 +180,15 @@ export function createAppOpenController({
         return;
       }
       spent = true;
+      if (!lock.tryAcquire(owner)) return;
       showing = true;
+      // Defensively release a broken SDK presentation with no terminal event.
+      safetyTimer = setTimeout(() => {
+        showing = false;
+        release();
+        clearAd();
+        preload();
+      }, 120000);
       loadedAt = null;
       lastShown = now();
       void storage
@@ -166,12 +196,15 @@ export function createAppOpenController({
         .catch(() => {});
       try {
         void inventory.show().catch(() => {
+          if (ad !== inventory) return;
           showing = false;
+          release();
           clearAd();
           preload();
         });
       } catch {
         showing = false;
+        release();
         clearAd();
         preload();
       }
@@ -192,6 +225,7 @@ export function createAppOpenController({
     },
     dispose() {
       disposed = true;
+      release();
       clearAd();
     },
     getDebugState: () => ({ loadedAt, showing, launches, spent }),
