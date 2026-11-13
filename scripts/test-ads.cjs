@@ -85,7 +85,11 @@ test("privacy choices can revoke an already granted permission", async () => {
   await p.control.openPrivacy(() => true);
   assert.equal(p.control.getSnapshot().canRequestAds, false);
 });
-function lifecycle({ count = 2, last = 0 } = {}) {
+function lifecycle({
+  count = 2,
+  last = 0,
+  minLaunches = ADS_CONFIG.appOpen.minLaunches,
+} = {}) {
   let time = Date.parse("2026-11-12T10:00:00Z");
   const ads = [],
     stored = new Map([
@@ -105,6 +109,7 @@ function lifecycle({ count = 2, last = 0 } = {}) {
       return () => queue.delete(action);
     },
     now: () => time,
+    minLaunches,
     lock: createFullscreenLock(ADS_CONFIG.fullscreenMinGapMs, () => time),
     storage: {
       getItem: async (k) => stored.get(k) ?? null,
@@ -204,11 +209,11 @@ test("expired app-open inventory is replaced without showing during that event",
   assert.equal(f.ads.length, 2);
   f.control.dispose();
 });
-test("auth/onboarding/application routes, consent refusal, first launches and cooldown block presentation", async () => {
+test("auth/onboarding/application routes, consent refusal, configured launch thresholds and cooldown block presentation", async () => {
   for (const type of ["route", "consent", "launches", "cooldown"]) {
     const f = await ready(
       type === "launches"
-        ? { count: 0 }
+        ? { count: 0, minLaunches: 2 }
         : type === "cooldown"
           ? { last: Date.parse("2026-11-12T09:59:00Z") }
           : {},
@@ -386,26 +391,26 @@ test("unloaded job taps proceed without consuming the first eligible interstitia
   f.ads[0].emit("closed");
   assert.equal(proceeds, 4);
 });
-test("first job tap is eligible, then three further taps are needed after an opened ad", (t) => {
+test("ready interstitials are eligible on job taps 1, 3 and 6 outside the shared gap", (t) => {
   const f = interstitial(t);
   let proceeds = 0;
+  const shownAt = [];
   f.ads[0].emit("loaded");
-  f.manager.onJobOpen(() => proceeds++);
-  assert.equal(f.ads[0].shows, 1);
-  assert.equal(proceeds, 0);
-  f.ads[0].emit("opened");
-  f.ads[0].emit("closed");
-  assert.equal(proceeds, 1);
-  t.mock.timers.tick(ADS_CONFIG.interstitial.cooldownMs);
-  f.ads[1].emit("loaded");
-  for (let i = 0; i < 2; i++) f.manager.onJobOpen(() => proceeds++);
-  assert.equal(f.ads[1].shows, 0);
-  assert.equal(proceeds, 3);
-  f.manager.onJobOpen(() => proceeds++);
-  assert.equal(f.ads[1].shows, 1);
-  f.ads[1].emit("opened");
-  f.ads[1].emit("closed");
-  assert.equal(proceeds, 4);
+  for (let tap = 1; tap <= 6; tap++) {
+    const before = f.ads.reduce((n, a) => n + a.shows, 0);
+    f.manager.onJobOpen(() => proceeds++);
+    const after = f.ads.reduce((n, a) => n + a.shows, 0);
+    if (after > before) {
+      shownAt.push(tap);
+      const ad = f.ads.find((a) => a.shows && !a.removed);
+      ad.emit("opened");
+      ad.emit("closed");
+      t.mock.timers.tick(ADS_CONFIG.fullscreenMinGapMs);
+      f.ads[f.ads.length - 1].emit("loaded");
+    }
+  }
+  assert.deepEqual(shownAt, [1, 3, 6]);
+  assert.equal(proceeds, 6);
 });
 test("interstitial cooldown and four-per-session cap are enforced on OPENED", (t) => {
   const f = interstitial(t);
@@ -942,6 +947,7 @@ test("no-fill diagnostics remain failures and do not imply loaded, rendered or i
     { code: "googleMobileAds/error-code-no-fill", message: "No fill" },
   );
   assert.equal(entries.length, 1);
+  assert.equal(entries[0].code, "googleMobileAds/error-code-no-fill");
   assert.equal(entries[0].reason, "no-fill");
   assert.equal(entries[0].event, "load.failed");
 });
@@ -1098,4 +1104,170 @@ test("first-job threshold can be raised independently without changing the repea
   f.ads[0].emit("opened");
   f.ads[0].emit("closed");
   assert.equal(proceeds, 3);
+});
+
+async function coldFixture(
+  t,
+  {
+    eligible = true,
+    consent = true,
+    count = 2,
+    last = 0,
+    coldEnabled = true,
+  } = {},
+) {
+  t.mock.timers.enable({
+    apis: ["Date", "setTimeout"],
+    now: Date.parse("2026-11-13T10:00:00Z"),
+  });
+  const ads = [],
+    lock = createFullscreenLock();
+  const control = createAppOpenController({
+    lock,
+    coldStartEnabled: () => coldEnabled,
+    storage: {
+      getItem: async (key) =>
+        String(key.includes("launch_count") ? count : last),
+      setItem: async () => {},
+    },
+    createAd() {
+      const ad = fakeAd();
+      ads.push(ad);
+      return ad;
+    },
+  });
+  t.after(() => control.dispose());
+  control.setContext({ eligible, consent });
+  await control.initialize();
+  return { control, ads, lock };
+}
+test("cold app-open shows ready inventory once at first Home entry and never replays on remount", async (t) => {
+  const f = await coldFixture(t);
+  f.ads[0].emit("loaded");
+  f.control.beginColdStart(true);
+  t.mock.timers.tick(75);
+  assert.equal(f.ads[0].shows, 1);
+  f.ads[0].emit("closed");
+  f.ads[1].emit("loaded");
+  f.control.beginColdStart(true);
+  t.mock.timers.tick(2000);
+  assert.equal(f.ads[1].shows, 0);
+});
+test("cold app-open may load only inside the bounded startup window without delaying Home", async (t) => {
+  const f = await coldFixture(t);
+  f.control.beginColdStart(true);
+  t.mock.timers.tick(500);
+  assert.equal(f.ads[0].shows, 0);
+  f.ads[0].emit("loaded");
+  t.mock.timers.tick(75);
+  assert.equal(f.ads[0].shows, 1);
+});
+test("cold app-open skips late inventory instead of popping over Home later", async (t) => {
+  const f = await coldFixture(t);
+  f.control.beginColdStart(true);
+  t.mock.timers.tick(ADS_CONFIG.appOpen.coldStartWindowMs);
+  f.ads[0].emit("loaded");
+  t.mock.timers.tick(75);
+  assert.equal(f.ads[0].shows, 0);
+});
+test("startup deadline cancels a show scheduled too close to its end", async (t) => {
+  const f = await coldFixture(t);
+  f.control.beginColdStart(true);
+  t.mock.timers.tick(ADS_CONFIG.appOpen.coldStartWindowMs - 10);
+  f.ads[0].emit("loaded");
+  t.mock.timers.tick(75);
+  assert.equal(f.ads[0].shows, 0);
+});
+for (const event of [
+  "touch",
+  "background",
+  "deep-link",
+  "before-ready-touch",
+]) {
+  test(`cold app-open cancels on ${event} and never reappears from late load`, async (t) => {
+    const f = await coldFixture(t);
+    if (event === "before-ready-touch") f.control.markInteraction();
+    f.control.beginColdStart(event !== "deep-link");
+    if (event === "touch") f.control.markInteraction();
+    if (event === "background") f.control.onState("background");
+    f.ads[0].emit("loaded");
+    f.control.beginColdStart(true);
+    t.mock.timers.tick(2000);
+    assert.equal(f.ads[0].shows, 0);
+  });
+}
+test("cold app-open waits for confirmed Home eligibility but cannot display after its deadline", async (t) => {
+  const f = await coldFixture(t, { eligible: false });
+  f.control.beginColdStart(true);
+  f.ads[0].emit("loaded");
+  t.mock.timers.tick(2000);
+  f.control.setContext({ eligible: true, consent: true });
+  t.mock.timers.tick(75);
+  assert.equal(f.ads[0].shows, 0);
+});
+test("cold app-open can use profile confirmation within the startup window", async (t) => {
+  const f = await coldFixture(t, { eligible: false });
+  f.control.beginColdStart(true);
+  f.ads[0].emit("loaded");
+  t.mock.timers.tick(100);
+  f.control.setContext({ eligible: true, consent: true });
+  t.mock.timers.tick(75);
+  assert.equal(f.ads[0].shows, 1);
+});
+test("cold app-open never requests without consent", async (t) => {
+  const f = await coldFixture(t, { consent: false });
+  f.control.beginColdStart(true);
+  t.mock.timers.tick(2000);
+  assert.equal(f.ads.length, 0);
+});
+test("cold app-open flag independently disables startup offers", async (t) => {
+  const f = await coldFixture(t, { coldEnabled: false });
+  f.ads[0].emit("loaded");
+  f.control.beginColdStart(true);
+  t.mock.timers.tick(2000);
+  assert.equal(f.ads[0].shows, 0);
+});
+test("cold app-open keeps the shared full-screen lock and gap", async (t) => {
+  const f = await coldFixture(t);
+  f.lock.tryAcquire("interstitial");
+  f.ads[0].emit("loaded");
+  f.control.beginColdStart(true);
+  t.mock.timers.tick(75);
+  assert.equal(f.ads[0].shows, 0);
+  f.lock.release("interstitial");
+  t.mock.timers.tick(ADS_CONFIG.fullscreenMinGapMs);
+  f.control.beginColdStart(true);
+  assert.equal(f.ads[0].shows, 0);
+});
+for (const mode of ["reject", "error"]) {
+  test(`cold app-open ${mode} releases the lock and cannot retry presentation in the same launch`, async (t) => {
+    const f = await coldFixture(t);
+    f.ads[0].reject = mode === "reject";
+    f.ads[0].emit("loaded");
+    f.control.beginColdStart(true);
+    t.mock.timers.tick(75);
+    if (mode === "error") f.ads[0].emit("error");
+    await tick();
+    assert.equal(f.lock.isHeld(), false);
+    assert.equal(f.ads.length, 2);
+    f.ads[1].emit("loaded");
+    f.control.beginColdStart(true);
+    t.mock.timers.tick(2000);
+    assert.equal(f.ads[1].shows, 0);
+  });
+}
+
+test("cold app-open is eligible on the first launch when existing account/profile permission is ready", async (t) => {
+  const f = await coldFixture(t, { count: 0 });
+  f.ads[0].emit("loaded");
+  f.control.beginColdStart(true);
+  t.mock.timers.tick(75);
+  assert.equal(f.ads[0].shows, 1);
+});
+test("cold app-open retains its persisted three-hour cooldown", async (t) => {
+  const f = await coldFixture(t, { last: Date.parse("2026-11-13T10:00:00Z") });
+  f.ads[0].emit("loaded");
+  f.control.beginColdStart(true);
+  t.mock.timers.tick(2000);
+  assert.equal(f.ads[0].shows, 0);
 });

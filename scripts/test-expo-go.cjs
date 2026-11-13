@@ -19,6 +19,8 @@ function app(os, environment, dev = true, forceTest = false) {
       appStateSubscriptions: 0,
       consentRetries: 0,
       appOpenUnits: [],
+      appOpenAds: [],
+      appOpenShows: 0,
     };
   const consentState = {
     canRequestAds: os === "android" && environment !== "storeClient",
@@ -103,12 +105,25 @@ function app(os, environment, dev = true, forceTest = false) {
     AppOpenAd: {
       createForAdRequest: (unit, options) => {
         calls.appOpenUnits.push({ unit, options });
-        return {
+        const handlers = new Map();
+        const ad = {
           load() {},
-          show: async () => {},
-          removeAllListeners() {},
-          addAdEventListener: () => () => {},
+          show: async () => {
+            calls.appOpenShows++;
+          },
+          removeAllListeners() {
+            handlers.clear();
+          },
+          addAdEventListener(event, handler) {
+            handlers.set(event, handler);
+            return () => handlers.delete(event);
+          },
+          emit(event) {
+            handlers.get(event)?.();
+          },
         };
+        calls.appOpenAds.push(ad);
+        return ad;
       },
     },
     NativeAd: { createForAdRequest: async () => ({ destroy() {} }) },
@@ -549,5 +564,26 @@ test("consent foreground retry is wired once to real background returns, not ina
   a.emitAppState("active");
   a.emitAppState("active");
   assert.equal(a.calls.consentRetries, 1);
+  lifecycle.disposeAdvertisingRuntime();
+});
+
+test("Android lifecycle wires a cold app-open opportunity once and does not replay it on root remount", async (t) => {
+  t.mock.timers.enable({
+    apis: ["Date", "setTimeout"],
+    now: Date.parse("2026-11-13T10:00:00Z"),
+  });
+  const a = app("android", "bare"),
+    lifecycle = a.load("src/ads/AdMobLifecycle.tsx");
+  lifecycle.AdMobLifecycle({ ready: true, pathname: "/", userId: "fixture" });
+  await new Promise((r) => setImmediate(r));
+  a.calls.appOpenAds[0].emit("loaded");
+  t.mock.timers.tick(75);
+  assert.equal(a.calls.appOpenShows, 1);
+  a.calls.appOpenAds[0].emit("closed");
+  lifecycle.AdMobLifecycle({ ready: true, pathname: "/", userId: "fixture" });
+  await new Promise((r) => setImmediate(r));
+  a.calls.appOpenAds[1].emit("loaded");
+  t.mock.timers.tick(2000);
+  assert.equal(a.calls.appOpenShows, 1);
   lifecycle.disposeAdvertisingRuntime();
 });

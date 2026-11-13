@@ -118,8 +118,8 @@ export function disposeAdvertisingRuntime() {
   runtime = null;
   route = { ready: false, home: false, onboarded: false, owner: null };
 }
-/** Cold launches never wait for ads; inventory is only offered in a bounded guard window on
- * a later real foreground event, before Home interaction and outside sensitive flows. */
+/** Cold entry and real foreground returns use bounded, cancellable opportunities.
+ * Navigation never waits for inventory; user interaction/deep links cancel startup offers. */
 export function AdMobLifecycle({
   ready = false,
   pathname = "",
@@ -170,6 +170,7 @@ export function AdMobLifecycle({
     route = { ready, home, onboarded: false, owner: token };
     ensureRuntime();
     syncContext();
+    if (ready) runtime?.beginColdStart(home);
     if (canPresentConsent()) void adsPrivacy.prepare(canPresentConsent);
     if (ready && home && userId)
       void getHomeProfile(userId)

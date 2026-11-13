@@ -24,8 +24,9 @@ export const ADS_CONFIG = {
   interstitial: {
     enabled: true,
     firstJobOpen: 1,
+    afterFirstAdJobOpens: 2,
     everyNthJobOpen: 3,
-    cooldownMs: 240000,
+    cooldownMs: 60000,
     maxPerSession: 4,
     startTimeoutMs: 1500,
     safetyTimeoutMs: 120000,
@@ -33,7 +34,9 @@ export const ADS_CONFIG = {
   },
   appOpen: {
     enabled: true,
-    minLaunches: 2,
+    coldStartEnabled: true,
+    coldStartWindowMs: 1500,
+    minLaunches: 1,
     cooldownMs: 3 * 60 * 60 * 1000,
     maxAdAgeMs: 3.5 * 60 * 60 * 1000,
   },

@@ -151,7 +151,11 @@ export function createInterstitialManager(
     opens++;
     prepare();
     const requiredOpens =
-      shownThisSession === 0 ? policy.firstJobOpen : policy.everyNthJobOpen;
+      shownThisSession === 0
+        ? policy.firstJobOpen
+        : shownThisSession === 1
+          ? policy.afterFirstAdJobOpens
+          : policy.everyNthJobOpen;
     if (
       !policy.enabled ||
       !port?.permitted() ||
@@ -164,6 +168,13 @@ export function createInterstitialManager(
     ) {
       diag.record("skip", {
         format: "interstitial",
+        jobOpens: opens,
+        requiredOpens,
+        shownThisSession,
+        cooldownRemainingMs:
+          lastShownAt === null
+            ? 0
+            : Math.max(0, policy.cooldownMs - (Date.now() - lastShownAt)),
         reason: !policy.enabled
           ? "disabled"
           : !port

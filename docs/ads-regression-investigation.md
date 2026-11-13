@@ -1,5 +1,7 @@
 # Missing ads: regression investigation
 
+For the latest fresh-launch app-open and 1/3/6 job-tap policy, see [the current placement policy](ad-placement-policy.md). Earlier cadence/startup descriptions below record the prior implementation.
+
 ## Confirmed device regression and repair
 
 The subsequent structured device trace resolves the earlier uncertainty:

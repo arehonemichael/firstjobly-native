@@ -1,5 +1,7 @@
 # AdMob reliability and inventory update
 
+For the latest fresh-launch app-open and 1/3/6 job-tap policy, see [the current placement policy](ad-placement-policy.md). Earlier cadence/startup descriptions below record the prior implementation.
+
 Branch: `ads-revenue-fix`, based on the current `fix/community-feed-polish` checkout. Main is unchanged.
 
 ## Behaviour

@@ -23,6 +23,8 @@ type Options = {
   cooldownMs?: number;
   maxAgeMs?: number;
   enabled?: () => boolean;
+  coldStartEnabled?: () => boolean;
+  coldStartWindowMs?: number;
   lock?: typeof fullscreenLock;
   schedule?: (action: () => void) => () => void;
 };
@@ -34,6 +36,8 @@ export function createAppOpenController({
   cooldownMs = ADS_CONFIG.appOpen.cooldownMs,
   maxAgeMs = ADS_CONFIG.appOpen.maxAdAgeMs,
   enabled = () => ADS_CONFIG.appOpen.enabled,
+  coldStartEnabled = () => ADS_CONFIG.appOpen.coldStartEnabled,
+  coldStartWindowMs = ADS_CONFIG.appOpen.coldStartWindowMs,
   lock = fullscreenLock,
   schedule = (action) => {
     const timer = setTimeout(action, 75);
@@ -55,6 +59,43 @@ export function createAppOpenController({
     cancelPending: (() => void) | null = null;
   let listeners: (() => void)[] = [];
   let safetyTimer: ReturnType<typeof setTimeout> | null = null;
+  let coldChecked = false,
+    coldAvailable = false,
+    coldUntil = 0,
+    storageReady = false;
+  let coldTimer: ReturnType<typeof setTimeout> | null = null;
+  function endCold(reason?: string) {
+    if (reason && coldAvailable)
+      diag.record("skip", {
+        format: "app-open",
+        placement: "cold-start",
+        reason,
+      });
+    coldAvailable = false;
+    if (coldTimer !== null) clearTimeout(coldTimer);
+    coldTimer = null;
+  }
+  function maybeCold() {
+    if (!coldAvailable || disposed || showing || cancelPending || !storageReady)
+      return;
+    if (now() >= coldUntil) {
+      endCold("startup-window-expired");
+      return;
+    }
+    if (!active || !context.eligible || !context.consent) return;
+    if (launches < minLaunches || now() - lastShown < cooldownMs) {
+      endCold(launches < minLaunches ? "launch-threshold" : "cooldown");
+      return;
+    }
+    if (loadedAt === null || !ad) return;
+    if (now() - loadedAt < 0 || now() - loadedAt >= maxAgeMs) {
+      clearAd();
+      preload();
+      return;
+    }
+    spent = false;
+    offer(true);
+  }
   const owner = "app-open";
   const release = () => {
     if (safetyTimer !== null) clearTimeout(safetyTimer);
@@ -83,6 +124,7 @@ export function createAppOpenController({
         ad.addAdEventListener("loaded", () => {
           diag.record("loaded", { format: "app-open", loaded: true });
           loadedAt = now();
+          maybeCold();
         }),
         ad.addAdEventListener("closed", () => {
           diag.record("closed", { format: "app-open" });
@@ -135,15 +177,22 @@ export function createAppOpenController({
       launches = Math.max(0, Number(count) || 0) + 1;
       lastShown = Number(last) || 0;
       await storage.setItem("fj_admob_launch_count", String(launches));
+      storageReady = true;
       preload();
+      maybeCold();
     } catch {
+      storageReady = true;
+      endCold("storage-unavailable");
       launches = 0;
     }
   };
   function onState(next: string) {
     if (disposed) return;
     active = next === "active";
-    if (!active) cancel();
+    if (!active) {
+      endCold("left-startup");
+      cancel();
+    }
     if (next === "background") {
       backgroundAt = now();
       return;
@@ -198,6 +247,10 @@ export function createAppOpenController({
       preload();
       return;
     }
+    offer(false);
+  }
+  function offer(cold: boolean) {
+    if (!ad || loadedAt === null) return;
     const inventory = ad,
       foregroundAt = now();
     // A short bounded guard lets foreground URL/navigation/touch events cancel.
@@ -206,6 +259,7 @@ export function createAppOpenController({
       cancelPending = null;
       if (
         disposed ||
+        (cold && (!coldAvailable || now() >= coldUntil)) ||
         !enabled() ||
         spent ||
         interacted ||
@@ -224,9 +278,11 @@ export function createAppOpenController({
           reason: "foreground-guard-cancelled-or-late",
         });
         spent = true;
+        if (cold) endCold("startup-guard-cancelled");
         return;
       }
       spent = true;
+      if (cold) endCold();
       if (!lock.tryAcquire(owner)) {
         diag.record("skip", {
           format: "app-open",
@@ -252,7 +308,10 @@ export function createAppOpenController({
         .setItem("fj_admob_last_app_open", String(lastShown))
         .catch(() => {});
       try {
-        diag.record("show", { format: "app-open" });
+        diag.record("show", {
+          format: "app-open",
+          placement: cold ? "cold-start" : "background-return",
+        });
         void inventory.show().catch((error) => {
           if (ad !== inventory) return;
           diag.error("app-open", "presentation.failed", error);
@@ -272,8 +331,36 @@ export function createAppOpenController({
   }
   return {
     initialize,
+    beginColdStart(home: boolean) {
+      if (coldChecked || disposed) return;
+      coldChecked = true;
+      if (!home || interacted || !enabled() || !coldStartEnabled()) {
+        diag.record("skip", {
+          format: "app-open",
+          placement: "cold-start",
+          reason: !home
+            ? "startup-destination"
+            : interacted
+              ? "startup-interaction"
+              : "cold-start-disabled",
+        });
+        return;
+      }
+      coldAvailable = true;
+      coldUntil = now() + coldStartWindowMs;
+      diag.record("startup.window", {
+        format: "app-open",
+        delayMs: coldStartWindowMs,
+      });
+      coldTimer = setTimeout(() => {
+        endCold("startup-window-expired");
+        cancel();
+      }, coldStartWindowMs);
+      maybeCold();
+    },
     onState,
     markInteraction() {
+      endCold("startup-interaction");
       interacted = true;
       cancel();
     },
@@ -282,9 +369,11 @@ export function createAppOpenController({
       if (!next.eligible || !next.consent) cancel();
       if (!next.consent && !showing) clearAd();
       if (preloadNow) preload();
+      maybeCold();
     },
     dispose() {
       disposed = true;
+      endCold();
       release();
       clearAd();
     },

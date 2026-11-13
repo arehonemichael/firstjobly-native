@@ -26,6 +26,10 @@ const fields = new Set([
   "loaded",
   "shown",
   "cachedPermission",
+  "jobOpens",
+  "requiredOpens",
+  "shownThisSession",
+  "cooldownRemainingMs",
 ]);
 export function sanitizeAdMessage(value: string) {
   return value
@@ -60,7 +64,15 @@ export function createAdDiagnostics(
     const entry: Record<string, Detail> = { event };
     for (const [key, value] of Object.entries(details)) {
       if (!fields.has(key) || value === undefined) continue;
-      entry[key] = typeof value === "string" ? sanitizeAdMessage(value) : value;
+      entry[key] =
+        typeof value === "string"
+          ? key === "code" &&
+            /^(?:googleMobileAds\/)?(?:error-code-[a-z-]+|consent-[a-z-]+|\d+|unknown)$/.test(
+              value,
+            )
+            ? value
+            : sanitizeAdMessage(value)
+          : value;
     }
     const key = JSON.stringify(entry);
     if (once && seen.has(key)) return;
