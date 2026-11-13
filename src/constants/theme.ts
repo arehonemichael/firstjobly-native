@@ -11,6 +11,7 @@ export const Colors = {
   primarySoftForeground: "#B0164A",
   primaryPressed: "#B0164A",
 
+  overlay: "rgba(6, 26, 48, 0.32)",
   surface: "#FFFFFF",
   card: "#FFFFFF",
 

@@ -22,11 +22,11 @@ const { tabPresentation, categoryPresentation } = load(
   "src/lib/home-presentation.ts",
 );
 const { brandWordmarkSize } = load("src/lib/brand-layout.ts");
-test("seven 360dp tabs use consistent 24px icons; wide screens permit full labels", () => {
+test("five tabs keep complete labels and 44dp targets on narrow screens", () => {
   for (const width of [320, 360, 390, 540]) {
-    assert.equal(tabPresentation(width).showLabels, false);
+    assert.equal(tabPresentation(width).showLabels, true);
     assert.equal(tabPresentation(width).iconSize, 24);
-    assert.ok(width / 7 >= 44);
+    assert.ok(width / 5 >= 44);
   }
   for (const width of [560, 768, 1120])
     assert.equal(tabPresentation(width).showLabels, true);

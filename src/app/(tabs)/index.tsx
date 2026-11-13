@@ -1,3 +1,4 @@
+import { LatestCircularCard } from "../../components/circular/latest-card";
 import { categoryPresentation } from "../../lib/home-presentation";
 import { HotJobsSection } from "../../components/home/hot-jobs";
 import { BrandWordmark } from "../../components/brand-wordmark";
@@ -328,6 +329,9 @@ export default function HomeScreen() {
           </Text>
         </View>
         <HomeSessionHero />
+        <View style={{ marginVertical: 16 }}>
+          <LatestCircularCard compact />
+        </View>
         {authLoading || (userId && summaryLoading && !summary) ? (
           <View accessibilityLabel="Loading your overview">
             <SkeletonJobCard />
@@ -649,7 +653,9 @@ export default function HomeScreen() {
               testID="home-category"
               accessibilityLabel={`Browse ${label}`}
               onPress={() =>
-                router.push({ pathname: "/jobs", params: { category } })
+                category === "government"
+                  ? router.push("/circular-jobs")
+                  : router.push({ pathname: "/jobs", params: { category } })
               }
               style={({ pressed, hovered }) => [
                 styles.category,

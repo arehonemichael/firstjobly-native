@@ -1,7 +1,6 @@
-/** Seven complete labels need at least 80dp apiece. Narrow screens use one
- * consistent icon-only bar, while accessibility labels always stay complete. */
-export function tabPresentation(width: number) {
-  return { showLabels: width >= 7 * 80, iconSize: 24, labelSize: 11 };
+/** Five tabs leave 72dp per item at 360dp, with complete labels. */
+export function tabPresentation(_width: number) {
+  return { showLabels: true, iconSize: 24, labelSize: 11 };
 }
 export function categoryPresentation(availableWidth: number, fontScale = 1) {
   const columns = availableWidth < 300 || fontScale > 1.3 ? 1 : 2;

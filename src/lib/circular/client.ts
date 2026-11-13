@@ -1,0 +1,37 @@
+import { supabase } from "../supabase";
+import { createCircularTransport } from "./transport";
+import { createOwnerCache, createApplications } from "./state";
+import { deleteTemporary } from "./io";
+export const circularAPI = createCircularTransport(supabase.auth);
+export const circularCache = createOwnerCache();
+export const applications = createApplications((uri) => {
+  void deleteTemporary(uri);
+});
+let owner: string | null = null;
+supabase.auth.onAuthStateChange((_event, session) => {
+  const next = session?.user.id ?? null;
+  if (next !== owner) {
+    circularCache.clear();
+    applications.clear();
+    owner = next;
+  }
+});
+export function invalidateCircular() {
+  circularCache.clear();
+}
+const withdrawn = new Map<string, Set<string>>();
+export function rememberWithdrawn(owner: string, id: string) {
+  let ids = withdrawn.get(owner);
+  if (!ids) {
+    ids = new Set();
+    withdrawn.set(owner, ids);
+  }
+  ids.add(id);
+  circularCache.clear();
+}
+export function isWithdrawn(owner: string | null, id: string) {
+  return !!owner && !!withdrawn.get(owner)?.has(id);
+}
+supabase.auth.onAuthStateChange((event) => {
+  if (event === "SIGNED_OUT") withdrawn.clear();
+});

@@ -9,12 +9,11 @@ import { Tabs } from "expo-router";
 import {
   Bookmark,
   BriefcaseBusiness,
-  ClipboardList,
   Home,
-  User,
-  UsersRound,
-  Wrench,
+  Landmark,
+  LayoutGrid,
 } from "lucide-react-native";
+import { useCircularBadge } from "../../hooks/use-circular";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AppText as Text } from "../../components/ui/primitives";
 import { Colors, Fonts, NavigationColors, Radius } from "../../constants/theme";
@@ -22,6 +21,7 @@ import { tabPresentation } from "../../lib/home-presentation";
 
 export default function TabsLayout() {
   const { width } = useWindowDimensions();
+  const newCircular = useCircularBadge();
   const { bottom } = useSafeAreaInsets();
   const { showLabels, iconSize, labelSize } = tabPresentation(width);
   const bottomPadding = Math.max(bottom, 8);
@@ -59,6 +59,20 @@ export default function TabsLayout() {
             color={focused ? Colors.primary : Colors.muted}
           />
           {focused && <View style={styles.indicator} />}
+          {label === "Gov jobs" && newCircular && (
+            <View
+              accessibilityLabel="New circular"
+              style={{
+                position: "absolute",
+                right: 0,
+                top: 0,
+                width: 6,
+                height: 6,
+                borderRadius: 3,
+                backgroundColor: Colors.primary,
+              }}
+            />
+          )}
         </View>
       ),
     };
@@ -103,26 +117,22 @@ export default function TabsLayout() {
         options={{ title: "Jobs", ...tab("Jobs", BriefcaseBusiness) }}
       />
       <Tabs.Screen
+        name="circular-jobs"
+        options={{ title: "Government jobs", ...tab("Gov jobs", Landmark) }}
+      />
+      <Tabs.Screen
         name="saved"
         options={{ title: "Saved", ...tab("Saved", Bookmark) }}
       />
       <Tabs.Screen
-        name="applications"
-        options={{ title: "Applications", ...tab("Applied", ClipboardList) }}
+        name="more"
+        options={{ title: "More", ...tab("More", LayoutGrid) }}
       />
-      <Tabs.Screen
-        name="tools"
-        options={{ title: "Career tools", ...tab("Tools", Wrench) }}
-      />
-      <Tabs.Screen
-        name="community"
-        options={{ title: "Community", ...tab("Community", UsersRound) }}
-      />
+      <Tabs.Screen name="applications" options={{ href: null }} />
+      <Tabs.Screen name="tools" options={{ href: null }} />
+      <Tabs.Screen name="community" options={{ href: null }} />
+      <Tabs.Screen name="profile" options={{ href: null }} />
       <Tabs.Screen name="graduateroom" options={{ href: null }} />
-      <Tabs.Screen
-        name="profile"
-        options={{ title: "Profile", ...tab("Profile", User) }}
-      />
     </Tabs>
   );
 }

@@ -1497,6 +1497,7 @@ function downloadPorts(kind, before = async () => true) {
     lock = { current: false };
   const deps = {
     downloadLock: lock,
+    circularMode: false,
     data: {
       firstName: "Fixture",
       lastName: "Person",
@@ -1615,3 +1616,10 @@ test("cancelling the Z83 incomplete-fields prompt requests no ad and releases th
   assert.equal(f.lock.current, false);
   assert.equal(f.busy.at(-1), false);
 });
+
+test('circular Z83 hands the PDF to the owner session, clears answers and preserves the rewarded gate', async () => {
+  const f=downloadPorts('z83');
+  const deps={...f.deps,circularMode:true,circularApplication:'opaque-application',userId:'alice',applications:{setFile(owner,key,kind,uri){f.events.push('session-file');assert.equal(owner,'alice');assert.equal(key,'opaque-application');assert.equal(kind,'z83');assert.equal(uri,'fixture.pdf');return true;}},emptyZ83:()=>({idNumber:'',signature:''}),setData:value=>{assert.equal(value.idNumber,'');assert.equal(value.signature,'');f.events.push('clear-answers');},router:{back:()=>f.events.push('return-to-apply')}};
+  const handler=downloadHandler('src/app/z83.tsx','download',deps);await handler();assert.deepEqual(f.events,['ad','template','generate','write','session-file','clear-answers','consume','return-to-apply']);assert.ok(!f.events.includes('save'));assert.equal(f.lock.current,false);
+});
+test('circular Z83 cancellation never generates or stores private application files',async()=>{const f=downloadPorts('z83',async()=>false);const handler=downloadHandler('src/app/z83.tsx','download',{...f.deps,circularMode:true});await handler();assert.deepEqual(f.events,['ad']);});

@@ -13,7 +13,9 @@ import {
   View,
 } from "react-native";
 import { Icon as Ionicons } from "../components/ui/icon";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
+import { applications } from "../lib/circular/client";
+import { safePrefill } from "../lib/circular/contract";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import SignatureCanvas from "react-native-signature-canvas";
@@ -72,17 +74,36 @@ const sensitiveKeys: (keyof Z83Data)[] = [
 ];
 
 export default function Z83Screen() {
+  const { userId } = useAuth();
+  const { circularApplication } = useLocalSearchParams<{
+    circularApplication?: string;
+  }>();
+  return (
+    <Z83Form key={`${userId || "guest"}:${circularApplication || "normal"}`} />
+  );
+}
+function Z83Form() {
   const { beforeDownload, canOfferAd, completeDownload } =
     useRewardedDownload();
   const downloadLock = useRef(false);
   const bottomContentPadding = useScreenBottomPadding(false);
   const { userId, isAuthenticated } = useAuth();
-  const [data, setData] = useState<Z83Data>(() => emptyZ83());
-  const [loaded, setLoaded] = useState(false);
+  const { circularApplication } = useLocalSearchParams<{
+    circularApplication?: string;
+  }>();
+  const circularMode = !!circularApplication;
+  const application = applications.get(userId, circularApplication);
+  const [data, setData] = useState<Z83Data>(() =>
+    circularMode && application
+      ? { ...emptyZ83(), ...safePrefill(application.detail.z83_prefill) }
+      : emptyZ83(),
+  );
+  const [loaded, setLoaded] = useState(circularMode);
   const [busy, setBusy] = useState(false);
   const [formScrollEnabled, setFormScrollEnabled] = useState(true);
 
   useEffect(() => {
+    if (circularMode) return;
     void AsyncStorage.getItem(BASE_KEY).then((raw) => {
       if (raw) {
         try {
@@ -92,14 +113,14 @@ export default function Z83Screen() {
       }
       setLoaded(true);
     });
-  }, []);
+  }, [circularMode]);
 
   useEffect(() => {
-    if (!loaded) return;
+    if (!loaded || circularMode) return;
     const safe = { ...data } as Record<string, unknown>;
     for (const key of sensitiveKeys) delete safe[key];
     void AsyncStorage.setItem(BASE_KEY, JSON.stringify(safe));
-  }, [data, loaded]);
+  }, [data, loaded, circularMode]);
 
   const patch = (changes: Partial<Z83Data>) =>
     setData((current) => ({ ...current, ...changes }));
@@ -234,10 +255,29 @@ export default function Z83Screen() {
           .trim()
           .replace(/[^A-Za-z0-9]+/g, "_")
           .replace(/^_|_$/g, "") || "Application";
-      const file = new File(Paths.cache, `Z83_${safeName}.pdf`);
+      const file = new File(
+        Paths.cache,
+        circularMode
+          ? `fj-circular-${circularApplication}.pdf`
+          : `Z83_${safeName}.pdf`,
+      );
       file.write(bytes);
 
       const fileName = `Z83_${safeName}.pdf`;
+      if (circularMode) {
+        if (
+          !userId ||
+          !circularApplication ||
+          !applications.setFile(userId, circularApplication, "z83", file.uri)
+        ) {
+          file.delete();
+          throw new Error("Application session ended");
+        }
+        setData(emptyZ83());
+        completeDownload();
+        router.back();
+        return;
+      }
       await savePdfToDownloads(file.uri, fileName);
       completeDownload();
 
@@ -257,6 +297,16 @@ export default function Z83Screen() {
     }
   }
 
+  if (circularMode && !application) {
+    return (
+      <SafeAreaView style={s.page}>
+        <Header />
+        <Text style={s.intro}>
+          This application session has ended. Return to the job to start again.
+        </Text>
+      </SafeAreaView>
+    );
+  }
   if (!loaded) {
     return (
       <SafeAreaView style={s.center}>
@@ -293,7 +343,7 @@ export default function Z83Screen() {
           </Text>
         </View>
 
-        {isAuthenticated ? (
+        {isAuthenticated && !circularMode ? (
           <TouchableOpacity
             style={s.profileBtn}
             disabled={busy}
@@ -1013,7 +1063,7 @@ export default function Z83Screen() {
                 style: "destructive",
                 onPress: async () => {
                   setData(emptyZ83());
-                  await AsyncStorage.removeItem(BASE_KEY);
+                  if (!circularMode) await AsyncStorage.removeItem(BASE_KEY);
                 },
               },
             ]);

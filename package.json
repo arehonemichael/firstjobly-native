@@ -9,6 +9,7 @@
     "@react-native-async-storage/async-storage": "2.2.0",
     "@supabase/supabase-js": "^2.112.3",
     "expo": "~57.0.15",
+    "expo-clipboard": "~57.0.2",
     "expo-constants": "~57.0.10",
     "expo-device": "~57.0.1",
     "expo-document-picker": "~57.0.1",
@@ -16,8 +17,10 @@
     "expo-font": "~57.0.1",
     "expo-glass-effect": "~57.0.1",
     "expo-image": "~57.0.3",
+    "expo-intent-launcher": "~57.0.1",
     "expo-linear-gradient": "~57.0.1",
     "expo-linking": "~57.0.7",
+    "expo-mail-composer": "~57.0.2",
     "expo-notifications": "~57.0.13",
     "expo-print": "~57.0.1",
     "expo-router": "~57.0.15",
@@ -67,7 +70,8 @@
     "test:ads": "node --test scripts/test-ads.cjs",
     "benchmark:recommendations": "node scripts/benchmark-recommendations.cjs",
     "test:community": "node --test scripts/test-community.cjs",
-    "test:hot-jobs": "node --test scripts/test-hot-jobs.cjs"
+    "test:hot-jobs": "node --test scripts/test-hot-jobs.cjs",
+    "test:circular": "node --test scripts/test-circular.cjs"
   },
   "private": true
 }
