@@ -41,68 +41,94 @@ export function useHomeSummary(userId: string | null) {
       }
       let active = true;
       setLoading(true);
-      void (async () => {
+      // Publish independent sections as they arrive. Optional drafts must not
+      // gate the greeting/profile. Keep known content during a focused refresh.
+      const empty: Summary = {
+        userId,
+        profile: null,
+        completion: null,
+        savedCount: null,
+        applications: null,
+        failed: false,
+      };
+      setSummary((old) =>
+        old?.userId === userId ? { ...old, failed: false } : empty,
+      );
+      const publish = (patch: Partial<Summary>) => {
+        if (active)
+          setSummary((old) => ({
+            ...(old?.userId === userId ? old : empty),
+            ...patch,
+          }));
+      };
+      const settle = async <T>(
+        task: PromiseLike<T>,
+        apply: (result: T) => void,
+      ) => {
         try {
-          const [profile, experience, documents, saved, applications] =
-            await Promise.all([
-              getHomeProfile(userId)
-                .then((data) => ({ data, error: null }))
-                .catch((error) => ({ data: null, error })),
-              supabase
-                .from("work_experience")
-                .select("user_id")
-                .eq("user_id", userId)
-                .limit(1),
-              supabase
-                .from("user_documents")
-                .select("kind")
-                .eq("user_id", userId),
-              supabase
-                .from("saved_jobs")
-                .select("job_id", { count: "exact", head: true })
-                .eq("user_id", userId),
-              supabase
-                .from("applications")
-                .select("id,is_draft,status,jobs!inner(id,title,company_name)")
-                .eq("user_id", userId)
-                .eq("is_draft", true)
-                .order("applied_at", { ascending: false })
-                .limit(1),
-            ]);
-          if (!active) return;
-          setSummary({
-            userId,
-            profile: profile.error ? null : profile.data,
-            completion:
-              profile.error || experience.error || documents.error
-                ? null
-                : computeProfileCompletion(
-                    profile.data,
-                    experience.data ?? [],
-                    documents.data ?? [],
-                  ),
-            savedCount: saved.error ? null : saved.count,
-            applications: applications.error
-              ? null
-              : (applications.data as unknown as HomeApplication[]),
-            failed: [profile, experience, documents, saved, applications].some(
-              (result) => !!result.error,
-            ),
-          });
+          apply(await task);
         } catch {
-          if (active)
-            setSummary({
-              userId,
-              profile: null,
-              completion: null,
-              savedCount: null,
-              applications: null,
-              failed: true,
-            });
-        } finally {
-          if (active) setLoading(false);
+          publish({ failed: true });
         }
-      })();
+      };
+      const profile = getHomeProfile(userId).then((data) => {
+        publish({ profile: data });
+        return data;
+      });
+      void Promise.allSettled([
+        settle(
+          Promise.all([
+            profile,
+            supabase
+              .from("work_experience")
+              .select("user_id")
+              .eq("user_id", userId)
+              .limit(1),
+            supabase
+              .from("user_documents")
+              .select("kind")
+              .eq("user_id", userId),
+          ]),
+          ([data, experience, documents]) => {
+            if (experience.error || documents.error)
+              throw Error("Profile details unavailable");
+            publish({
+              completion: computeProfileCompletion(
+                data,
+                experience.data ?? [],
+                documents.data ?? [],
+              ),
+            });
+          },
+        ),
+        settle(
+          supabase
+            .from("saved_jobs")
+            .select("job_id", { count: "exact", head: true })
+            .eq("user_id", userId),
+          (saved) => {
+            if (saved.error) throw saved.error;
+            publish({ savedCount: saved.count });
+          },
+        ),
+        settle(
+          supabase
+            .from("applications")
+            .select("id,is_draft,status,jobs!inner(id,title,company_name)")
+            .eq("user_id", userId)
+            .eq("is_draft", true)
+            .order("applied_at", { ascending: false })
+            .limit(1),
+          (applications) => {
+            if (applications.error) throw applications.error;
+            publish({
+              applications: applications.data as unknown as HomeApplication[],
+            });
+          },
+        ),
+      ]).finally(() => {
+        if (active) setLoading(false);
+      });
       return () => {
         active = false;
       };

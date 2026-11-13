@@ -41,6 +41,8 @@ export function createInterstitialManager(
   let finish: (() => void) | null = null;
   let listeners: (() => void)[] = [];
   const owner = "interstitial";
+  let activeOwner = owner;
+  let additionalOpened: (() => void) | null = null;
   function discard() {
     listeners.forEach((remove) => {
       try {
@@ -112,9 +114,12 @@ export function createInterstitialManager(
           if (ad !== inventory || !finish || opened) return;
           diag.record("opened", { format: "interstitial", shown: true });
           opened = true;
-          opens = 0;
-          shownThisSession++;
-          lastShownAt = Date.now();
+          if (additionalOpened) additionalOpened();
+          else {
+            opens = 0;
+            shownThisSession++;
+            lastShownAt = Date.now();
+          }
         }),
         inventory.addAdEventListener(port.events.CLOSED, () => {
           if (ad !== inventory) return;
@@ -195,7 +200,26 @@ export function createInterstitialManager(
       proceed();
       return;
     }
-    const inventory = ad;
+    present(proceed);
+  }
+  // Reuse already-loaded inventory. Never prepare/load and show later from here.
+  function onAdditionalTransition(proceed: () => void, onOpened: () => void) {
+    if (
+      finish ||
+      !policy.enabled ||
+      !port?.permitted() ||
+      !loaded ||
+      !ad ||
+      !lock.tryAcquire("additional-interstitial", 300000)
+    )
+      return false;
+    present(proceed, onOpened);
+    return true;
+  }
+  function present(proceed: () => void, onOpened?: () => void) {
+    const inventory = ad!;
+    activeOwner = onOpened ? "additional-interstitial" : owner;
+    additionalOpened = onOpened ?? null;
     let done = false;
     let startTimer: ReturnType<typeof setTimeout> | null = null;
     let safetyTimer: ReturnType<typeof setTimeout> | null = null;
@@ -205,7 +229,8 @@ export function createInterstitialManager(
       if (startTimer !== null) clearTimeout(startTimer);
       if (safetyTimer !== null) clearTimeout(safetyTimer);
       finish = null;
-      lock.release(owner);
+      lock.release(activeOwner);
+      additionalOpened = null;
       discard();
       prepare();
       proceed();
@@ -248,6 +273,7 @@ export function createInterstitialManager(
   return {
     prepare,
     onJobOpen,
+    onAdditionalTransition,
     revoke,
     _test: {
       reset() {

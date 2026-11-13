@@ -27,6 +27,12 @@ export function createCircularTransport(
   now: () => number = Date.now,
   trace?: CircularTrace,
 ) {
+  let generation = 0;
+  const pending = new Map<string, Promise<unknown>>();
+  function invalidateReads() {
+    generation++;
+    pending.clear();
+  }
   const blocked = new Map<string, number>();
   let refreshing: Promise<Session | null> | null = null;
   async function session() {
@@ -35,7 +41,7 @@ export function createCircularTransport(
       throw new CircularError("Please sign in again.", 401);
     return data.session;
   }
-  async function request<T>(
+  async function sendRequest<T>(
     owner: string,
     path: string,
     method = "GET",
@@ -182,5 +188,28 @@ export function createCircularTransport(
     }
     throw new CircularError("Please sign in again.", 401);
   }
-  return { request };
+  function request<T>(
+    owner: string,
+    path: string,
+    method = "GET",
+    body?: unknown,
+  ): Promise<T> {
+    const epoch = generation;
+    const key = JSON.stringify([owner, path]);
+    if (method === "GET" && pending.has(key))
+      return pending.get(key) as Promise<T>;
+    const task = sendRequest<T>(owner, path, method, body)
+      .then((data) => {
+        if (method !== "GET") invalidateReads();
+        else if (epoch !== generation)
+          throw new CircularError("This information changed. Please refresh.");
+        return data;
+      })
+      .finally(() => {
+        if (pending.get(key) === task) pending.delete(key);
+      });
+    if (method === "GET") pending.set(key, task);
+    return task;
+  }
+  return { request, invalidateReads };
 }

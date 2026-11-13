@@ -1,3 +1,4 @@
+import { useExtraBoundary } from "../../ads/useExtraBoundary";
 import { useEffect, useState } from "react";
 import { FlatList, View, ScrollView } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
@@ -55,6 +56,21 @@ export function CircularFeed({ saved = false }: { saved?: boolean }) {
   const items = internships
     ? query.items.filter((item) => item.job_type === "internship")
     : query.items;
+  const extraScroll = useExtraBoundary(
+    saved ? null : "circular-jobs",
+    !saved &&
+      !query.authLoading &&
+      !!query.userId &&
+      !!query.data &&
+      !query.loading &&
+      !query.error &&
+      !query.pageError &&
+      !query.paging &&
+      !saver.busy &&
+      !saveError &&
+      !hasFilters &&
+      !picker,
+  );
   if (query.authLoading) return <Skeleton />;
   if (!query.userId)
     return <SignIn returnTo={saved ? "/saved" : "/circular-jobs"} />;
@@ -77,6 +93,8 @@ export function CircularFeed({ saved = false }: { saved?: boolean }) {
   );
   return (
     <FlatList
+      onScroll={extraScroll}
+      scrollEventThrottle={100}
       testID="circular-feed"
       data={items}
       keyExtractor={(item) => item.id}

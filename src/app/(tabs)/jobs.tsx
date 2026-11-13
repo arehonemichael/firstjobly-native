@@ -1,3 +1,4 @@
+import { useExtraBoundary } from "../../ads/useExtraBoundary";
 import { JobCard } from "../../components/ui/job-card";
 import {
   AppText as Text,
@@ -95,7 +96,6 @@ function SelectBlock({
   );
 }
 
-
 export default function JobsScreen() {
   const bottomContentPadding = useScreenBottomPadding(true);
   const { openJobWithEarlyInterstitial } = useEarlyJobInterstitial();
@@ -125,6 +125,16 @@ export default function JobsScreen() {
   const [filterOpen, setFilterOpen] = useState(false);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
+  const extraScroll = useExtraBoundary(
+    "jobs",
+    !loading &&
+      !error &&
+      !filterOpen &&
+      !keyword.trim() &&
+      !Object.entries(filters).some(
+        ([key, value]) => key !== "sort" && !!value,
+      ),
+  );
   useEffect(() => {
     getSearchJobs()
       .then(setJobs)
@@ -318,6 +328,8 @@ export default function JobsScreen() {
   return (
     <SafeAreaView style={styles.page} edges={["top", "bottom"]}>
       <FlatList
+        onScroll={extraScroll}
+        scrollEventThrottle={100}
         data={visibleJobs}
         keyExtractor={keyExtractor}
         renderItem={renderJob}
@@ -336,7 +348,19 @@ export default function JobsScreen() {
         ListHeaderComponent={
           <>
             <Text style={styles.title}>Search jobs</Text>
-            <TouchableOpacity accessibilityLabel="Open personalized discovery" onPress={()=>router.push("/discover")}><Text style={{color:Colors.primaryPressed,fontFamily:Fonts.medium}}>For you · preferences and recommendations</Text></TouchableOpacity>
+            <TouchableOpacity
+              accessibilityLabel="Open personalized discovery"
+              onPress={() => router.push("/discover")}
+            >
+              <Text
+                style={{
+                  color: Colors.primaryPressed,
+                  fontFamily: Fonts.medium,
+                }}
+              >
+                For you · preferences and recommendations
+              </Text>
+            </TouchableOpacity>
 
             <Text style={styles.subtitle}>
               {results.length} opportunities match your search

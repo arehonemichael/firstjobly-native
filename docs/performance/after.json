@@ -1,0 +1,32 @@
+{
+  "conditions": "Chromium 390x900, Expo web development build, isolated signed-in fixtures, 120ms API latency; optional Home draft applications read delayed 600ms. Three fresh browser contexts. Not Android/device or production.",
+  "samples": [
+    {
+      "shellMs": 2077,
+      "homeProfileMs": 2138,
+      "detailMs": 301,
+      "savedReads": 2,
+      "profileReadCount": 2,
+      "govMs": 1728,
+      "latestReads": 1
+    },
+    {
+      "shellMs": 1571,
+      "homeProfileMs": 1677,
+      "detailMs": 278,
+      "savedReads": 2,
+      "profileReadCount": 2,
+      "govMs": 1549,
+      "latestReads": 1
+    },
+    {
+      "shellMs": 1610,
+      "homeProfileMs": 1650,
+      "detailMs": 277,
+      "savedReads": 2,
+      "profileReadCount": 2,
+      "govMs": 1528,
+      "latestReads": 1
+    }
+  ]
+}
