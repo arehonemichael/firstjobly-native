@@ -112,7 +112,8 @@ test("complete iOS production config is accepted; unrelated build targets remain
   );
 });
 test("first TestFlight is a store build with test inventory; simulator uses a development client", () => {
-  assert.equal(eas.build["ios-testflight"].extends, "production");
+  assert.equal(eas.build["ios-testflight"].extends, "ios-production");
+  assert.equal(eas.build["ios-production"].extends, "production");
   assert.equal(eas.build.production.distribution, "store");
   assert.equal(
     eas.build["ios-testflight"].env.EXPO_PUBLIC_ADS_TEST_MODE,
@@ -218,4 +219,58 @@ test("Android PDF export retains SAF and never opens an iOS share sheet", async 
     "content://downloads/file.pdf",
   );
   assert.deepEqual(f.calls, []);
+});
+
+test("owner-supplied iOS App ID and confirmed units reach the TestFlight native config", () => {
+  const env = {
+    ...eas.build["ios-production"].env,
+    ...eas.build["ios-testflight"].env,
+    EAS_BUILD_PLATFORM: "ios",
+    EAS_BUILD_PROFILE: "ios-testflight",
+  };
+  assert.equal(
+    plugin(configureIosAds(config, env)).iosAppId,
+    "ca-app-pub-1505001993402465~2077713359",
+  );
+  assert.equal(
+    env.EXPO_PUBLIC_ADMOB_IOS_BANNER_ID,
+    "ca-app-pub-1505001993402465/8695092599",
+  );
+  assert.equal(
+    env.EXPO_PUBLIC_ADMOB_IOS_INTERSTITIAL_ID,
+    "ca-app-pub-1505001993402465/8451550014",
+  );
+  assert.equal(
+    env.EXPO_PUBLIC_ADMOB_IOS_NATIVE_ID,
+    "ca-app-pub-1505001993402465/8259978322",
+  );
+  assert.equal(
+    env.EXPO_PUBLIC_ADMOB_IOS_APP_OPEN_ID,
+    "ca-app-pub-1505001993402465/6946896655",
+  );
+  assert.equal(env.EXPO_PUBLIC_ADS_TEST_MODE, "true");
+});
+test("new iOS production profile has the same missing-unit release guard", () => {
+  const env = {
+    ...eas.build["ios-production"].env,
+    EAS_BUILD_PLATFORM: "ios",
+    EAS_BUILD_PROFILE: "ios-production",
+  };
+  assert.doesNotThrow(() => configureIosAds(config, env));
+  assert.throws(
+    () =>
+      configureIosAds(config, {
+        ...env,
+        EXPO_PUBLIC_ADMOB_IOS_REWARDED_ID: "",
+      }),
+    /IOS_REWARDED_ID/,
+  );
+  assert.throws(
+    () =>
+      configureIosAds(config, {
+        ...env,
+        EXPO_PUBLIC_ADMOB_IOS_REWARDED_FORMAT: "interstitial",
+      }),
+    /REWARDED_FORMAT/,
+  );
 });

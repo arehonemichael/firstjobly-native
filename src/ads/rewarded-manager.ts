@@ -1,4 +1,4 @@
-import { ADS_CONFIG, AD_UNITS } from "./config";
+import { ADS_CONFIG, AD_UNITS, USE_REWARDED_INTERSTITIAL } from "./config";
 import { mobileAdsSDK } from "./sdk";
 import { adsPrivacy, getRequestOptions } from "./privacy";
 import { fullscreenLock } from "./fullscreen-lock";
@@ -255,10 +255,10 @@ export const rewardedManager = createRewardedManager(
     ? {
         permitted: () => adsPrivacy.getSnapshot().canRequestAds,
         createAd: () =>
-          sdk.RewardedAd.createForAdRequest(
-            AD_UNITS.rewarded,
-            getRequestOptions(),
-          ),
+          (USE_REWARDED_INTERSTITIAL
+            ? sdk.RewardedInterstitialAd
+            : sdk.RewardedAd
+          ).createForAdRequest(AD_UNITS.rewarded, getRequestOptions()),
         events: {
           LOADED: sdk.RewardedAdEventType.LOADED,
           EARNED: sdk.RewardedAdEventType.EARNED_REWARD,

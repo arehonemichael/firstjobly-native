@@ -91,6 +91,7 @@ function app(os, environment, dev = true, forceTest = false, iosEnv = {}) {
       INTERSTITIAL: "test-interstitial",
       NATIVE: "test-native",
       REWARDED: "test-rewarded",
+      REWARDED_INTERSTITIAL: "test-rewarded-interstitial",
     },
     RewardedAdEventType: {
       LOADED: "rewarded_loaded",
@@ -161,6 +162,13 @@ function app(os, environment, dev = true, forceTest = false, iosEnv = {}) {
       },
     },
     NativeAd: { createForAdRequest: async () => ({ destroy() {} }) },
+  };
+  sdk.RewardedInterstitialAd = {
+    createForAdRequest(unit, options) {
+      const ad = sdk.RewardedAd.createForAdRequest(unit, options);
+      calls.rewardedUnits.at(-1).format = "rewarded-interstitial";
+      return ad;
+    },
   };
   const Stack = () => null;
   Stack.Screen = function MockScreen() {
@@ -744,4 +752,88 @@ test("iOS configured production uses only its own platform's units", () => {
   for (const key of Object.keys(units))
     assert.equal(actual[key], "ca-app-pub-1111111111111111/2222222222");
   assert.equal(a.calls.sdk, 1);
+});
+
+for (const testMode of [true, false])
+  test(`iOS supplied rewarded interstitial uses matching ${testMode ? "test" : "live"} SDK format and earned-event lifecycle`, async () => {
+    const env = require("../eas.json").build["ios-production"].env;
+    const a = app("ios", "standalone", false, testMode, env);
+    const config = a.load("src/ads/config.ts");
+    assert.equal(config.USE_REWARDED_INTERSTITIAL, true);
+    assert.equal(
+      config.AD_UNITS.rewarded,
+      testMode
+        ? "test-rewarded-interstitial"
+        : "ca-app-pub-1505001993402465/3831592815",
+    );
+    assert.equal(
+      config.AD_UNITS.banner,
+      testMode ? "test-banner" : "ca-app-pub-1505001993402465/8695092599",
+    );
+    const manager = a.load("src/ads/rewarded-manager.ts").rewardedManager;
+    manager.prepare();
+    assert.equal(a.calls.rewardedUnits[0].format, "rewarded-interstitial");
+    assert.equal(a.calls.rewardedUnits[0].unit, config.AD_UNITS.rewarded);
+    const ad = a.calls.rewardedAds[0];
+    ad.emit("rewarded_loaded");
+    const outcome = manager.request();
+    ad.emit("opened");
+    assert.equal(manager.getCredit(), false);
+    ad.emit("rewarded_earned_reward");
+    ad.emit("closed");
+    assert.equal(await outcome, "earned");
+    assert.equal(manager.getCredit(), true);
+    manager._test.reset();
+  });
+test("Android ignores the iOS rewarded-interstitial format and retains its rewarded unit/loader", () => {
+  const env = require("../eas.json").build["ios-production"].env;
+  const a = app("android", "standalone", false, false, env);
+  assert.equal(a.load("src/ads/config.ts").USE_REWARDED_INTERSTITIAL, false);
+  const manager = a.load("src/ads/rewarded-manager.ts").rewardedManager;
+  manager.prepare();
+  assert.equal(
+    a.calls.rewardedUnits[0].unit,
+    "ca-app-pub-1505001993402465/9710408715",
+  );
+  assert.notEqual(a.calls.rewardedUnits[0].format, "rewarded-interstitial");
+  manager._test.reset();
+});
+for (const accept of [false, true])
+  test(`iOS rewarded-interstitial introduction ${accept ? "accepts" : "declines"} before presentation`, async () => {
+    const env = require("../eas.json").build["ios-production"].env;
+    const a = app("ios", "standalone", false, true, env);
+    const hook = a.load("src/ads/useRewardedDownload.ts");
+    const view = a.renderer(hook.useRewardedDownload);
+    const control = view.render();
+    const ad = a.calls.rewardedAds[0];
+    ad.emit("rewarded_loaded");
+    const pending = control.beforeDownload();
+    const intro = a.calls.alerts.at(-1);
+    assert.equal(intro[0], "Download your PDF");
+    assert.equal(a.calls.rewardedShows, 0);
+    intro[2][accept ? 1 : 0].onPress();
+    await new Promise((resolve) => setImmediate(resolve));
+    if (accept) {
+      assert.equal(a.calls.rewardedShows, 1);
+      ad.emit("opened");
+      ad.emit("rewarded_earned_reward");
+      ad.emit("closed");
+    }
+    assert.equal(await pending, accept);
+    view.dispose();
+    a.load("src/ads/rewarded-manager.ts").rewardedManager._test.reset();
+  });
+test("iOS rewarded interstitial closed before earning grants no credit", async () => {
+  const env = require("../eas.json").build["ios-production"].env;
+  const a = app("ios", "standalone", false, true, env);
+  const manager = a.load("src/ads/rewarded-manager.ts").rewardedManager;
+  manager.prepare();
+  const ad = a.calls.rewardedAds[0];
+  ad.emit("rewarded_loaded");
+  const pending = manager.request();
+  ad.emit("opened");
+  ad.emit("closed");
+  assert.equal(await pending, "cancelled");
+  assert.equal(manager.getCredit(), false);
+  manager._test.reset();
 });

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 import { Alert } from "react-native";
-import { ADS_CONFIG } from "./config";
+import { ADS_CONFIG, USE_REWARDED_INTERSTITIAL } from "./config";
 import { mobileAdsSDK } from "./sdk";
 import { useAdsConsent } from "./privacy";
 import { rewardedManager } from "./rewarded-manager";
@@ -32,6 +32,24 @@ export function useRewardedDownload() {
     if (!alive.current || pending.current) return false;
     pending.current = true;
     try {
+      if (USE_REWARDED_INTERSTITIAL && canOfferAd) {
+        const accepted = await new Promise<boolean>((resolve) => {
+          Alert.alert(
+            "Download your PDF",
+            "Watch an ad to unlock this PDF download. You can choose Not now to keep editing.",
+            [
+              {
+                text: "Not now",
+                style: "cancel",
+                onPress: () => resolve(false),
+              },
+              { text: "Watch ad", onPress: () => resolve(true) },
+            ],
+            { cancelable: true, onDismiss: () => resolve(false) },
+          );
+        });
+        if (!accepted || !alive.current) return false;
+      }
       const outcome = await rewardedManager.request();
       if (!alive.current) return false;
       if (outcome === "cancelled") {
@@ -55,7 +73,7 @@ export function useRewardedDownload() {
     } finally {
       pending.current = false;
     }
-  }, []);
+  }, [canOfferAd]);
   return {
     beforeDownload,
     canOfferAd,
