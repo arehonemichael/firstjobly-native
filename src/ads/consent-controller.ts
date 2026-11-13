@@ -1,3 +1,4 @@
+import { adDiagnostics as diag } from "./diagnostics";
 export type ConsentInfo = {
   status: string;
   canRequestAds: boolean;
@@ -59,12 +60,36 @@ export function createAdConsent(port: ConsentPort | null) {
         c.selectBasicAds === true;
     }
     if (allowed) {
+      diag.record(
+        "initialize.start",
+        { format: "sdk", reason: initialized ? "reuse" : "initialize" },
+        true,
+      );
       initialized ??= port!.initialize().catch((error) => {
         initialized = null;
+        diag.error("sdk", "initialize.failed", error);
         throw error;
       });
       await initialized;
+      diag.record(
+        "initialize.ready",
+        { format: "sdk", initialized: true },
+        true,
+      );
     }
+    diag.record("consent.result", {
+      format: "consent",
+      status: info.status,
+      canRequestAds: allowed,
+      personalized: allowed && personalized,
+      reason: allowed
+        ? "permitted"
+        : !info.canRequestAds
+          ? "provider-permission-denied"
+          : info.status === "OBTAINED"
+            ? "required-choices-not-permitted"
+            : "status-unresolved",
+    });
     checked = true;
     publish({
       ...state,
@@ -78,17 +103,35 @@ export function createAdConsent(port: ConsentPort | null) {
     });
   }
   function prepare(canPresent: () => boolean) {
-    if (!port || checked) return Promise.resolve();
+    if (!port || checked) {
+      diag.record(
+        "consent.skip",
+        {
+          format: "consent",
+          reason: !port ? "unsupported" : "already-checked",
+        },
+        true,
+      );
+      return Promise.resolve();
+    }
     if (pending) return pending;
     pending = (async () => {
       try {
+        diag.record("consent.prepare", { format: "consent" });
         let info: ConsentInfo;
         try {
           info = await port.requestInfoUpdate();
         } catch (error) {
+          diag.error("consent", "consent.update-failed", error);
           // UMP may retain valid permission from the previous session even
           // when its update fails. Never infer permission from the error text.
           const cached = await port.getConsentInfo?.();
+          diag.record("consent.cached", {
+            format: "consent",
+            status: cached?.status || "unavailable",
+            canRequestAds: cached?.canRequestAds === true,
+            cachedPermission: true,
+          });
           if (
             !cached?.canRequestAds ||
             (cached.status !== "NOT_REQUIRED" && cached.status !== "OBTAINED")
@@ -115,6 +158,7 @@ export function createAdConsent(port: ConsentPort | null) {
         }
         await apply(info);
       } catch (error) {
+        diag.error("consent", "consent.blocked", error);
         checked = true;
         publish({
           ...state,
@@ -153,6 +197,10 @@ export function createAdConsent(port: ConsentPort | null) {
         Date.now() - state.failedAt < 30000
       )
         return Promise.resolve();
+      diag.record("consent.retry", {
+        format: "consent",
+        reason: "foreground-after-failure",
+      });
       checked = false;
       return prepare(canPresent);
     },
@@ -175,6 +223,7 @@ export function createAdConsent(port: ConsentPort | null) {
           await prepare(canPresent);
         }
       } catch (error) {
+        diag.error("consent", "consent.privacy-failed", error);
         publish({
           ...state,
           settled: true,

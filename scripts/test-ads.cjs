@@ -871,3 +871,148 @@ test("privacy-form failure after withdrawal never recovers cached ad permission"
   assert.equal(cachedReads, 0);
   assert.equal(p.control.getSnapshot().canRequestAds, false);
 });
+
+test("development diagnostics redact secrets/identifiers and ignore non-whitelisted fields", () => {
+  const { createAdDiagnostics } = load("src/ads/diagnostics.ts"),
+    entries = [];
+  const diag = createAdDiagnostics(true, (e) => entries.push(e));
+  diag.error("consent", "consent.update-failed", {
+    code: "consent-update-failed",
+    message:
+      "Publisher misconfiguration: no forms configured token=shortsecret TCString=privateconsent https://example.test/?token=hidden user@example.test 00000000-0000-4000-8000-000000000001 abcdefghijklmnopqrstuvwxyz0123456789",
+  });
+  diag.record("runtime", {
+    platform: "android",
+    access_token: "must-not-log",
+    personalConsent: "must-not-log",
+  });
+  const output = JSON.stringify(entries);
+  for (const secret of [
+    "shortsecret",
+    "privateconsent",
+    "https://example.test",
+    "user@example.test",
+    "00000000-0000-4000-8000-000000000001",
+    "abcdefghijklmnopqrstuvwxyz0123456789",
+    "must-not-log",
+  ])
+    assert.equal(output.includes(secret), false, secret);
+  assert.equal(entries[0].reason, "publisher-configuration");
+  assert.equal(entries[1].platform, "android");
+});
+test("diagnostics stay silent when disabled, deduplicate gates and never propagate a logging failure", () => {
+  const { createAdDiagnostics } = load("src/ads/diagnostics.ts");
+  let count = 0;
+  const off = createAdDiagnostics(false, () => count++);
+  off.record("request");
+  off.error("native", "load.failed", Error("network"));
+  assert.equal(count, 0);
+  const on = createAdDiagnostics(true, () => count++);
+  on.record("skip", { reason: "consent" }, true);
+  on.record("skip", { reason: "consent" }, true);
+  assert.equal(count, 1);
+  on.record("request");
+  on.record("request");
+  assert.equal(count, 3);
+  assert.doesNotThrow(() =>
+    createAdDiagnostics(true, () => {
+      throw Error("logger unavailable");
+    }).record("loaded"),
+  );
+});
+test("no-fill diagnostics remain failures and do not imply loaded, rendered or impressed", () => {
+  const { createAdDiagnostics } = load("src/ads/diagnostics.ts"),
+    entries = [];
+  createAdDiagnostics(true, (e) => entries.push(e)).error(
+    "banner",
+    "load.failed",
+    { code: "googleMobileAds/error-code-no-fill", message: "No fill" },
+  );
+  assert.equal(entries.length, 1);
+  assert.equal(entries[0].reason, "no-fill");
+  assert.equal(entries[0].event, "load.failed");
+});
+test("exact publisher-error trace distinguishes blocked permission from valid cached recovery", async (t) => {
+  const { adDiagnostics, createAdDiagnostics } = load("src/ads/diagnostics.ts");
+  const original = { ...adDiagnostics };
+  t.after(() => Object.assign(adDiagnostics, original));
+  for (const cachedPermission of [false, true]) {
+    const entries = [],
+      capture = createAdDiagnostics(true, (e) => entries.push(e));
+    Object.assign(adDiagnostics, capture);
+    const p = privacy();
+    p.port.requestInfoUpdate = async () => {
+      throw Object.assign(
+        Error(
+          "Publisher misconfiguration: no form(s) configured for the input app ID",
+        ),
+        { code: "consent-update-failed" },
+      );
+    };
+    p.port.getConsentInfo = async () => ({
+      status: cachedPermission ? "NOT_REQUIRED" : "UNKNOWN",
+      canRequestAds: cachedPermission,
+    });
+    await p.control.prepare(() => true);
+    const ads = [];
+    const manager = createInterstitialManager(
+      {
+        permitted: () => p.control.getSnapshot().canRequestAds,
+        events: {
+          LOADED: "loaded",
+          OPENED: "opened",
+          CLOSED: "closed",
+          ERROR: "error",
+        },
+        createAd() {
+          const ad = fakeAd();
+          ads.push(ad);
+          return ad;
+        },
+      },
+      ADS_CONFIG.interstitial,
+      createFullscreenLock(),
+    );
+    manager.prepare();
+    assert.ok(
+      entries.some(
+        (e) =>
+          e.event === "consent.update-failed" &&
+          e.reason === "publisher-configuration",
+      ),
+    );
+    assert.ok(
+      entries.some(
+        (e) =>
+          e.event === "consent.cached" && e.canRequestAds === cachedPermission,
+      ),
+    );
+    assert.equal(p.calls.initialize, cachedPermission ? 1 : 0);
+    assert.equal(ads.length, cachedPermission ? 1 : 0);
+    assert.equal(
+      entries.some((e) => e.event === "impression"),
+      false,
+    );
+    if (cachedPermission) {
+      ads[0].emit("loaded");
+      manager.onJobOpen(() => {});
+      manager.onJobOpen(() => {});
+      manager.onJobOpen(() => {});
+      ads[0].emit("opened");
+      ads[0].emit("closed");
+      assert.ok(entries.some((e) => e.event === "opened"));
+      assert.equal(
+        entries.some((e) => e.event === "impression"),
+        false,
+        "full-screen OPENED is not an impression count",
+      );
+    } else
+      assert.equal(
+        entries.some(
+          (e) => e.event === "initialize.ready" || e.event === "request",
+        ),
+        false,
+      );
+    manager._test.reset();
+  }
+});

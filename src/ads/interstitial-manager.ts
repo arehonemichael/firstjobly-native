@@ -1,3 +1,4 @@
+import { adDiagnostics as diag } from "./diagnostics";
 import { ADS_CONFIG, AD_UNITS } from "./config";
 import { adsPrivacy, getRequestOptions } from "./privacy";
 import { mobileAdsSDK } from "./sdk";
@@ -6,13 +7,21 @@ import { fullscreenLock } from "./fullscreen-lock";
 type Ad = {
   load(): void;
   show(): Promise<void>;
-  addAdEventListener(event: string, handler: () => void): () => void;
+  addAdEventListener(
+    event: string,
+    handler: (error?: unknown) => void,
+  ): () => void;
   removeAllListeners(): void;
 };
 type Port = {
   createAd(): Ad;
   permitted(): boolean;
-  events: { LOADED: string; OPENED: string; CLOSED: string; ERROR: string };
+  events: {
+    LOADED: string;
+    OPENED: string;
+    CLOSED: string;
+    ERROR: string;
+  };
 };
 type Policy = typeof ADS_CONFIG.interstitial;
 export function createInterstitialManager(
@@ -55,14 +64,21 @@ export function createInterstitialManager(
     if (retryTimer !== null) clearTimeout(retryTimer);
     retryTimer = null;
   }
-  function loadFailure() {
+  function loadFailure(error?: unknown) {
+    diag.error("interstitial", "load.failed", error);
     discard();
     if (!port?.permitted() || !policy.enabled) return;
     const delay = policy.retryBackoffMs[retry++];
     if (delay === undefined) {
+      diag.record("load.retry-exhausted", { format: "interstitial" });
       retryExhausted = true;
       return;
     }
+    diag.record("load.retry", {
+      format: "interstitial",
+      attempt: retry,
+      delayMs: delay,
+    });
     retryTimer = setTimeout(() => {
       retryTimer = null;
       prepare();
@@ -82,16 +98,19 @@ export function createInterstitialManager(
       retryExhausted = false;
     }
     try {
+      diag.record("request", { format: "interstitial" });
       const inventory = port.createAd();
       ad = inventory;
       listeners = [
         inventory.addAdEventListener(port.events.LOADED, () => {
           if (ad !== inventory) return;
+          diag.record("loaded", { format: "interstitial", loaded: true });
           loaded = true;
           retry = 0;
         }),
         inventory.addAdEventListener(port.events.OPENED, () => {
           if (ad !== inventory || !finish || opened) return;
+          diag.record("opened", { format: "interstitial", shown: true });
           opened = true;
           opens = 0;
           shownThisSession++;
@@ -99,27 +118,36 @@ export function createInterstitialManager(
         }),
         inventory.addAdEventListener(port.events.CLOSED, () => {
           if (ad !== inventory) return;
+          diag.record("closed", { format: "interstitial" });
           if (finish) finish();
           else {
             discard();
             prepare();
           }
         }),
-        inventory.addAdEventListener(port.events.ERROR, () => {
+        inventory.addAdEventListener(port.events.ERROR, (error) => {
           if (ad !== inventory) return;
-          if (finish) finish();
-          else loadFailure();
+          if (finish) {
+            diag.error("interstitial", "presentation.failed", error);
+            finish();
+          } else loadFailure(error);
         }),
       ];
       inventory.load();
-    } catch {
-      loadFailure();
+    } catch (error) {
+      loadFailure(error);
     }
   }
   function onJobOpen(proceed: () => void) {
     // First tap owns this transition. Ignore rapid second taps until completion;
     // they must not navigate beneath the ad or enqueue a second destination.
-    if (finish) return;
+    if (finish) {
+      diag.record("skip", {
+        format: "interstitial",
+        reason: "rapid-tap-active-show",
+      });
+      return;
+    }
     opens++;
     prepare();
     if (
@@ -132,6 +160,25 @@ export function createInterstitialManager(
       (lastShownAt !== null && Date.now() - lastShownAt < policy.cooldownMs) ||
       !lock.tryAcquire(owner)
     ) {
+      diag.record("skip", {
+        format: "interstitial",
+        reason: !policy.enabled
+          ? "disabled"
+          : !port
+            ? "unsupported"
+            : !port.permitted()
+              ? "consent"
+              : !loaded || !ad
+                ? "not-loaded"
+                : opens < policy.everyNthJobOpen
+                  ? "cadence"
+                  : shownThisSession >= policy.maxPerSession
+                    ? "session-cap"
+                    : lastShownAt !== null &&
+                        Date.now() - lastShownAt < policy.cooldownMs
+                      ? "cooldown"
+                      : "fullscreen-lock-or-gap",
+      });
       proceed();
       return;
     }
@@ -152,12 +199,29 @@ export function createInterstitialManager(
     };
     const complete = finish;
     startTimer = setTimeout(() => {
-      if (!opened) complete();
+      if (!opened) {
+        diag.record("presentation.timeout", {
+          format: "interstitial",
+          reason: "opened-missing",
+        });
+        complete();
+      }
     }, policy.startTimeoutMs);
-    safetyTimer = setTimeout(complete, policy.safetyTimeoutMs);
+    safetyTimer = setTimeout(() => {
+      diag.record("presentation.timeout", {
+        format: "interstitial",
+        reason: "terminal-event-missing",
+      });
+      complete();
+    }, policy.safetyTimeoutMs);
     try {
-      void inventory.show().catch(complete);
-    } catch {
+      diag.record("show", { format: "interstitial" });
+      void inventory.show().catch((error) => {
+        diag.error("interstitial", "presentation.failed", error);
+        complete();
+      });
+    } catch (error) {
+      diag.error("interstitial", "presentation.failed", error);
       complete();
     }
   }

@@ -1,10 +1,14 @@
+import { adDiagnostics as diag } from "./diagnostics";
 import { ADS_CONFIG } from "./config";
 import { fullscreenLock } from "./fullscreen-lock";
 type Ad = {
   load(): void;
   show(): Promise<void>;
   removeAllListeners(): void;
-  addAdEventListener(event: string, handler: () => void): () => void;
+  addAdEventListener(
+    event: string,
+    handler: (error?: unknown) => void,
+  ): () => void;
 };
 type Storage = {
   getItem(key: string): Promise<string | null>;
@@ -73,18 +77,26 @@ export function createAppOpenController({
   const preload = () => {
     if (disposed || !enabled() || !context.consent || ad || showing) return;
     try {
+      diag.record("request", { format: "app-open" });
       ad = createAd();
       listeners = [
         ad.addAdEventListener("loaded", () => {
+          diag.record("loaded", { format: "app-open", loaded: true });
           loadedAt = now();
         }),
         ad.addAdEventListener("closed", () => {
+          diag.record("closed", { format: "app-open" });
           showing = false;
           release();
           clearAd();
           preload();
         }),
-        ad.addAdEventListener("error", () => {
+        ad.addAdEventListener("error", (error) => {
+          diag.error(
+            "app-open",
+            showing ? "presentation.failed" : "load.failed",
+            error,
+          );
           const wasShowing = showing;
           showing = false;
           release();
@@ -94,8 +106,18 @@ export function createAppOpenController({
           if (wasShowing) preload();
         }),
       ];
+      try {
+        listeners.push(
+          ad.addAdEventListener("opened", () =>
+            diag.record("opened", { format: "app-open", shown: true }),
+          ),
+        );
+      } catch {
+        /* Optional observation cannot break a valid load. */
+      }
       ad.load();
-    } catch {
+    } catch (error) {
+      diag.error("app-open", "load.failed", error);
       clearAd();
       showing = false;
       release();
@@ -140,16 +162,37 @@ export function createAppOpenController({
       launches < minLaunches ||
       now() - lastShown < cooldownMs
     ) {
+      diag.record("skip", {
+        format: "app-open",
+        reason: !enabled()
+          ? "disabled"
+          : away < 1000
+            ? "brief-background"
+            : !context.eligible
+              ? "route-onboarding-or-consent-ui"
+              : !context.consent
+                ? "consent"
+                : showing
+                  ? "already-showing"
+                  : launches < minLaunches
+                    ? "launch-threshold"
+                    : "cooldown",
+      });
       spent = true;
       preload();
       return;
     }
     if (loadedAt === null || !ad) {
+      diag.record("skip", {
+        format: "app-open",
+        reason: "not-loaded-at-foreground",
+      });
       spent = true;
       preload();
       return;
     }
     if (now() - loadedAt < 0 || now() - loadedAt >= maxAgeMs) {
+      diag.record("skip", { format: "app-open", reason: "expired" });
       spent = true;
       clearAd();
       preload();
@@ -176,14 +219,28 @@ export function createAppOpenController({
         now() - foregroundAt < 0 ||
         now() - foregroundAt > 200
       ) {
+        diag.record("skip", {
+          format: "app-open",
+          reason: "foreground-guard-cancelled-or-late",
+        });
         spent = true;
         return;
       }
       spent = true;
-      if (!lock.tryAcquire(owner)) return;
+      if (!lock.tryAcquire(owner)) {
+        diag.record("skip", {
+          format: "app-open",
+          reason: "fullscreen-lock-or-gap",
+        });
+        return;
+      }
       showing = true;
       // Defensively release a broken SDK presentation with no terminal event.
       safetyTimer = setTimeout(() => {
+        diag.record("presentation.timeout", {
+          format: "app-open",
+          reason: "terminal-event-missing",
+        });
         showing = false;
         release();
         clearAd();
@@ -195,14 +252,17 @@ export function createAppOpenController({
         .setItem("fj_admob_last_app_open", String(lastShown))
         .catch(() => {});
       try {
-        void inventory.show().catch(() => {
+        diag.record("show", { format: "app-open" });
+        void inventory.show().catch((error) => {
           if (ad !== inventory) return;
+          diag.error("app-open", "presentation.failed", error);
           showing = false;
           release();
           clearAd();
           preload();
         });
-      } catch {
+      } catch (error) {
+        diag.error("app-open", "presentation.failed", error);
         showing = false;
         release();
         clearAd();

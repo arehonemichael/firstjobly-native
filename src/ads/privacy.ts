@@ -27,14 +27,3 @@ export function useAdsConsent() {
 export function getRequestOptions() {
   return adsPrivacy.getRequestOptions();
 }
-
-// Development diagnostics expose the real blocker without logging consent
-// strings, identifiers or tokens. Never enable ads on an error alone.
-if (__DEV__ || process.env.EXPO_PUBLIC_ADS_TEST_MODE === "true") {
-  let reported: string | null = null;
-  adsPrivacy.subscribe(() => {
-    const error = adsPrivacy.getSnapshot().errorMessage;
-    if (error && error !== reported) console.warn("[FirstJobly ads]", error);
-    reported = error;
-  });
-}

@@ -1,3 +1,4 @@
+import { adDiagnostics as diag } from "./diagnostics";
 /** One recovery clock per placement. Backoff does not reset on rerender. */
 export function createAdRecovery(
   backoff: readonly number[],
@@ -39,16 +40,16 @@ export function createAdRecovery(
 export function loadNativeWithTimeout<T extends { destroy(): void }>(
   request: () => Promise<T>,
   loaded: (ad: T) => void,
-  failed: () => void,
+  failed: (error?: unknown) => void,
   timeoutMs = 10000,
 ) {
   let active = true;
   let inventory: T | null = null;
-  const fail = () => {
+  const fail = (error?: unknown) => {
     if (!active) return;
     active = false;
     clearTimeout(timer);
-    failed();
+    failed(error);
   };
   const timer = setTimeout(fail, timeoutMs);
   try {
@@ -63,8 +64,8 @@ export function loadNativeWithTimeout<T extends { destroy(): void }>(
         loaded(ad);
       })
       .catch(fail);
-  } catch {
-    fail();
+  } catch (error) {
+    fail(error);
   }
   return () => {
     active = false;
@@ -81,6 +82,7 @@ export function createBannerController(
     loaded: boolean;
     failed: boolean;
   }) => void,
+  placement?: string,
 ) {
   let state = { generation: 0, loaded: false, failed: false };
   let disposed = false;
@@ -103,8 +105,22 @@ export function createBannerController(
   }
   function startTimeout() {
     clear();
-    if (!state.loaded && !state.failed)
-      timer = setTimeout(() => fail(state.generation), 12000);
+    if (!state.loaded && !state.failed) {
+      diag.record("load.attempt", {
+        format: "banner",
+        placement,
+        attempt: state.generation + 1,
+      });
+      timer = setTimeout(() => {
+        diag.record("load.failed", {
+          format: "banner",
+          placement,
+          reason: "timeout",
+          delayMs: 12000,
+        });
+        fail(state.generation);
+      }, 12000);
+    }
   }
   return {
     start() {
@@ -117,6 +133,7 @@ export function createBannerController(
     failed: fail,
     loaded(generation: number) {
       if (disposed || generation !== state.generation || state.failed) return;
+      diag.record("loaded", { format: "banner", placement, loaded: true });
       clear();
       recovery.loaded();
       state = { ...state, loaded: true };

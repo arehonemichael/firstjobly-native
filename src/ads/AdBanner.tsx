@@ -1,3 +1,4 @@
+import { adDiagnostics as diag } from "./diagnostics";
 import { useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import {
@@ -15,6 +16,27 @@ export function AdBanner({
 }: { placement?: "home" | "detail" | "hot" | "saved" } = {}) {
   const consent = useAdsConsent();
   const [width, setWidth] = useState(0);
+  useEffect(() => {
+    diag.record("placement", {
+      format: "banner",
+      placement,
+      width,
+      eligible:
+        !!mobileAdsSDK &&
+        ADS_CONFIG.banner.enabled &&
+        consent.canRequestAds &&
+        width > 0,
+      reason: !mobileAdsSDK
+        ? "unsupported"
+        : !ADS_CONFIG.banner.enabled
+          ? "disabled"
+          : !consent.canRequestAds
+            ? "consent"
+            : width <= 0
+              ? "awaiting-layout"
+              : "ready",
+    });
+  }, [consent.canRequestAds, placement, width]);
   // Key the authorized child by permission, width and choices. Regrant/resize
   // gets fresh state instead of inheriting permanent no-fill from the old unit.
   if (!mobileAdsSDK || !ADS_CONFIG.banner.enabled) return null;
@@ -54,12 +76,25 @@ function AuthorizedBanner({
     generation: 0,
   });
   const [controller] = useState(() =>
-    createBannerController(ADS_CONFIG.banner.retryBackoffMs, setState),
+    createBannerController(
+      ADS_CONFIG.banner.retryBackoffMs,
+      setState,
+      placement,
+    ),
   );
   useEffect(() => {
     controller.start();
     return () => controller.dispose();
   }, [controller]);
+  useEffect(() => {
+    if (!failed)
+      diag.record("request", {
+        format: "banner",
+        placement,
+        width: Math.max(1, width - 26),
+        attempt: generation + 1,
+      });
+  }, [generation, failed, placement, width]);
   if (failed || !mobileAdsSDK || !ADS_CONFIG.banner.enabled) return null;
   const { BannerAd, BannerAdSize } = mobileAdsSDK;
   return (
@@ -82,7 +117,19 @@ function AuthorizedBanner({
                   width={Math.max(1, width - 26)}
                   requestOptions={getRequestOptions()}
                   onAdLoaded={() => controller.loaded(generation)}
-                  onAdFailedToLoad={() => controller.failed(generation)}
+                  onAdFailedToLoad={(error) => {
+                    diag.error("banner", "load.failed", error, { placement });
+                    controller.failed(generation);
+                  }}
+                  onAdImpression={() =>
+                    diag.record("impression", { format: "banner", placement })
+                  }
+                  onAdOpened={() =>
+                    diag.record("opened", { format: "banner", placement })
+                  }
+                  onAdClosed={() =>
+                    diag.record("closed", { format: "banner", placement })
+                  }
                 />
               </View>
             )}
