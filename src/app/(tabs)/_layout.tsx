@@ -19,6 +19,15 @@ import { AppText as Text } from "../../components/ui/primitives";
 import { Colors, Fonts, NavigationColors, Radius } from "../../constants/theme";
 import { tabPresentation } from "../../lib/home-presentation";
 
+// Match the navigator's slot to our existing icon box. Its SDK default is 28px
+// tall; allowing a 32px child to overflow it collides with the label below.
+const ICON_FRAME = 32;
+const LABEL_LINE_HEIGHT = 18;
+const LABEL_GAP = 2;
+const ITEM_PADDING = 10; // Expo Router's vertical tab button has 5px per side.
+const ITEM_HEIGHT = ICON_FRAME + LABEL_GAP + LABEL_LINE_HEIGHT + ITEM_PADDING;
+const BAR_TOP_PADDING = 8;
+
 export default function TabsLayout() {
   const { width } = useWindowDimensions();
   const newCircular = useCircularBadge();
@@ -92,15 +101,28 @@ export default function TabsLayout() {
         tabBarActiveTintColor: Colors.primary,
         tabBarInactiveTintColor: Colors.muted,
         tabBarHideOnKeyboard: true,
-        tabBarItemStyle: { flex: 1, minHeight: 48, paddingHorizontal: 0 },
+        tabBarItemStyle: {
+          flex: 1,
+          minHeight: ITEM_HEIGHT,
+          paddingHorizontal: 0,
+        },
+        tabBarIconStyle: {
+          width: ICON_FRAME,
+          height: ICON_FRAME,
+          flexShrink: 0,
+        },
         tabBarLabelStyle: {
           fontSize: labelSize,
           fontFamily: Fonts.medium,
-          lineHeight: 14,
+          lineHeight: LABEL_LINE_HEIGHT,
         },
         tabBarStyle: {
-          height: (showLabels ? 64 : 56) + bottomPadding,
-          paddingTop: 8,
+          height:
+            ITEM_HEIGHT +
+            BAR_TOP_PADDING +
+            bottomPadding +
+            StyleSheet.hairlineWidth,
+          paddingTop: BAR_TOP_PADDING,
           paddingBottom: bottomPadding,
           backgroundColor: Colors.surface,
           borderTopColor: Colors.border,
@@ -139,13 +161,17 @@ export default function TabsLayout() {
 const styles = StyleSheet.create({
   label: {
     fontFamily: Fonts.medium,
-    lineHeight: 14,
+    lineHeight: LABEL_LINE_HEIGHT,
+    paddingTop: LABEL_GAP,
+    width: "100%",
+    textAlign: "center",
+    includeFontPadding: true,
     flexShrink: 0,
     marginBottom: 0,
   },
   icon: {
-    width: 32,
-    height: 32,
+    width: ICON_FRAME,
+    height: ICON_FRAME,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: Radius.sm,
