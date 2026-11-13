@@ -101,7 +101,7 @@ export function Icon({
       size={size}
       color={color}
       strokeWidth={1.5}
-      accessible={false}
+      aria-hidden
     />
   );
 }

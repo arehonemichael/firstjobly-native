@@ -14,9 +14,9 @@ import {
   View,
 } from "react-native";
 import { Icon as Ionicons } from "../../components/ui/icon";
-import { router } from "expo-router";
+import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useAuth } from "../../hooks/use-auth";
 import {
@@ -102,6 +102,42 @@ function has(value: unknown) {
 }
 
 export default function ProfileScreen() {
+  const { section } = useLocalSearchParams<{ section?: string }>();
+  const scrollRef = useRef<ScrollView>(null);
+  const anchors = useRef<Record<string, number>>({});
+  const target =
+    section === "work_experience"
+      ? "Work experience"
+      : section === "languages"
+        ? "Languages"
+        : ["highest_qualification", "field_of_study"].includes(section || "")
+          ? "Education"
+          : section
+            ? "Personal information"
+            : null;
+  const pendingScroll = useRef(true);
+  const scrollToSection = useCallback(() => {
+    if (
+      pendingScroll.current &&
+      target &&
+      anchors.current[target] !== undefined &&
+      scrollRef.current
+    ) {
+      scrollRef.current.scrollTo({
+        y: Math.max(0, anchors.current[target] - 12),
+        animated: false,
+      });
+      pendingScroll.current = false;
+    }
+  }, [target]);
+  useFocusEffect(
+    useCallback(() => {
+      pendingScroll.current = true;
+      const frame = requestAnimationFrame(scrollToSection);
+      return () => cancelAnimationFrame(frame);
+    }, [scrollToSection]),
+  );
+
   const bottomContentPadding = useScreenBottomPadding(true);
   const { user, loading, isAuthenticated } = useAuth();
 
@@ -273,6 +309,8 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={styles.page} edges={["top", "bottom"]}>
       <ScrollView
+        ref={scrollRef}
+        onContentSizeChange={scrollToSection}
         contentContainerStyle={[
           styles.content,
           { paddingBottom: bottomContentPadding },
@@ -280,7 +318,11 @@ export default function ProfileScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <Text style={styles.heading}>My profile</Text>
-        <TouchableOpacity onPress={()=>router.push("/preferences")}><Text style={{color:Colors.primaryPressed}}>Job preferences and learning controls</Text></TouchableOpacity>
+        <TouchableOpacity onPress={() => router.push("/preferences")}>
+          <Text style={{ color: Colors.primaryPressed }}>
+            Job preferences and learning controls
+          </Text>
+        </TouchableOpacity>
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>
@@ -304,47 +346,55 @@ export default function ProfileScreen() {
           </Text>
         </View>
 
-        <Section title="Personal information">
-          <Field
-            label="First name"
-            value={draft.first_name}
-            onChangeText={(v) => set("first_name", v)}
-          />
-          <Field
-            label="Last name"
-            value={draft.last_name}
-            onChangeText={(v) => set("last_name", v)}
-          />
-          <Field label="Email address" value={draft.email} editable={false} />
-          <Field
-            label="Phone number"
-            value={draft.phone}
-            onChangeText={(v) => set("phone", v)}
-            keyboardType="phone-pad"
-          />
-          <DateOfBirthField
-            value={draft.date_of_birth}
-            onChange={(v) => set("date_of_birth", v)}
-          />
-          <SingleSelectField
-            label="Province"
-            value={draft.province}
-            options={SOUTH_AFRICAN_PROVINCES}
-            placeholder="Select province"
-            onChange={(v) => set("province", v)}
-          />
-          <Field
-            label="City / town"
-            value={draft.city}
-            onChangeText={(v) => set("city", v)}
-          />
-          <Field
-            label="Residential address"
-            value={draft.address}
-            onChangeText={(v) => set("address", v)}
-            multiline
-          />
-        </Section>
+        <View
+          onLayout={(event) => {
+            anchors.current["Personal information"] =
+              event.nativeEvent.layout.y;
+            scrollToSection();
+          }}
+        >
+          <Section title="Personal information">
+            <Field
+              label="First name"
+              value={draft.first_name}
+              onChangeText={(v) => set("first_name", v)}
+            />
+            <Field
+              label="Last name"
+              value={draft.last_name}
+              onChangeText={(v) => set("last_name", v)}
+            />
+            <Field label="Email address" value={draft.email} editable={false} />
+            <Field
+              label="Phone number"
+              value={draft.phone}
+              onChangeText={(v) => set("phone", v)}
+              keyboardType="phone-pad"
+            />
+            <DateOfBirthField
+              value={draft.date_of_birth}
+              onChange={(v) => set("date_of_birth", v)}
+            />
+            <SingleSelectField
+              label="Province"
+              value={draft.province}
+              options={SOUTH_AFRICAN_PROVINCES}
+              placeholder="Select province"
+              onChange={(v) => set("province", v)}
+            />
+            <Field
+              label="City / town"
+              value={draft.city}
+              onChangeText={(v) => set("city", v)}
+            />
+            <Field
+              label="Residential address"
+              value={draft.address}
+              onChangeText={(v) => set("address", v)}
+              multiline
+            />
+          </Section>
+        </View>
 
         <Section title="Professional summary">
           <Field
@@ -355,41 +405,55 @@ export default function ProfileScreen() {
           />
         </Section>
 
-        <Section title="Education">
-          <SingleSelectField
-            label="Highest qualification"
-            value={draft.highest_qualification}
-            options={QUALIFICATIONS}
-            placeholder="Select qualification"
-            onChange={(v) => set("highest_qualification", v)}
-          />
-          <Field
-            label="Institution"
-            value={draft.institution}
-            onChangeText={(v) => set("institution", v)}
-          />
-          <Field
-            label="Field of study"
-            value={draft.field_of_study}
-            onChangeText={(v) => set("field_of_study", v)}
-          />
-          <YearCompletedField
-            value={draft.year_completed}
-            onChange={(v) => set("year_completed", v)}
-          />
-          <Toggle
-            label="Currently studying"
-            value={draft.currently_studying}
-            onValueChange={(v) => set("currently_studying", v)}
-          />
-        </Section>
+        <View
+          onLayout={(event) => {
+            anchors.current["Education"] = event.nativeEvent.layout.y;
+            scrollToSection();
+          }}
+        >
+          <Section title="Education">
+            <SingleSelectField
+              label="Highest qualification"
+              value={draft.highest_qualification}
+              options={QUALIFICATIONS}
+              placeholder="Select qualification"
+              onChange={(v) => set("highest_qualification", v)}
+            />
+            <Field
+              label="Institution"
+              value={draft.institution}
+              onChangeText={(v) => set("institution", v)}
+            />
+            <Field
+              label="Field of study"
+              value={draft.field_of_study}
+              onChangeText={(v) => set("field_of_study", v)}
+            />
+            <YearCompletedField
+              value={draft.year_completed}
+              onChange={(v) => set("year_completed", v)}
+            />
+            <Toggle
+              label="Currently studying"
+              value={draft.currently_studying}
+              onValueChange={(v) => set("currently_studying", v)}
+            />
+          </Section>
+        </View>
 
-        <Section title="Work experience">
-          <WorkExperienceSection
-            userId={user.id}
-            onChanged={onExperienceChanged}
-          />
-        </Section>
+        <View
+          onLayout={(event) => {
+            anchors.current["Work experience"] = event.nativeEvent.layout.y;
+            scrollToSection();
+          }}
+        >
+          <Section title="Work experience">
+            <WorkExperienceSection
+              userId={user.id}
+              onChanged={onExperienceChanged}
+            />
+          </Section>
+        </View>
 
         <Section title="Skills">
           <Field
@@ -402,15 +466,22 @@ export default function ProfileScreen() {
           <Text style={styles.helper}>Separate skills with commas.</Text>
         </Section>
 
-        <Section title="Languages">
-          <MultiSelectField
-            label="Languages"
-            value={draft.languages}
-            options={SOUTH_AFRICAN_LANGUAGES}
-            placeholder="Select languages"
-            onChange={(v) => set("languages", v)}
-          />
-        </Section>
+        <View
+          onLayout={(event) => {
+            anchors.current["Languages"] = event.nativeEvent.layout.y;
+            scrollToSection();
+          }}
+        >
+          <Section title="Languages">
+            <MultiSelectField
+              label="Languages"
+              value={draft.languages}
+              options={SOUTH_AFRICAN_LANGUAGES}
+              placeholder="Select languages"
+              onChange={(v) => set("languages", v)}
+            />
+          </Section>
+        </View>
 
         <Section title="Employment preferences">
           <Field

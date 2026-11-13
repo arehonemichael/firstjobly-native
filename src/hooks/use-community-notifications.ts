@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { Linking } from "react-native";
 import { router, useRootNavigationState, type Href } from "expo-router";
 import { isExpoGo } from "../lib/runtime-environment";
-import { communityDestination } from "../lib/community/links";
+import { notificationDestination } from "../lib/circular/links";
 import { signalUserInteraction } from "../lib/user-interaction";
 const consumed = new Set<string>();
 /** Handles the audit's notification link field. Registration, delivery and
@@ -26,8 +26,8 @@ export function useCommunityNotifications() {
               notifications.DEFAULT_ACTION_IDENTIFIER
           )
             return;
-          const destination = communityDestination(
-            response.notification.request.content.data?.link,
+          const destination = notificationDestination(
+            response.notification.request.content.data,
           );
           const id = response.notification.request.identifier;
           if (!destination || consumed.has(id)) return;

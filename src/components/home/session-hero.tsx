@@ -70,7 +70,7 @@ function HeroCard({ content }: { content: HomeHeroContent }) {
             size={18}
             strokeWidth={1.5}
             color={Colors.foreground}
-            accessible={false}
+            aria-hidden
           />
         </Pressable>
       </View>

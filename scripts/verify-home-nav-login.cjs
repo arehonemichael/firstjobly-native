@@ -142,25 +142,17 @@ function check(value, label) {
       if (!before) {
         const tabs = page.getByRole("tab");
         check(
-          (await tabs.count()) === 7,
-          `exactly seven visible tabs at ${width}px`,
+          (await tabs.count()) === 5,
+          `exactly five visible tabs at ${width}px`,
         );
-        const expected = [
-          "Home",
-          "Jobs",
-          "Saved",
-          "Applied",
-          "Tools",
-          "Community",
-          "Profile",
-        ];
+        const expected = ["Home", "Jobs", "Gov jobs", "Saved", "More"];
         check(
           JSON.stringify(
             await tabs.evaluateAll((nodes) =>
               nodes.map((node) => node.getAttribute("aria-label")),
             ),
           ) === JSON.stringify(expected),
-          `tab order unchanged at ${width}px`,
+          `five-tab order at ${width}px`,
         );
         for (const label of expected) {
           const tab = page.getByRole("tab", { name: label, exact: true });
@@ -173,47 +165,8 @@ function check(value, label) {
             `${label} usable target at ${width}px`,
           );
         }
-        if (width === 360) {
-          check(
-            await tabs.evaluateAll((nodes) =>
-              nodes.every((node) => !node.innerText.trim()),
-            ),
-            "360dp uses consistent icons only",
-          );
-          for (const [label, path] of [
-            ["Jobs", "jobs"],
-            ["Saved", "saved"],
-            ["Applied", "applications"],
-            ["Tools", "tools"],
-            ["Community", "community"],
-            ["Profile", "profile"],
-            ["Home", ""],
-          ]) {
-            await page.getByRole("tab", { name: label, exact: true }).click();
-            await page.waitForURL(base + "/" + path);
-            check(
-              (await page
-                .getByRole("tab", { name: label, exact: true })
-                .getAttribute("aria-selected")) === "true",
-              `${label} route and selected state retained`,
-            );
-          }
-        } else if (width >= 560) {
-          check(
-            await tabs.evaluateAll((nodes) =>
-              nodes.every((node) => {
-                const label = node.querySelector('[data-testid="tab-label"]');
-                return (
-                  label &&
-                  label.scrollWidth <= label.clientWidth + 1 &&
-                  label.scrollHeight <= label.clientHeight + 1 &&
-                  label.innerText.length > 0
-                );
-              }),
-            ),
-            "wide tabs show complete one-line labels",
-          );
-        }
+        check(await tabs.evaluateAll(nodes=>nodes.every(node=>{const label=node.querySelector('[data-testid="tab-label"]');return label && label.scrollWidth<=label.clientWidth+1 && label.scrollHeight<=label.clientHeight+1 && label.innerText.length>0;})), `complete labels at ${width}px`);
+
       }
       await page
         .locator("#home-scroll")

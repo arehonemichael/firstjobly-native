@@ -599,6 +599,7 @@ test("notification listener routes audited links once, skips explicit job launch
       },
     };
     const { communityDestination } = load("src/lib/community/links.ts");
+    const {notificationDestination}=load("src/lib/circular/links.ts",{"../community/links":{communityDestination}});
     const { useCommunityNotifications: renderNotificationHook } = load(
       "src/hooks/use-community-notifications.ts",
       {
@@ -617,7 +618,7 @@ test("notification listener routes audited links once, skips explicit job launch
           useRootNavigationState: () => ({ key: "root" }),
         },
         "../lib/runtime-environment": { isExpoGo: false },
-        "../lib/community/links": { communityDestination },
+        "../lib/circular/links": { notificationDestination },
         "../lib/user-interaction": { signalUserInteraction() {} },
         "expo-notifications": sdk,
       },
@@ -673,7 +674,7 @@ test("Expo Go never evaluates the native notification SDK", async () => {
       "react-native": {},
       "expo-router": { useRootNavigationState: () => ({ key: "root" }) },
       "../lib/runtime-environment": { isExpoGo: true },
-      "../lib/community/links": {},
+      "../lib/circular/links": {},
       "../lib/user-interaction": {},
     },
   );
