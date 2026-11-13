@@ -150,12 +150,14 @@ export function createInterstitialManager(
     }
     opens++;
     prepare();
+    const requiredOpens =
+      shownThisSession === 0 ? policy.firstJobOpen : policy.everyNthJobOpen;
     if (
       !policy.enabled ||
       !port?.permitted() ||
       !loaded ||
       !ad ||
-      opens < policy.everyNthJobOpen ||
+      opens < requiredOpens ||
       shownThisSession >= policy.maxPerSession ||
       (lastShownAt !== null && Date.now() - lastShownAt < policy.cooldownMs) ||
       !lock.tryAcquire(owner)
@@ -170,7 +172,7 @@ export function createInterstitialManager(
               ? "consent"
               : !loaded || !ad
                 ? "not-loaded"
-                : opens < policy.everyNthJobOpen
+                : opens < requiredOpens
                   ? "cadence"
                   : shownThisSession >= policy.maxPerSession
                     ? "session-cap"

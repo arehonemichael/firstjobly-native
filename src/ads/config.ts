@@ -23,6 +23,7 @@ export const AD_UNITS = {
 export const ADS_CONFIG = {
   interstitial: {
     enabled: true,
+    firstJobOpen: 1,
     everyNthJobOpen: 3,
     cooldownMs: 240000,
     maxPerSession: 4,

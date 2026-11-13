@@ -331,10 +331,10 @@ function interstitial(t, override = {}) {
     },
   };
 }
-function third(f, proceed) {
+function firstEligible(f, proceed) {
   f.ads[0].emit("loaded");
-  f.manager.onJobOpen(() => {});
-  f.manager.onJobOpen(() => {});
+  for (let i = 1; i < ADS_CONFIG.interstitial.firstJobOpen; i++)
+    f.manager.onJobOpen(() => {});
   f.manager.onJobOpen(proceed);
 }
 for (const event of [
@@ -350,7 +350,7 @@ for (const event of [
     let proceeds = 0;
     if (event === "rejected") f.ads[0].reject = true;
     if (event === "throw") f.ads[0].throws = true;
-    third(f, () => proceeds++);
+    firstEligible(f, () => proceeds++);
     if (event === "safety-timeout") f.ads[0].emit("opened");
     if (event === "closed" || event === "error") {
       f.ads[0].emit("opened");
@@ -370,7 +370,7 @@ for (const event of [
     assert.equal(f.ads.length, 2, "next inventory is preloaded");
   });
 }
-test("interstitial waits for the third open, skips unloaded taps without consuming the opportunity", (t) => {
+test("unloaded job taps proceed without consuming the first eligible interstitial opportunity", (t) => {
   const f = interstitial(t);
   let proceeds = 0;
   for (let i = 0; i < 3; i++) f.manager.onJobOpen(() => proceeds++);
@@ -386,13 +386,26 @@ test("interstitial waits for the third open, skips unloaded taps without consumi
   f.ads[0].emit("closed");
   assert.equal(proceeds, 4);
 });
-test("no interstitial on the first two opens even when already loaded", (t) => {
+test("first job tap is eligible, then three further taps are needed after an opened ad", (t) => {
   const f = interstitial(t);
   let proceeds = 0;
   f.ads[0].emit("loaded");
+  f.manager.onJobOpen(() => proceeds++);
+  assert.equal(f.ads[0].shows, 1);
+  assert.equal(proceeds, 0);
+  f.ads[0].emit("opened");
+  f.ads[0].emit("closed");
+  assert.equal(proceeds, 1);
+  t.mock.timers.tick(ADS_CONFIG.interstitial.cooldownMs);
+  f.ads[1].emit("loaded");
   for (let i = 0; i < 2; i++) f.manager.onJobOpen(() => proceeds++);
-  assert.equal(proceeds, 2);
-  assert.equal(f.ads[0].shows, 0);
+  assert.equal(f.ads[1].shows, 0);
+  assert.equal(proceeds, 3);
+  f.manager.onJobOpen(() => proceeds++);
+  assert.equal(f.ads[1].shows, 1);
+  f.ads[1].emit("opened");
+  f.ads[1].emit("closed");
+  assert.equal(proceeds, 4);
 });
 test("interstitial cooldown and four-per-session cap are enforced on OPENED", (t) => {
   const f = interstitial(t);
@@ -415,13 +428,13 @@ test("interstitial cooldown and four-per-session cap are enforced on OPENED", (t
     4,
   );
   assert.equal(f.manager._test.state().shownThisSession, 4);
-  assert.equal(proceeds, 38); // Six extra taps during presentation are deliberately ignored.
+  assert.equal(proceeds, 36); // Eight extra taps during presentation are deliberately ignored.
 });
 test("interstitial respects another format's lock and the gap after release", (t) => {
   const f = interstitial(t);
   let proceeds = 0;
   f.lock.tryAcquire("app-open");
-  third(f, () => proceeds++);
+  firstEligible(f, () => proceeds++);
   assert.equal(proceeds, 1);
   assert.equal(f.ads[0].shows, 0);
   f.lock.release("app-open");
@@ -439,7 +452,7 @@ test("rapid second tap is ignored until the first navigation completes", (t) => 
   const f = interstitial(t);
   let first = 0,
     second = 0;
-  third(f, () => first++);
+  firstEligible(f, () => first++);
   f.manager.onJobOpen(() => second++);
   f.ads[0].emit("opened");
   f.ads[0].emit("closed");
@@ -468,7 +481,7 @@ test("interstitial load retry backoff is bounded and the next prepare resumes af
 test("consent withdrawal releases pending navigation, discards ads and stops retry requests", (t) => {
   const f = interstitial(t);
   let proceeds = 0;
-  third(f, () => proceeds++);
+  firstEligible(f, () => proceeds++);
   f.deny();
   assert.equal(proceeds, 1);
   assert.equal(f.lock.isHeld(), false);
@@ -1057,4 +1070,32 @@ test("UNKNOWN without permission still needs a form and cannot initialize if unr
   assert.equal(p.calls.form, 1);
   assert.equal(p.calls.initialize, 0);
   assert.equal(p.control.getSnapshot().canRequestAds, false);
+});
+
+test("an unloaded first tap proceeds and the next ready tap keeps the first-ad opportunity", (t) => {
+  const f = interstitial(t);
+  let proceeds = 0;
+  f.manager.onJobOpen(() => proceeds++);
+  assert.equal(proceeds, 1);
+  assert.equal(f.ads[0].shows, 0);
+  f.ads[0].emit("loaded");
+  f.manager.onJobOpen(() => proceeds++);
+  assert.equal(f.ads[0].shows, 1);
+  assert.equal(proceeds, 1);
+  f.ads[0].emit("opened");
+  f.ads[0].emit("closed");
+  assert.equal(proceeds, 2);
+});
+test("first-job threshold can be raised independently without changing the repeat cadence", (t) => {
+  const f = interstitial(t, { firstJobOpen: 3 });
+  let proceeds = 0;
+  f.ads[0].emit("loaded");
+  for (let i = 0; i < 2; i++) f.manager.onJobOpen(() => proceeds++);
+  assert.equal(f.ads[0].shows, 0);
+  assert.equal(proceeds, 2);
+  f.manager.onJobOpen(() => proceeds++);
+  assert.equal(f.ads[0].shows, 1);
+  f.ads[0].emit("opened");
+  f.ads[0].emit("closed");
+  assert.equal(proceeds, 3);
 });
