@@ -237,7 +237,7 @@ export function CircularNavigation({ state, navigation }: TabBarProps) {
                 : NavigationColors.foreground
             }
           />
-          {radial && selected && (
+          {selected && (
             <View style={styles.selectedMark}>
               <Check
                 strokeWidth={1.5}
@@ -248,29 +248,37 @@ export function CircularNavigation({ state, navigation }: TabBarProps) {
             </View>
           )}
         </View>
-        <Text
-          style={[
-            styles.label,
-            radial && styles.radialLabel,
-            selected && styles.activeLabel,
-            radial && selected && styles.activeRadialLabel,
-          ]}
-        >
-          {item.label}
-        </Text>
+        {(!radial || !layout.iconOnly) && (
+          <Text
+            style={[
+              styles.label,
+              radial && styles.radialLabel,
+              selected && styles.activeLabel,
+              radial && selected && styles.activeRadialLabel,
+            ]}
+          >
+            {item.label}
+          </Text>
+        )}
       </Pressable>
     );
   }
   if (desktop)
     return (
-      <View
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator
         nativeID="desktop-navigation"
         accessibilityRole="tablist"
         accessibilityLabel="Main navigation"
-        style={[styles.desktop, { paddingTop: Math.max(insets.top, Space.md) }]}
+        style={{ flexGrow: 0 }}
+        contentContainerStyle={[
+          styles.desktop,
+          { paddingTop: Math.max(insets.top, Space.md) },
+        ]}
       >
         {visible.map((item, index) => itemControl(item, index, false))}
-      </View>
+      </ScrollView>
     );
   if (keyboard) return null;
   return (
@@ -298,19 +306,33 @@ export function CircularNavigation({ state, navigation }: TabBarProps) {
               pressed && styles.pressed,
             ]}
           >
-            <Home
-              strokeWidth={1.5}
-              aria-hidden
-              size={18}
-              color={
-                active === "index" ? Colors.primaryPressed : Colors.foreground
-              }
-            />
-            <Text
-              style={[styles.label, active === "index" && styles.activeLabel]}
-            >
-              Home
-            </Text>
+            <View style={styles.dockIcon}>
+              <Home
+                strokeWidth={1.5}
+                aria-hidden
+                size={18}
+                color={
+                  active === "index" ? Colors.primaryPressed : Colors.foreground
+                }
+              />
+              {active === "index" && (
+                <View
+                  style={[
+                    styles.selectedMark,
+                    { width: 12, height: 12, right: -3, top: -3 },
+                  ]}
+                >
+                  <Check size={8} color={Colors.surface} aria-hidden />
+                </View>
+              )}
+            </View>
+            {!layout.iconOnly && (
+              <Text
+                style={[styles.label, active === "index" && styles.activeLabel]}
+              >
+                Home
+              </Text>
+            )}
           </Pressable>
           <Pressable
             accessibilityRole="button"
@@ -342,9 +364,7 @@ export function CircularNavigation({ state, navigation }: TabBarProps) {
                 color={Colors.surface}
               />
             </View>
-            <Text numberOfLines={1} style={styles.label}>
-              Menu
-            </Text>
+            {!layout.iconOnly && <Text style={styles.label}>Menu</Text>}
           </Pressable>
         </View>
       </View>
@@ -429,8 +449,15 @@ export function CircularNavigation({ state, navigation }: TabBarProps) {
                     size={18}
                     color={Colors.primaryPressed}
                   />
+                  {active === "index" && (
+                    <View style={styles.selectedMark}>
+                      <Check size={10} color={Colors.surface} aria-hidden />
+                    </View>
+                  )}
                 </View>
-                <Text style={styles.radialLabel}>Home</Text>
+                {!layout.iconOnly && (
+                  <Text style={styles.radialLabel}>Home</Text>
+                )}
               </Pressable>
               <Pressable
                 nativeID="close-navigation"
@@ -450,7 +477,9 @@ export function CircularNavigation({ state, navigation }: TabBarProps) {
                     color={Colors.surface}
                   />
                 </View>
-                <Text style={styles.radialLabel}>Close</Text>
+                {!layout.iconOnly && (
+                  <Text style={styles.radialLabel}>Close</Text>
+                )}
               </Pressable>
             </View>
           </Animated.View>
@@ -473,13 +502,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 4,
     width: "100%",
-    maxWidth: 240,
+    maxWidth: 280,
     backgroundColor: Colors.surface,
     borderRadius: Radius.pill,
     borderWidth: 1,
     borderColor: Colors.border,
   },
   home: {
+    borderWidth: 1,
+    borderColor: "transparent",
     minHeight: 50,
     flex: 1,
     flexDirection: "row",
@@ -490,13 +521,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: Space.md,
   },
   menu: {
+    borderWidth: 1,
+    borderColor: "transparent",
     minHeight: 50,
     flex: 1,
     flexDirection: "row",
     gap: Space.sm,
     alignItems: "center",
+    justifyContent: "center",
     paddingHorizontal: Space.sm,
     borderRadius: Radius.pill,
+  },
+  dockIcon: {
+    width: 24,
+    height: 24,
+    flexShrink: 0,
+    justifyContent: "center",
+    alignItems: "center",
   },
   menuCircle: {
     width: 38,
@@ -510,18 +551,19 @@ const styles = StyleSheet.create({
     padding: Space.md,
     gap: Space.xs,
     flexDirection: "row",
-    flexWrap: "wrap",
+    flexGrow: 1,
     justifyContent: "center",
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
     backgroundColor: Colors.surface,
   },
   desktopItem: {
+    borderWidth: 1,
+    borderColor: "transparent",
     minHeight: 48,
-    maxWidth: 220,
-    minWidth: 124,
-    flexBasis: 124,
+    minWidth: 144,
     flexGrow: 1,
+    flexShrink: 0,
     paddingVertical: Space.sm,
     flexDirection: "row",
     gap: Space.sm,
@@ -538,8 +580,8 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 12,
-    fontFamily: Fonts.medium,
-    flexShrink: 1,
+    fontFamily: Fonts.semibold,
+    flexShrink: 0,
     color: Colors.foreground,
   },
   activeLabel: {
@@ -551,6 +593,7 @@ const styles = StyleSheet.create({
   pressed: {
     backgroundColor: NavigationColors.selectedSurface,
     borderColor: NavigationColors.pressed,
+    borderWidth: 1,
   },
   feedback: { opacity: 0.76 },
   overlay: {
@@ -574,6 +617,8 @@ const styles = StyleSheet.create({
   },
 
   radialItem: {
+    borderWidth: 1,
+    borderColor: "transparent",
     position: "absolute",
     alignItems: "center",
     gap: 8,
@@ -605,7 +650,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   radialLabel: {
-    fontFamily: Fonts.medium,
+    fontFamily: Fonts.semibold,
     fontSize: 12,
     lineHeight: 20,
     maxWidth: "100%",
@@ -628,6 +673,8 @@ const styles = StyleSheet.create({
     paddingTop: Space.sm,
   },
   close: {
+    borderWidth: 1,
+    borderColor: "transparent",
     width: 76,
     minHeight: 82,
     alignItems: "center",
@@ -643,6 +690,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   footerHome: {
+    borderWidth: 1,
+    borderColor: "transparent",
     width: 76,
     minHeight: 78,
     alignItems: "center",

@@ -392,7 +392,7 @@ function check(value, label) {
       );
     }
     if (variant === "incomplete") {
-      await page.getByRole("progressbar").waitFor();
+      await page.getByRole("progressbar", { name: "Profile completion" }).waitFor();
       const value = Number(
         await page
           .getByRole("progressbar", { name: "Profile completion" })
@@ -410,7 +410,7 @@ function check(value, label) {
         .getByText("Some of your overview couldn’t load.", { exact: true })
         .waitFor();
       check(
-        (await page.getByRole("progressbar").count()) === 0,
+        (await page.getByRole("progressbar", { name: "Profile completion" }).count()) === 0,
         "failed profile has no fabricated completion",
       );
     }

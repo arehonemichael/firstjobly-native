@@ -17,7 +17,7 @@ test('normal login defaults to Home', () => {
   for (const value of [undefined, '', [], '/auth', '/unknown']) assert.equal(authDestination(value), '/');
 });
 test('existing destinations and job return links survive sign-in', () => {
-  for (const value of ['/jobs/real-job-id', '/saved', '/applications', '/profile', '/cv-maker', '/z83', '/tools', '/community', '/community/new', '/community/post-id', '/(tabs)/community', '/graduateroom/new', '/graduateroom/verify', '/graduateroom/post-id', '/(tabs)/jobs?province=Gauteng', '/jobs?q=Developer']) assert.equal(authDestination(value), value);
+  for (const value of ['/jobs/real-job-id', '/saved', '/applications', '/profile', '/cv-maker', '/z83', '/tools', '/hot-jobs', '/community', '/community/new', '/community/post-id', '/(tabs)/community', '/graduateroom/new', '/graduateroom/verify', '/graduateroom/post-id', '/(tabs)/jobs?province=Gauteng', '/jobs?q=Developer']) assert.equal(authDestination(value), value);
   assert.equal(authDestination(['/jobs/job-id', '/profile']), '/jobs/job-id');
 });
 test('external URLs, malformed paths, and auth loops fall back to Home', () => {

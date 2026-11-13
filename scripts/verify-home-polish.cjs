@@ -176,6 +176,42 @@ function check(v, label) {
       `missing/broken logos show company initials at ${width}px`,
     );
     check(broken === 1, `broken image is requested once at ${width}px`);
+    const spans = await page.getByTestId("brand-wordmark").evaluate((el) => {
+      const first = el.querySelector('[data-testid="brand-first"]'),
+        last = el.querySelector('[data-testid="brand-jobly"]');
+      const a = first.getBoundingClientRect(),
+        b = last.getBoundingClientRect(),
+        outer = el.getBoundingClientRect();
+      const walker = document.createTreeWalker(last, NodeFilter.SHOW_TEXT);
+      let node, final;
+      while ((node = walker.nextNode())) final = node;
+      const range = document.createRange();
+      range.setStart(final, final.length - 1);
+      range.setEnd(final, final.length);
+      const y = range.getBoundingClientRect();
+      return {
+        first: getComputedStyle(first).color,
+        last: getComputedStyle(last).color,
+        sameFont:
+          getComputedStyle(first).fontFamily ===
+          getComputedStyle(last).fontFamily,
+        sameBaseline: Math.abs(a.y - b.y) < 1,
+        noGap: Math.abs(a.right - b.x) < 1,
+        completeY:
+          y.right <= outer.right - 1 &&
+          y.bottom <= outer.bottom + 1 &&
+          final.textContent.endsWith("y"),
+      };
+    });
+    check(
+      spans.first === "rgb(225, 34, 95)" && spans.last === "rgb(6, 26, 48)",
+      `exact two-colour brand at ${width}px`,
+    );
+    check(
+      spans.sameFont && spans.sameBaseline && spans.noGap,
+      `single font, baseline and uninterrupted wordmark at ${width}px`,
+    );
+    check(spans.completeY, `final y has reserved ink space at ${width}px`);
     const face = await brand.evaluate((el) => getComputedStyle(el).fontFamily);
     check(
       face.includes("PlusJakartaSans_600SemiBold") &&

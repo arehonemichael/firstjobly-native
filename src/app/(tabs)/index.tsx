@@ -1,3 +1,5 @@
+import { HotJobsSection } from "../../components/home/hot-jobs";
+import { BrandWordmark } from "../../components/brand-wordmark";
 import { useRecommendations } from "../../hooks/use-recommendations";
 import { RecommendationControls } from "../../components/recommendations/controls";
 import { JobFeedback } from "../../components/recommendations/job-feedback";
@@ -10,7 +12,7 @@ import { RecommendationSkeleton } from "../../components/home/recommendation-ske
 import { HomeSessionHero } from "../../components/home/session-hero";
 import { useState } from "react";
 import { Image } from "expo-image";
-import { ActivityIndicator, ScrollView, StyleSheet, View } from "react-native";
+import { ActivityIndicator, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import {
@@ -57,6 +59,7 @@ const categories = [
 ];
 
 export default function HomeScreen() {
+  const { width } = useWindowDimensions();
   const { user, userId, loading: authLoading } = useAuth();
   const { summary, loading: summaryLoading, retry } = useHomeSummary(userId);
   const {
@@ -251,9 +254,7 @@ export default function HomeScreen() {
               style={styles.brandIcon}
               contentFit="contain"
             />
-            <Text accessibilityLabel="FirstJobly" style={styles.wordmark}>
-              FirstJobly
-            </Text>
+            <BrandWordmark availableWidth={Math.min(width, Layout.reading) - Space.lg * 2} />
           </View>
           <View style={styles.headerActions}>
             <Pressable
@@ -649,6 +650,7 @@ export default function HomeScreen() {
             </Pressable>
           ))}
         </View>
+        <HotJobsSection onOpen={openJob} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -680,14 +682,6 @@ const styles = StyleSheet.create({
     maxWidth: "100%",
   },
   brandIcon: { width: 30, height: 30, borderRadius: 9 },
-  wordmark: {
-    fontFamily: Fonts.bold,
-    fontSize: 18,
-    lineHeight: 26,
-    flexShrink: 0,
-    letterSpacing: 0,
-    color: Colors.foreground,
-  },
   headerActions: { flexDirection: "row", gap: 2 },
   headerButton: {
     minWidth: 44,
