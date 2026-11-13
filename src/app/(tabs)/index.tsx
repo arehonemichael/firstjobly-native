@@ -9,9 +9,11 @@ import type {
   RankedJob,
 } from "../../lib/recommendations/contracts";
 import { AdBanner } from "../../ads/AdBanner";
+import { NativeAdBlock } from "../../ads/NativeAdBlock";
+import { shouldInsertNative } from "../../ads/config";
 import { RecommendationSkeleton } from "../../components/home/recommendation-skeleton";
 import { HomeSessionHero } from "../../components/home/session-hero";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { Image } from "expo-image";
 import {
   ActivityIndicator,
@@ -588,7 +590,12 @@ export default function HomeScreen() {
                 {error}
               </Text>
             )}
-            {jobs.slice(0, 6).map((row, index) => jobCard(row, index === 0))}
+            {jobs.slice(0, 6).map((row, index) => (
+              <Fragment key={row.job.id}>
+                {jobCard(row, index === 0)}
+                {shouldInsertNative(index) && <NativeAdBlock variant="feed" />}
+              </Fragment>
+            ))}
             <Pressable onPress={() => router.push("/discover")}>
               <Text style={styles.link}>See more opportunities</Text>
             </Pressable>

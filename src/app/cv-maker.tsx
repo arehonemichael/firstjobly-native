@@ -4,7 +4,7 @@ import {
   AppTouchableOpacity as TouchableOpacity,
 } from "../components/ui/primitives";
 import { Colors, Fonts } from "../constants/theme";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -22,6 +22,7 @@ import * as Print from "expo-print";
 import { useAuth } from "../hooks/use-auth";
 import { supabase } from "../lib/supabase";
 import { generateCvText } from "../lib/cv-ai";
+import { useRewardedDownload } from "../ads/useRewardedDownload";
 import { savePdfToDownloads } from "../lib/save-pdf";
 import {
   TEMPLATE_LIST,
@@ -42,6 +43,9 @@ const STORAGE_KEY = "firstjobly.cv.draft.v1";
 const TEMPLATE_KEY = "firstjobly.cv.template.v1";
 
 export default function CvMakerScreen() {
+  const { beforeDownload, canOfferAd, completeDownload } =
+    useRewardedDownload();
+  const downloadLock = useRef(false);
   const bottomContentPadding = useScreenBottomPadding(false);
   const { userId, isAuthenticated } = useAuth();
   const [data, setData] = useState<CvData>(() => emptyCv());
@@ -204,13 +208,16 @@ export default function CvMakerScreen() {
   }
 
   async function createPdf() {
+    if (downloadLock.current) return;
     if (!data.firstName.trim() && !data.lastName.trim()) {
       Alert.alert("CV Maker", "Add your name first.");
       return;
     }
 
+    downloadLock.current = true;
     setBusy(true);
     try {
+      if (!(await beforeDownload())) return;
       const result = await Print.printToFileAsync({
         html: cvHtml(data, templateId),
         base64: false,
@@ -218,6 +225,7 @@ export default function CvMakerScreen() {
 
       const fileName = `${fileBase(data)}.pdf`;
       await savePdfToDownloads(result.uri, fileName);
+      completeDownload();
 
       Alert.alert(
         "Downloaded",
@@ -237,6 +245,7 @@ export default function CvMakerScreen() {
         Alert.alert("CV Maker", "Could not download the PDF.");
       }
     } finally {
+      downloadLock.current = false;
       setBusy(false);
     }
   }
@@ -770,10 +779,19 @@ export default function CvMakerScreen() {
                 size={18}
                 color={Colors.surface}
               />
-              <Text style={s.primaryText}>Download PDF</Text>
+              <Text style={s.primaryText}>
+                {canOfferAd ? "Watch ad & download PDF" : "Download PDF"}
+              </Text>
             </>
           )}
         </TouchableOpacity>
+
+        {canOfferAd && (
+          <Text style={s.adHelp}>
+            Finish the ad to download. If no ad is available, your download
+            continues without one.
+          </Text>
+        )}
 
         <TouchableOpacity
           style={s.clear}
@@ -1111,7 +1129,9 @@ const s = StyleSheet.create({
     fontWeight: "500",
   },
   primary: {
-    height: 54,
+    minHeight: 54,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
     borderRadius: 11,
     backgroundColor: Colors.primary,
     flexDirection: "row",
@@ -1120,7 +1140,10 @@ const s = StyleSheet.create({
     justifyContent: "center",
     marginTop: 8,
   },
+  adHelp: { fontSize: 12, lineHeight: 18, color: Colors.muted, marginTop: 8 },
   primaryText: {
+    flexShrink: 1,
+    textAlign: "center",
     color: Colors.surface,
     fontFamily: Fonts.medium,
     fontWeight: "500",

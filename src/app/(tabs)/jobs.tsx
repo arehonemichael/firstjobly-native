@@ -25,6 +25,7 @@ import { getSearchJobs } from "../../lib/job-api";
 import { useScreenBottomPadding } from "../../hooks/use-screen-bottom-padding";
 import { EmptyState } from "../../components/ui/app-ui";
 import { JobListSkeleton } from "../../components/ui/skeleton";
+import { shouldInsertNative } from "../../ads/config";
 import { NativeAdBlock } from "../../ads/NativeAdBlock";
 import { useEarlyJobInterstitial } from "../../ads/useJobInterstitial";
 import type { Job } from "../../lib/jobs";
@@ -261,9 +262,7 @@ export default function JobsScreen() {
 
   const renderJob = useCallback(
     ({ item, index }: { item: Job; index: number }) => {
-      const jobNumber = index + 1;
-      const showNativeAd =
-        jobNumber === 6 || (jobNumber > 6 && (jobNumber - 6) % 8 === 0);
+      const showNativeAd = shouldInsertNative(index);
 
       return (
         <>

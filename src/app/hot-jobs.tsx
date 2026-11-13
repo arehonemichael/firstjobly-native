@@ -9,6 +9,7 @@ import { JobCard } from "../components/ui/job-card";
 import { EmptyState, InlineErrorState } from "../components/ui/app-ui";
 import { useHotJobs } from "../hooks/use-hot-jobs";
 import { Colors, Fonts, Layout } from "../constants/theme";
+import { AdBanner } from "../ads/AdBanner";
 import { useEarlyJobInterstitial } from "../ads/useJobInterstitial";
 export default function HotJobsScreen() {
   const { jobs, loading, error, reload } = useHotJobs();
@@ -63,6 +64,7 @@ export default function HotJobsScreen() {
             }
           />
         )}
+        ListFooterComponent={<AdBanner placement="hot" />}
         ListEmptyComponent={
           !loading && !error ? (
             <EmptyState

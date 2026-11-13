@@ -1,12 +1,15 @@
+import { adDiagnostics as diag } from "./diagnostics";
 import { AppText as Text } from "../components/ui/primitives";
 import { Colors } from "../constants/theme";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Image, StyleSheet, View } from "react-native";
 import type { NativeAd as NativeAdInstance } from "react-native-google-mobile-ads";
-import { useAdsConsent } from "./privacy";
+import { getRequestOptions, useAdsConsent } from "./privacy";
 import { mobileAdsSDK } from "./sdk";
 
-import { AD_UNITS } from "./config";
+import { ADS_CONFIG, AD_UNITS } from "./config";
+
+import { createAdRecovery, loadNativeWithTimeout } from "./recovery";
 
 type NativeAdBlockProps = {
   variant?: "detail" | "feed";
@@ -14,39 +17,115 @@ type NativeAdBlockProps = {
 
 export function NativeAdBlock(props: NativeAdBlockProps) {
   const consent = useAdsConsent();
-  return consent.canRequestAds && mobileAdsSDK ? (
-    <AuthorizedNativeAd {...props} />
+  const enabled =
+    props.variant === "feed"
+      ? ADS_CONFIG.native.feedEnabled
+      : ADS_CONFIG.native.detailEnabled;
+  useEffect(() => {
+    diag.record("placement", {
+      format: "native",
+      placement: props.variant || "detail",
+      eligible: enabled && consent.canRequestAds && !!mobileAdsSDK,
+      reason: !mobileAdsSDK
+        ? "unsupported"
+        : !enabled
+          ? "disabled"
+          : !consent.canRequestAds
+            ? "consent"
+            : "ready",
+    });
+  }, [enabled, consent.canRequestAds, props.variant]);
+  return enabled && consent.canRequestAds && mobileAdsSDK ? (
+    <AuthorizedNativeAd
+      key={`${props.variant || "detail"}:${consent.personalized}`}
+      {...props}
+    />
   ) : null;
 }
 function AuthorizedNativeAd({ variant = "detail" }: NativeAdBlockProps) {
   const [nativeAd, setNativeAd] = useState<NativeAdInstance | null>(null);
   const compact = variant === "feed";
 
+  const [failed, setFailed] = useState(false),
+    [generation, setGeneration] = useState(0);
+  const recovery = useMemo(
+    () =>
+      createAdRecovery([5000], () => {
+        setNativeAd(null);
+        setFailed(false);
+        setGeneration((value) => value + 1);
+      }),
+    [],
+  );
+  useEffect(() => {
+    recovery.reset();
+    return () => recovery.dispose();
+  }, [recovery]);
   useEffect(() => {
     if (!mobileAdsSDK) return;
-    const { NativeAd } = mobileAdsSDK;
-    let alive = true;
-    let loadedAd: NativeAdInstance | null = null;
-
-    NativeAd.createForAdRequest(AD_UNITS.native, {
-      requestNonPersonalizedAdsOnly: true,
-    })
-      .then((ad) => {
-        loadedAd = ad;
-        if (alive) setNativeAd(ad);
-        else ad.destroy();
-      })
-      .catch((error) => {
-        if (__DEV__) console.warn("Native ad failed to load", error);
-      });
-
+    let removeImpression: (() => void) | undefined;
+    diag.record("request", {
+      format: "native",
+      placement: variant,
+      attempt: generation + 1,
+    });
+    const cancel = loadNativeWithTimeout(
+      () =>
+        mobileAdsSDK!.NativeAd.createForAdRequest(
+          AD_UNITS.native,
+          getRequestOptions(),
+        ),
+      (ad) => {
+        diag.record("loaded", {
+          format: "native",
+          placement: variant,
+          loaded: true,
+        });
+        try {
+          const subscription = ad.addAdEventListener(
+            mobileAdsSDK!.NativeAdEventType.IMPRESSION,
+            () =>
+              diag.record("impression", {
+                format: "native",
+                placement: variant,
+              }),
+          );
+          removeImpression = () => subscription.remove();
+        } catch {
+          /* Observation must not turn a loaded ad into a failure. */
+        }
+        setNativeAd(ad);
+        setFailed(false);
+      },
+      (error) => {
+        if (error) diag.error("native", "load.failed", error);
+        else
+          diag.record("load.failed", {
+            format: "native",
+            placement: variant,
+            reason: "timeout",
+          });
+        setFailed(true);
+        recovery.failed();
+      },
+    );
     return () => {
-      alive = false;
-      loadedAd?.destroy();
+      try {
+        removeImpression?.();
+      } catch {
+        /* Cleanup still destroys inventory. */
+      }
+      cancel();
     };
-  }, []);
+  }, [generation, recovery, variant]);
 
-  if (!nativeAd || !mobileAdsSDK) return null;
+  if (!nativeAd || !mobileAdsSDK)
+    return compact && !failed ? (
+      <View
+        accessibilityLabel="Loading advertisement"
+        style={{ minHeight: 260, marginVertical: 12 }}
+      />
+    ) : null;
   const { NativeAdView, NativeAsset, NativeAssetType, NativeMediaView } =
     mobileAdsSDK;
 
