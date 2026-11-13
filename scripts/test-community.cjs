@@ -238,9 +238,9 @@ test("contract topics, scopes and report reasons match the audited values", () =
   assert.deepEqual(Object.keys(contract.SCOPES), [
     "all",
     "top",
+    "foryou",
     "saved",
     "mine",
-    "foryou",
   ]);
   assert.deepEqual(Object.keys(contract.REPORT_REASONS), [
     "harassment",
@@ -426,6 +426,17 @@ test("cache is isolated, signed URLs expire, and invalidation retains safe conte
     },
   );
   store.setOwner("one");
+  const view = {
+    scope: "foryou",
+    topic: "cv_review",
+    draft: "private search",
+    offset: 620,
+  };
+  store.saveFeedView("one", view);
+  assert.deepEqual(store.readFeedView("one"), view);
+  assert.equal(store.readFeedView("two"), undefined);
+  store.saveFeedView("two", { ...view, offset: 0 });
+  assert.equal(store.readFeedView("one").offset, 620);
   const post = {
     id: "p",
     viewerSaved: true,
@@ -442,10 +453,13 @@ test("cache is isolated, signed URLs expire, and invalidation retains safe conte
   assert.equal(store.read("one", "old"), undefined);
   store.setOwner("two");
   assert.equal(store.read("two", "feed"), undefined);
+  assert.equal(store.readFeedView("two"), undefined);
   store.write("one", "late", { post });
   assert.equal(store.read("two", "late"), undefined);
+  store.saveFeedView("two", view);
   authEvent("SIGNED_OUT", null);
   assert.equal(store.owner, null);
+  assert.equal(store.readFeedView("two"), undefined);
 });
 test("photo limits reject WebP, oversize and too-large dimensions", () => {
   const { validatePhoto } = load("src/lib/community/photos.ts", {

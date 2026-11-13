@@ -10,7 +10,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { router, usePathname } from "expo-router";
 import { UsersRound } from "lucide-react-native";
 import { AppText as Text, AppPressable as Pressable } from "../ui/primitives";
-import { Colors, Fonts, Radius } from "../../constants/theme";
+import { Colors, Fonts, Radius, Space, Layout } from "../../constants/theme";
 import { useAuth } from "../../hooks/use-auth";
 import { useCommunityQuery } from "../../hooks/use-community";
 import { CommunityError } from "../../lib/community/transport";
@@ -21,12 +21,14 @@ export function Button({
   disabled,
   primary = false,
   selected = false,
+  quiet = false,
 }: {
   label: string;
   onPress(): void;
   disabled?: boolean;
   primary?: boolean;
   selected?: boolean;
+  quiet?: boolean;
 }) {
   return (
     <Pressable
@@ -37,6 +39,7 @@ export function Button({
       onPress={onPress}
       style={({ pressed }) => [
         s.button,
+        quiet && s.quietButton,
         primary && s.primaryButton,
         selected && s.selected,
         pressed && { opacity: 0.75 },
@@ -47,7 +50,7 @@ export function Button({
         style={[
           s.buttonText,
           primary && { color: Colors.primaryForeground },
-          selected && { fontFamily: Fonts.semibold },
+          selected && { fontFamily: Fonts.semibold, color: Colors.primary },
         ]}
       >
         {label}
@@ -192,10 +195,10 @@ export const s = StyleSheet.create({
     flex: 1,
   },
   content: {
-    padding: 16,
-    gap: 16,
+    padding: Space.xl,
+    gap: Space.lg,
     width: "100%",
-    maxWidth: 800,
+    maxWidth: Layout.reading,
     alignSelf: "center",
   },
   row: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 8 },
@@ -225,15 +228,20 @@ export const s = StyleSheet.create({
     backgroundColor: Colors.surface,
   },
   buttonText: {
-    color: Colors.primaryPressed,
+    color: Colors.muted,
     fontSize: 13,
     lineHeight: 21,
     fontFamily: Fonts.medium,
     textAlign: "center",
   },
+  quietButton: {
+    backgroundColor: "transparent",
+    borderColor: "transparent",
+    paddingHorizontal: Space.sm,
+  },
   primaryButton: {
-    backgroundColor: Colors.primaryPressed,
-    borderColor: Colors.primaryPressed,
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
   },
   selected: {
     backgroundColor: Colors.primarySoft,
@@ -245,8 +253,8 @@ export const s = StyleSheet.create({
     backgroundColor: Colors.surface,
     borderColor: Colors.border,
     borderWidth: 1,
-    borderRadius: Radius.md,
-    marginBottom: 12,
+    borderRadius: Radius.sm,
+    marginBottom: Space.md,
   },
   notice: {
     padding: 12,
@@ -261,6 +269,7 @@ export const s = StyleSheet.create({
     borderRadius: Radius.sm,
     backgroundColor: Colors.surface,
   },
+  metadata: { fontSize: 12, lineHeight: 20, color: Colors.muted },
   chip: {
     paddingHorizontal: 8,
     paddingVertical: 4,

@@ -60,6 +60,16 @@ function check(v, label) {
   checks++;
   console.log("PASS " + label);
 }
+async function revealActions(container) {
+  await container
+    .getByRole("button", { name: /^(More|Hide) discussion actions$/ })
+    .first()
+    .waitFor();
+  const more = container
+    .getByRole("button", { name: "More discussion actions", exact: true })
+    .first();
+  if (await more.count()) await more.click();
+}
 function sessionFor(id = uid) {
   const user = {
     id,
@@ -255,6 +265,8 @@ function sessionFor(id = uid) {
           }
           if (state.delay && action.startsWith("toggle-"))
             await new Promise((done) => setTimeout(done, state.delay));
+          if (options.slow && action === "list-posts")
+            await new Promise((done) => setTimeout(done, 800));
           if (action === "viewer-state")
             return r.fulfill({ json: state.viewer });
           const reading = ["list-posts", "get-post", "list-comments"];
@@ -435,11 +447,7 @@ function sessionFor(id = uid) {
         })
         .waitFor();
       check(
-        await page
-          .getByText(
-            "Ask questions, share advice and help other job seekers across South Africa.",
-          )
-          .isVisible(),
+        await page.getByText("Ask questions. Share advice.").isVisible(),
         "Community heading and real wording",
       );
       check(
@@ -457,6 +465,10 @@ function sessionFor(id = uid) {
         "anonymous initials avatar",
       );
       const card = page.getByTestId("community-post-canonical-post");
+      await page.screenshot({
+        path: shots + "/feed-320.png",
+        fullPage: true,
+      });
       state.delay = 450;
       await card
         .getByRole("button", { name: "Helpful · 3", exact: true })
@@ -497,6 +509,9 @@ function sessionFor(id = uid) {
         .waitFor();
       check(true, "Save confirmed");
       await page
+        .getByRole("button", { name: "More feeds", exact: true })
+        .click();
+      await page
         .getByRole("button", { name: "Saved", exact: true })
         .first()
         .click();
@@ -507,12 +522,16 @@ function sessionFor(id = uid) {
         ),
         "Saved scope uses shared service",
       );
-      await page.getByRole("button", { name: "For you", exact: true }).click();
+      await page.getByRole("button", { name: "Saved", exact: true }).click();
+      await page
+        .getByRole("button", { name: "Following", exact: true })
+        .click();
       await page
         .getByText("Follow members to see their discussions here.")
         .waitFor();
-      check(true, "For you means followed members");
+      check(true, "Following means followed members");
       await page.getByRole("button", { name: "New", exact: true }).click();
+      await revealActions(card);
       await card.getByRole("button", { name: "Follow", exact: true }).click();
       await card
         .getByRole("button", { name: "Unfollow", exact: true })
@@ -544,6 +563,9 @@ function sessionFor(id = uid) {
         ),
         "Top this week scope",
       );
+      await page
+        .getByRole("button", { name: "More feeds", exact: true })
+        .click();
       await page.getByRole("button", { name: "My posts", exact: true }).click();
       await page
         .getByRole("button", {
@@ -553,6 +575,9 @@ function sessionFor(id = uid) {
         .waitFor();
       check(true, "My posts scope");
       await page.getByRole("button", { name: "New", exact: true }).click();
+      await page
+        .getByRole("button", { name: "Filter by topic", exact: true })
+        .click();
       await page
         .getByRole("button", { name: "CV review", exact: true })
         .click();
@@ -566,6 +591,21 @@ function sessionFor(id = uid) {
       await page
         .getByRole("button", { name: "All topics", exact: true })
         .click();
+      await page
+        .getByRole("textbox", { name: "Search discussions", exact: true })
+        .fill("no-matching-fixture");
+      await page.getByText("No discussions match your filters.").waitFor();
+      check(true, "filtered empty state explains missing results");
+      await page
+        .getByRole("button", { name: "Reset filters", exact: true })
+        .click();
+      await card.waitFor();
+      check(
+        (await page
+          .getByRole("textbox", { name: "Search discussions", exact: true })
+          .inputValue()) === "",
+        "reset clears search and restores feed",
+      );
       const before = state.calls.length;
       await page
         .getByRole("textbox", { name: "Search discussions", exact: true })
@@ -592,6 +632,7 @@ function sessionFor(id = uid) {
         state.calls.some((c) => c.data.cursor === "page-two"),
         "feed cursor pagination",
       );
+      await revealActions(card);
       await card
         .getByRole("button", { name: "Report discussion", exact: true })
         .click();
@@ -617,7 +658,10 @@ function sessionFor(id = uid) {
       check(true, "legacy IDs redirect to canonical Community discussion");
       check(
         (await page
-          .getByRole("button", { name: "Reply to CleverIntern76", exact: true })
+          .getByRole("button", {
+            name: "Reply to CleverIntern76",
+            exact: true,
+          })
           .count()) === 1,
         "second-level reply can receive a third level",
       );
@@ -823,6 +867,7 @@ function sessionFor(id = uid) {
     {
       const { context, page, state, errors } = await setup();
       await page.goto(base + "/community/own-post");
+      await revealActions(page.getByTestId("community-post-own-post"));
       await page
         .getByRole("button", { name: "Edit discussion", exact: true })
         .click();
@@ -846,6 +891,7 @@ function sessionFor(id = uid) {
         ),
         "post editing uses only documented fields",
       );
+      await revealActions(page.getByTestId("community-post-own-post"));
       await page
         .getByRole("button", { name: "Delete discussion", exact: true })
         .click();
@@ -913,7 +959,9 @@ function sessionFor(id = uid) {
         .getByRole("button", { name: "Save draft and close", exact: true })
         .click();
       await page.waitForURL("**/community");
-      await page.getByRole("button", { name: "New post", exact: true }).click();
+      await page
+        .getByRole("button", { name: "Ask or share", exact: true })
+        .click();
       await page.getByText("Your draft was restored on this device.").waitFor();
       check(
         (await page
@@ -943,11 +991,7 @@ function sessionFor(id = uid) {
           ),
       );
       check(true, "SDK sign-out event clears drafts with Community unmounted");
-      await page.getByRole("button", { name: /^Open navigation menu/ }).click();
-      await page
-        .locator("#circular-navigation")
-        .getByRole("button", { name: "Community", exact: true })
-        .click();
+      await page.getByRole("tab", { name: "Community", exact: true }).click();
       await page
         .getByText("Sign in to connect with other job seekers.")
         .waitFor();
@@ -1038,7 +1082,7 @@ function sessionFor(id = uid) {
           .waitFor();
         check(
           (await page
-            .getByRole("button", { name: "New post", exact: true })
+            .getByRole("button", { name: "Ask or share", exact: true })
             .count()) === 0,
           "banned members have no new-post control",
         );
@@ -1048,6 +1092,7 @@ function sessionFor(id = uid) {
             .count()) === 0,
           "banned members have no Save control",
         );
+        await revealActions(page.getByTestId("community-post-canonical-post"));
         check(
           (await page
             .getByRole("button", { name: "Report discussion", exact: true })
@@ -1109,25 +1154,7 @@ function sessionFor(id = uid) {
         .click();
       await page
         .getByRole("button", {
-          name: "Open discussion: Website-created discussion",
-          exact: true,
-        })
-        .waitFor();
-      check(true, "offline feed recovers explicitly");
-      await context.close();
-    }
-    console.log(
-      `${checks} Community browser checks passed; all backend requests intercepted.`,
-    );
-  } catch (error) {
-    for (const [index, context] of browser.contexts().entries())
-      for (const page of context.pages())
-        await page
-          .screenshot({ path: `${shots}/failure-${index}.png`, fullPage: true })
-          .catch(() => {});
-    throw error;
-  } finally {
-    await browser.close();
+         …1007 tokens truncated…ose();
   }
 })().catch((e) => {
   console.error(e);

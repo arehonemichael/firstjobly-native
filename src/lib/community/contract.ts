@@ -12,9 +12,9 @@ export type Topic = keyof typeof TOPICS;
 export const SCOPES = {
   all: "New",
   top: "Top this week",
+  foryou: "Following",
   saved: "Saved",
   mine: "My posts",
-  foryou: "For you",
 } as const;
 export type Scope = keyof typeof SCOPES;
 export const REPORT_REASONS = {
