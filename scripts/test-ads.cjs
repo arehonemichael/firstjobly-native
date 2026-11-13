@@ -1496,6 +1496,7 @@ function downloadPorts(kind, before = async () => true) {
     alerts = [],
     lock = { current: false };
   const deps = {
+    Platform: { OS: "android" },
     downloadLock: lock,
     circularMode: false,
     data: {
@@ -2046,3 +2047,13 @@ test("extra interaction observers preserve the existing app-open observer", () =
   assert.equal(extra, 1);
   events.setInteractionObserver(null);
 });
+for (const kind of ["cv", "z83"])
+  test(`${kind} iOS PDF wording and export preserve the rewarded gate`, async () => {
+    const f = downloadPorts(kind);
+    f.deps.Platform.OS = "ios";
+    await f.handler();
+    assert.equal(f.events[0], "ad");
+    assert.equal(f.events.at(-1), "consume");
+    assert.equal(f.alerts.at(-1)[0], "PDF ready");
+    assert.match(f.alerts.at(-1)[1], /Save to Files/);
+  });

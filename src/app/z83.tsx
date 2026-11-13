@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Platform,
   ScrollView,
   StyleSheet,
   View,
@@ -278,12 +279,14 @@ function Z83Form() {
         router.back();
         return;
       }
-      await savePdfToDownloads(file.uri, fileName);
+      await savePdfToDownloads(file.uri, fileName, { shareOnIos: true });
       completeDownload();
 
       Alert.alert(
-        "Downloaded",
-        `${fileName} has been saved to your Downloads folder.`,
+        Platform.OS === "ios" ? "PDF ready" : "Downloaded",
+        Platform.OS === "ios"
+          ? `${fileName} is ready. Choose Save to Files in the share sheet to keep a copy outside FirstJobly.`
+          : `${fileName} has been saved to your Downloads folder.`,
       );
     } catch (e) {
       console.error("Z83 PDF failed:", e);

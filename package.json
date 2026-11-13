@@ -11,6 +11,7 @@
     "expo": "~57.0.15",
     "expo-clipboard": "~57.0.2",
     "expo-constants": "~57.0.10",
+    "expo-dev-client": "~57.0.21",
     "expo-device": "~57.0.1",
     "expo-document-picker": "~57.0.1",
     "expo-file-system": "~57.0.2",
@@ -71,7 +72,8 @@
     "benchmark:recommendations": "node scripts/benchmark-recommendations.cjs",
     "test:community": "node --test scripts/test-community.cjs",
     "test:hot-jobs": "node --test scripts/test-hot-jobs.cjs",
-    "test:circular": "node --test scripts/test-circular.cjs"
+    "test:circular": "node --test scripts/test-circular.cjs",
+    "test:ios": "node --test scripts/test-ios-build.cjs scripts/test-expo-go.cjs"
   },
   "private": true
 }

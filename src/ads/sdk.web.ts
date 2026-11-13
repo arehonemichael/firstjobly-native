@@ -3,3 +3,4 @@
 export const mobileAdsSDK:
   | typeof import("react-native-google-mobile-ads")
   | null = null;
+export const nativeAdsPlatform = "web";

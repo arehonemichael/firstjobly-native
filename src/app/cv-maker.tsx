@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Platform,
   ScrollView,
   StyleSheet,
   Switch,
@@ -224,12 +225,14 @@ export default function CvMakerScreen() {
       });
 
       const fileName = `${fileBase(data)}.pdf`;
-      await savePdfToDownloads(result.uri, fileName);
+      await savePdfToDownloads(result.uri, fileName, { shareOnIos: true });
       completeDownload();
 
       Alert.alert(
-        "Downloaded",
-        `${fileName} has been saved to your Downloads folder.`,
+        Platform.OS === "ios" ? "PDF ready" : "Downloaded",
+        Platform.OS === "ios"
+          ? `${fileName} is ready. Choose Save to Files in the share sheet to keep a copy outside FirstJobly.`
+          : `${fileName} has been saved to your Downloads folder.`,
       );
     } catch (error) {
       console.error("CV PDF failed:", error);
