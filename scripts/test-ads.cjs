@@ -786,3 +786,88 @@ test("all enabled flags suppress their real request/render paths", async () => {
     }
   }
 });
+
+test("failed UMP update recovers only permission explicitly retained by the SDK", async () => {
+  for (const status of ["NOT_REQUIRED", "OBTAINED"]) {
+    const p = privacy({ error: true });
+    p.port.getConsentInfo = async () => ({ status, canRequestAds: true });
+    p.port.choices = async () => ({
+      storeAndAccessInformationOnDevice: true,
+      selectBasicAds: true,
+      selectPersonalisedAds: true,
+    });
+    await p.control.prepare(() => true);
+    assert.equal(p.control.getSnapshot().canRequestAds, true);
+    assert.equal(p.calls.initialize, 1);
+    assert.equal(p.control.getSnapshot().failed, true);
+    assert.equal(
+      p.control.getRequestOptions().requestNonPersonalizedAdsOnly,
+      true,
+    );
+  }
+});
+test("publisher misconfiguration cannot authorize fresh, unknown, denied or unreadable consent", async () => {
+  for (const cached of [
+    { status: "UNKNOWN", canRequestAds: false },
+    { status: "UNKNOWN", canRequestAds: true },
+    { status: "REQUIRED", canRequestAds: true },
+    { status: "NOT_REQUIRED", canRequestAds: false },
+    null,
+  ]) {
+    const p = privacy({ error: true });
+    p.port.getConsentInfo = async () => cached;
+    await p.control.prepare(() => true);
+    assert.equal(p.control.getSnapshot().canRequestAds, false);
+    assert.equal(p.calls.initialize, 0);
+    assert.equal(p.control.getSnapshot().errorMessage, "missing form");
+  }
+  const p = privacy({ error: true });
+  p.port.getConsentInfo = async () => {
+    throw Error("SDK unavailable");
+  };
+  await p.control.prepare(() => true);
+  assert.equal(p.calls.initialize, 0);
+});
+test("cached OBTAINED permission still requires storage/basic-ad choices", async () => {
+  const p = privacy({ error: true, refused: true });
+  p.port.getConsentInfo = async () => ({
+    status: "OBTAINED",
+    canRequestAds: true,
+  });
+  await p.control.prepare(() => true);
+  assert.equal(p.control.getSnapshot().canRequestAds, false);
+  assert.equal(p.calls.initialize, 0);
+});
+test("cached recovery retries later, clears its error and does not initialize twice", async (t) => {
+  t.mock.timers.enable({ apis: ["Date"], now: 100000 });
+  const p = privacy({ error: true });
+  p.port.getConsentInfo = async () => ({
+    status: "NOT_REQUIRED",
+    canRequestAds: true,
+  });
+  await p.control.prepare(() => true);
+  p.port.requestInfoUpdate = async () => ({
+    status: "NOT_REQUIRED",
+    canRequestAds: true,
+  });
+  t.mock.timers.setTime(130000);
+  await p.control.retryOnForeground(() => true);
+  assert.equal(p.control.getSnapshot().failed, false);
+  assert.equal(p.control.getSnapshot().errorMessage, null);
+  assert.equal(p.calls.initialize, 1);
+});
+test("privacy-form failure after withdrawal never recovers cached ad permission", async () => {
+  const p = privacy();
+  await p.control.prepare(() => true);
+  let cachedReads = 0;
+  p.port.getConsentInfo = async () => {
+    cachedReads++;
+    return { status: "NOT_REQUIRED", canRequestAds: true };
+  };
+  p.port.showPrivacyOptions = async () => {
+    throw Error("privacy form unavailable");
+  };
+  await p.control.openPrivacy(() => true);
+  assert.equal(cachedReads, 0);
+  assert.equal(p.control.getSnapshot().canRequestAds, false);
+});

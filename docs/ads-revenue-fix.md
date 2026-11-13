@@ -73,3 +73,13 @@ On device, verify Google test creatives, interstitial OPENED/CLOSED/navigation a
 In AdMob, the owner must confirm the app is not child-directed, audience settings, app-ads.txt, UMP regional forms and ad-unit status. No dashboard setting was changed by this work.
 
 Rollback controls in ADS_CONFIG: raise `interstitial.everyNthJobOpen` to 4 if retention drops; disable `interstitial.enabled`, `appOpen.enabled`, `banner.enabled`, `native.feedEnabled` or `native.detailEnabled` independently. These are build-time source settings, not remote switches.
+
+## Follow-up: consent-update failure recovery
+
+Device logs exposed `Publisher misconfiguration … no form(s) configured` for the existing Android app ID. The broad error gate originated in commit `a90861c` (Home/splash polish); it was retained by the first revenue update.
+
+The follow-up changes `consent-controller.ts` to check `AdsConsent.getConsentInfo()` after an info-update failure. As [Google's UMP guidance](https://developers.google.com/admob/android/privacy#request_ads_with_user_consent) describes, the SDK can retain permission from a previous session when the update fails. Recovery requires the SDK's current `canRequestAds === true`, a valid NOT_REQUIRED/OBTAINED status and the existing storage/basic-ad checks. Recovered requests use NPA conservatively, retain the error/30-second retry state and do not initialize the SDK twice. Required/unknown/refused/unreadable consent remains blocked. Privacy-form failures do not fall back to old consent after a possible withdrawal.
+
+`privacy.ts` wires the real SDK getter and reports the error message in dev/test builds. `scripts/test-ads.cjs` adds five regression tests for cached recovery, unavailable/refused permission, later retry and failed withdrawal forms. Verification: 40 ad tests, 13 Expo/runtime tests, TypeScript and focused lint pass. No real ad requests/impressions were made during verification.
+
+This does not publish an AdMob consent message. A fresh device with no SDK permission will remain blocked until the owner configures/publishes the appropriate Privacy & messaging form for the existing app ID. Live restoration of ads on the reporting device has not been verified.

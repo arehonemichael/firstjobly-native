@@ -5,6 +5,7 @@ export type ConsentInfo = {
 };
 export type ConsentPort = {
   requestInfoUpdate(): Promise<ConsentInfo>;
+  getConsentInfo?(): Promise<ConsentInfo>;
   showFormIfRequired(): Promise<ConsentInfo>;
   showPrivacyOptions(): Promise<ConsentInfo>;
   choices(): Promise<{
@@ -25,6 +26,7 @@ export function createAdConsent(port: ConsentPort | null) {
     lastUiAt: 0,
     failedAt: null as number | null,
     personalized: false,
+    errorMessage: null as string | null,
   };
   let pending: Promise<void> | null = null,
     initialized: Promise<unknown> | null = null,
@@ -72,6 +74,7 @@ export function createAdConsent(port: ConsentPort | null) {
       failed: false,
       failedAt: null,
       personalized: allowed && personalized,
+      errorMessage: null,
     });
   }
   function prepare(canPresent: () => boolean) {
@@ -79,13 +82,39 @@ export function createAdConsent(port: ConsentPort | null) {
     if (pending) return pending;
     pending = (async () => {
       try {
-        let info = await port.requestInfoUpdate();
+        let info: ConsentInfo;
+        try {
+          info = await port.requestInfoUpdate();
+        } catch (error) {
+          // UMP may retain valid permission from the previous session even
+          // when its update fails. Never infer permission from the error text.
+          const cached = await port.getConsentInfo?.();
+          if (
+            !cached?.canRequestAds ||
+            (cached.status !== "NOT_REQUIRED" && cached.status !== "OBTAINED")
+          )
+            throw error;
+          await apply(cached);
+          // Still mark the failed update so a later foreground can retry.
+          // Use NPA conservatively until an update succeeds.
+          publish({
+            ...state,
+            failed: true,
+            failedAt: Date.now(),
+            personalized: false,
+            errorMessage:
+              error instanceof Error
+                ? error.message
+                : "Consent information could not be updated.",
+          });
+          return;
+        }
         if (info.status === "REQUIRED" || info.status === "UNKNOWN") {
           if (!canPresent()) return;
           info = await modal(() => port.showFormIfRequired());
         }
         await apply(info);
-      } catch {
+      } catch (error) {
         checked = true;
         publish({
           ...state,
@@ -94,6 +123,10 @@ export function createAdConsent(port: ConsentPort | null) {
           failed: true,
           failedAt: Date.now(),
           personalized: false,
+          errorMessage:
+            error instanceof Error
+              ? error.message
+              : "Consent information is unavailable.",
         });
       } finally {
         pending = null;
@@ -141,7 +174,7 @@ export function createAdConsent(port: ConsentPort | null) {
           checked = false;
           await prepare(canPresent);
         }
-      } catch {
+      } catch (error) {
         publish({
           ...state,
           settled: true,
@@ -149,6 +182,10 @@ export function createAdConsent(port: ConsentPort | null) {
           failed: true,
           failedAt: Date.now(),
           personalized: false,
+          errorMessage:
+            error instanceof Error
+              ? error.message
+              : "Privacy choices could not be updated.",
         });
       } finally {
         opening = false;
