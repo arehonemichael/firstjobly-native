@@ -1,4 +1,5 @@
-import { TestIds } from "react-native-google-mobile-ads";
+import { mobileAdsSDK } from "./sdk";
+const TestIds = mobileAdsSDK?.TestIds;
 
 const PROD = {
   banner: "ca-app-pub-1505001993402465/3915348751",
@@ -7,11 +8,16 @@ const PROD = {
   native: "ca-app-pub-1505001993402465/9578738973",
 } as const;
 
+export const ADS_TEST_MODE =
+  __DEV__ || process.env.EXPO_PUBLIC_ADS_TEST_MODE === "true";
+
 export const AD_UNITS = {
-  banner: __DEV__ ? TestIds.ADAPTIVE_BANNER : PROD.banner,
-  appOpen: __DEV__ ? TestIds.APP_OPEN : PROD.appOpen,
-  interstitial: __DEV__ ? TestIds.INTERSTITIAL : PROD.interstitial,
-  native: __DEV__ ? TestIds.NATIVE : PROD.native,
+  banner: ADS_TEST_MODE ? (TestIds?.ADAPTIVE_BANNER ?? "") : PROD.banner,
+  appOpen: ADS_TEST_MODE ? (TestIds?.APP_OPEN ?? "") : PROD.appOpen,
+  interstitial: ADS_TEST_MODE
+    ? (TestIds?.INTERSTITIAL ?? "")
+    : PROD.interstitial,
+  native: ADS_TEST_MODE ? (TestIds?.NATIVE ?? "") : PROD.native,
 } as const;
 
 export const AD_FEATURES = {
@@ -19,7 +25,7 @@ export const AD_FEATURES = {
   nativeFeed: true,
   nativeDetail: true,
   interstitial: true,
-  appOpen: false,
+  appOpen: true,
 } as const;
 
 export const AD_LIMITS = {

@@ -1,3 +1,4 @@
+import { HotJobBadge } from "./hot-job-badge";
 import { View, StyleSheet } from "react-native";
 import { AppText as Text } from "./primitives";
 import { Colors, Fonts } from "../../constants/theme";
@@ -24,6 +25,7 @@ export function JobMetadata({
   const posted = new Date(job.posted_at);
   return (
     <View style={styles.row}>
+      <HotJobBadge job={job} />
       {salary && (
         <Text style={styles.salary}>
           {salary}

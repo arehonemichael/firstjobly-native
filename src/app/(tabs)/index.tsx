@@ -1,3 +1,5 @@
+import { HotJobsSection } from "../../components/home/hot-jobs";
+import { BrandWordmark } from "../../components/brand-wordmark";
 import { useRecommendations } from "../../hooks/use-recommendations";
 import { RecommendationControls } from "../../components/recommendations/controls";
 import { JobFeedback } from "../../components/recommendations/job-feedback";
@@ -5,10 +7,12 @@ import type {
   FeedFilters,
   RankedJob,
 } from "../../lib/recommendations/contracts";
+import { AdBanner } from "../../ads/AdBanner";
+import { RecommendationSkeleton } from "../../components/home/recommendation-skeleton";
 import { HomeSessionHero } from "../../components/home/session-hero";
 import { useState } from "react";
 import { Image } from "expo-image";
-import { ActivityIndicator, ScrollView, StyleSheet, View } from "react-native";
+import { ActivityIndicator, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import {
@@ -55,6 +59,7 @@ const categories = [
 ];
 
 export default function HomeScreen() {
+  const { width } = useWindowDimensions();
   const { user, userId, loading: authLoading } = useAuth();
   const { summary, loading: summaryLoading, retry } = useHomeSummary(userId);
   const {
@@ -122,6 +127,7 @@ export default function HomeScreen() {
     return (
       <View
         key={job.id}
+        testID="home-job-card"
         style={[styles.jobCard, featured && styles.featuredCard]}
       >
         <View style={[styles.cardTop, featured && styles.featuredTop]}>
@@ -248,9 +254,7 @@ export default function HomeScreen() {
               style={styles.brandIcon}
               contentFit="contain"
             />
-            <Text accessibilityLabel="FirstJobly" style={styles.wordmark}>
-              firstjobly
-            </Text>
+            <BrandWordmark availableWidth={Math.min(width, Layout.reading) - Space.lg * 2} />
           </View>
           <View style={styles.headerActions}>
             <Pressable
@@ -266,8 +270,8 @@ export default function HomeScreen() {
               />
             </Pressable>
             <Pressable
-              accessibilityLabel="Open Graduate Room"
-              onPress={() => router.push("/graduateroom")}
+              accessibilityLabel="Open Community"
+              onPress={() => router.push("/community")}
               style={styles.headerButton}
             >
               <MessageCircle
@@ -539,10 +543,16 @@ export default function HomeScreen() {
             onRetry={() => setSaveError(null)}
           />
         )}
-        {loading ? (
+        {loading && !!jobs.length && (
+          <Text style={styles.meta} accessibilityLiveRegion="polite">
+            Updating opportunities…
+          </Text>
+        )}
+        {loading && !jobs.length ? (
           <View style={styles.jobList}>
-            <SkeletonJobCard />
-            <SkeletonJobCard />
+            {Array.from({ length: 6 }, (_, index) => (
+              <RecommendationSkeleton key={index} featured={index === 0} />
+            ))}
           </View>
         ) : !jobs.length && error ? (
           <View>
@@ -571,6 +581,7 @@ export default function HomeScreen() {
             </Pressable>
           </View>
         )}
+        <AdBanner placement="home" />
         {!!userId && (
           <View style={styles.quickLinks}>
             <Pressable
@@ -639,6 +650,7 @@ export default function HomeScreen() {
             </Pressable>
           ))}
         </View>
+        <HotJobsSection onOpen={openJob} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -655,17 +667,21 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    flexWrap: "wrap",
+    columnGap: 12,
+    rowGap: 12,
     paddingTop: Space.lg,
     paddingBottom: Space.xl,
   },
-  brand: { flexDirection: "row", gap: Space.sm, alignItems: "center" },
-  brandIcon: { width: 30, height: 30, borderRadius: 9 },
-  wordmark: {
-    fontFamily: Fonts.bold,
-    fontSize: 15,
-    letterSpacing: 0,
-    color: Colors.foreground,
+  brand: {
+    flexDirection: "row",
+    gap: Space.sm,
+    alignItems: "center",
+    flexShrink: 0,
+    flexWrap: "wrap",
+    maxWidth: "100%",
   },
+  brandIcon: { width: 30, height: 30, borderRadius: 9 },
   headerActions: { flexDirection: "row", gap: 2 },
   headerButton: {
     minWidth: 44,
@@ -703,7 +719,7 @@ const styles = StyleSheet.create({
   },
   greeting: {
     fontFamily: Fonts.editorial,
-    fontSize: 32,
+    fontSize: 28,
     lineHeight: 36,
     letterSpacing: 0,
     marginTop: Space.sm,

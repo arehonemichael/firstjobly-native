@@ -228,3 +228,34 @@ test("new user without a profile/history still gets honest latest jobs in date o
     [job(2).id, job(1).id, job(3).id],
   );
 });
+test("Home and recommendations share one scoped profile read and account changes clear private caches", async () => {
+  const { b, s } = setup();
+  await Promise.all([s.feed(), s.readHomeProfile(uid.alice)]);
+  assert.equal(b.calls.filter((c) => c.table === "profiles").length, 1);
+  assert.ok(s.peek(uid.alice));
+  assert.equal(s.peek(uid.bob), null);
+  b.setOwner(uid.bob);
+  await assert.rejects(s.readHomeProfile(uid.alice), /ACCOUNT_CHANGED/);
+  assert.equal(s.peek(uid.alice), null);
+});
+test("private ranking inputs start while the candidate query is still pending", async () => {
+  const { b, s } = setup();
+  let release;
+  b.delayJobs(new Promise((r) => (release = r)));
+  const pending = s.feed();
+  await new Promise((r) => setImmediate(r));
+  assert.ok(b.calls.some((c) => c.table === "profiles"));
+  assert.ok(b.calls.some((c) => c.table === "saved_jobs"));
+  release();
+  await pending;
+});
+test("a duplicate daily open leaves the existing ranked snapshot reusable", async () => {
+  const { b, s } = setup();
+  await s.activity(job(1).id, "opened");
+  await s.feed();
+  b.calls.length = 0;
+  const changed = await s.activity(job(1).id, "opened");
+  assert.equal(changed, false);
+  await s.feed();
+  assert.equal(b.calls.length, 0);
+});

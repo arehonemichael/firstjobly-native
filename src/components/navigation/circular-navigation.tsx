@@ -16,7 +16,7 @@ import {
   BriefcaseBusiness,
   Check,
   ClipboardList,
-  GraduationCap,
+  UsersRound,
   Home,
   Menu,
   User,
@@ -25,7 +25,14 @@ import {
 } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AppText as Text, AppPressable as Pressable } from "../ui/primitives";
-import { Colors, Fonts, Layout, Radius, Space } from "../../constants/theme";
+import {
+  Colors,
+  Fonts,
+  Layout,
+  NavigationColors,
+  Radius,
+  Space,
+} from "../../constants/theme";
 import { useReducedMotion } from "../../hooks/use-reduced-motion";
 import { radialLayout } from "../../lib/radial-layout";
 
@@ -38,7 +45,7 @@ const destinations = [
   { name: "saved", label: "Saved jobs", icon: Bookmark },
   { name: "applications", label: "Applications", icon: ClipboardList },
   { name: "tools", label: "Career tools", icon: Wrench },
-  { name: "graduateroom", label: "Graduate Room", icon: GraduationCap },
+  { name: "community", label: "Community", icon: UsersRound },
   { name: "profile", label: "Profile", icon: User },
 ];
 
@@ -210,7 +217,8 @@ export function CircularNavigation({ state, navigation }: TabBarProps) {
               ]
             : styles.desktopItem,
           !radial && selected && styles.selected,
-          (pressed || hovered) && styles.feedback,
+          hovered && styles.feedback,
+          pressed && styles.pressed,
         ]}
       >
         <View
@@ -223,9 +231,13 @@ export function CircularNavigation({ state, navigation }: TabBarProps) {
             strokeWidth={1.5}
             aria-hidden
             size={18}
-            color={selected ? Colors.primaryPressed : Colors.foreground}
+            color={
+              selected
+                ? NavigationColors.selectedText
+                : NavigationColors.foreground
+            }
           />
-          {radial && selected && (
+          {selected && (
             <View style={styles.selectedMark}>
               <Check
                 strokeWidth={1.5}
@@ -236,29 +248,37 @@ export function CircularNavigation({ state, navigation }: TabBarProps) {
             </View>
           )}
         </View>
-        <Text
-          maxFontSizeMultiplier={1.3}
-          style={[
-            styles.label,
-            radial && styles.radialLabel,
-            selected && styles.activeLabel,
-          ]}
-        >
-          {item.label}
-        </Text>
+        {(!radial || !layout.iconOnly) && (
+          <Text
+            style={[
+              styles.label,
+              radial && styles.radialLabel,
+              selected && styles.activeLabel,
+              radial && selected && styles.activeRadialLabel,
+            ]}
+          >
+            {item.label}
+          </Text>
+        )}
       </Pressable>
     );
   }
   if (desktop)
     return (
-      <View
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator
         nativeID="desktop-navigation"
         accessibilityRole="tablist"
         accessibilityLabel="Main navigation"
-        style={[styles.desktop, { paddingTop: Math.max(insets.top, Space.md) }]}
+        style={{ flexGrow: 0 }}
+        contentContainerStyle={[
+          styles.desktop,
+          { paddingTop: Math.max(insets.top, Space.md) },
+        ]}
       >
         {visible.map((item, index) => itemControl(item, index, false))}
-      </View>
+      </ScrollView>
     );
   if (keyboard) return null;
   return (
@@ -282,22 +302,37 @@ export function CircularNavigation({ state, navigation }: TabBarProps) {
             style={({ pressed, hovered }) => [
               styles.home,
               active === "index" && styles.selected,
-              (pressed || hovered) && styles.feedback,
+              hovered && styles.feedback,
+              pressed && styles.pressed,
             ]}
           >
-            <Home
-              strokeWidth={1.5}
-              aria-hidden
-              size={18}
-              color={
-                active === "index" ? Colors.primaryPressed : Colors.foreground
-              }
-            />
-            <Text
-              style={[styles.label, active === "index" && styles.activeLabel]}
-            >
-              Home
-            </Text>
+            <View style={styles.dockIcon}>
+              <Home
+                strokeWidth={1.5}
+                aria-hidden
+                size={18}
+                color={
+                  active === "index" ? Colors.primaryPressed : Colors.foreground
+                }
+              />
+              {active === "index" && (
+                <View
+                  style={[
+                    styles.selectedMark,
+                    { width: 12, height: 12, right: -3, top: -3 },
+                  ]}
+                >
+                  <Check size={8} color={Colors.surface} aria-hidden />
+                </View>
+              )}
+            </View>
+            {!layout.iconOnly && (
+              <Text
+                style={[styles.label, active === "index" && styles.activeLabel]}
+              >
+                Home
+              </Text>
+            )}
           </Pressable>
           <Pressable
             accessibilityRole="button"
@@ -317,7 +352,8 @@ export function CircularNavigation({ state, navigation }: TabBarProps) {
             onPress={() => setOpen(true)}
             style={({ pressed, hovered }) => [
               styles.menu,
-              (pressed || hovered) && styles.feedback,
+              hovered && styles.feedback,
+              pressed && styles.pressed,
             ]}
           >
             <View style={styles.menuCircle}>
@@ -328,9 +364,7 @@ export function CircularNavigation({ state, navigation }: TabBarProps) {
                 color={Colors.surface}
               />
             </View>
-            <Text numberOfLines={1} style={styles.label}>
-              Menu
-            </Text>
+            {!layout.iconOnly && <Text style={styles.label}>Menu</Text>}
           </Pressable>
         </View>
       </View>
@@ -400,7 +434,7 @@ export function CircularNavigation({ state, navigation }: TabBarProps) {
                 onPress={() => select("index")}
                 style={({ pressed }) => [
                   styles.footerHome,
-                  pressed && styles.feedback,
+                  pressed && styles.pressed,
                 ]}
               >
                 <View
@@ -415,10 +449,15 @@ export function CircularNavigation({ state, navigation }: TabBarProps) {
                     size={18}
                     color={Colors.primaryPressed}
                   />
+                  {active === "index" && (
+                    <View style={styles.selectedMark}>
+                      <Check size={10} color={Colors.surface} aria-hidden />
+                    </View>
+                  )}
                 </View>
-                <Text maxFontSizeMultiplier={1.3} style={styles.radialLabel}>
-                  Home
-                </Text>
+                {!layout.iconOnly && (
+                  <Text style={styles.radialLabel}>Home</Text>
+                )}
               </Pressable>
               <Pressable
                 nativeID="close-navigation"
@@ -427,7 +466,7 @@ export function CircularNavigation({ state, navigation }: TabBarProps) {
                 onPress={close}
                 style={({ pressed }) => [
                   styles.close,
-                  pressed && styles.feedback,
+                  pressed && styles.pressed,
                 ]}
               >
                 <View style={styles.closeCircle}>
@@ -438,9 +477,9 @@ export function CircularNavigation({ state, navigation }: TabBarProps) {
                     color={Colors.surface}
                   />
                 </View>
-                <Text maxFontSizeMultiplier={1.3} style={styles.radialLabel}>
-                  Close
-                </Text>
+                {!layout.iconOnly && (
+                  <Text style={styles.radialLabel}>Close</Text>
+                )}
               </Pressable>
             </View>
           </Animated.View>
@@ -463,13 +502,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 4,
     width: "100%",
-    maxWidth: 240,
+    maxWidth: 280,
     backgroundColor: Colors.surface,
     borderRadius: Radius.pill,
     borderWidth: 1,
     borderColor: Colors.border,
   },
   home: {
+    borderWidth: 1,
+    borderColor: "transparent",
     minHeight: 50,
     flex: 1,
     flexDirection: "row",
@@ -480,13 +521,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: Space.md,
   },
   menu: {
+    borderWidth: 1,
+    borderColor: "transparent",
     minHeight: 50,
     flex: 1,
     flexDirection: "row",
     gap: Space.sm,
     alignItems: "center",
+    justifyContent: "center",
     paddingHorizontal: Space.sm,
     borderRadius: Radius.pill,
+  },
+  dockIcon: {
+    width: 24,
+    height: 24,
+    flexShrink: 0,
+    justifyContent: "center",
+    alignItems: "center",
   },
   menuCircle: {
     width: 38,
@@ -500,15 +551,20 @@ const styles = StyleSheet.create({
     padding: Space.md,
     gap: Space.xs,
     flexDirection: "row",
+    flexGrow: 1,
     justifyContent: "center",
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
     backgroundColor: Colors.surface,
   },
   desktopItem: {
+    borderWidth: 1,
+    borderColor: "transparent",
     minHeight: 48,
-    maxWidth: 180,
-    flex: 1,
+    minWidth: 144,
+    flexGrow: 1,
+    flexShrink: 0,
+    paddingVertical: Space.sm,
     flexDirection: "row",
     gap: Space.sm,
     alignItems: "center",
@@ -518,17 +574,27 @@ const styles = StyleSheet.create({
   desktopIcon: {
     width: 28,
     height: 36,
+    flexShrink: 0,
     alignItems: "center",
     justifyContent: "center",
   },
   label: {
     fontSize: 12,
-    fontFamily: Fonts.medium,
-    flexShrink: 1,
+    fontFamily: Fonts.semibold,
+    flexShrink: 0,
     color: Colors.foreground,
   },
-  activeLabel: { color: Colors.primaryPressed },
-  selected: { backgroundColor: Colors.primarySoft },
+  activeLabel: {
+    color: NavigationColors.selectedText,
+    fontFamily: Fonts.semibold,
+  },
+  activeRadialLabel: { backgroundColor: NavigationColors.selectedSurface },
+  selected: { backgroundColor: NavigationColors.selectedSurface },
+  pressed: {
+    backgroundColor: NavigationColors.selectedSurface,
+    borderColor: NavigationColors.pressed,
+    borderWidth: 1,
+  },
   feedback: { opacity: 0.76 },
   overlay: {
     flex: 1,
@@ -551,6 +617,8 @@ const styles = StyleSheet.create({
   },
 
   radialItem: {
+    borderWidth: 1,
+    borderColor: "transparent",
     position: "absolute",
     alignItems: "center",
     gap: 8,
@@ -567,8 +635,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   activeCircle: {
-    backgroundColor: Colors.primarySoft,
-    borderColor: Colors.primary,
+    backgroundColor: NavigationColors.selectedSurface,
+    borderColor: NavigationColors.selected,
   },
   selectedMark: {
     position: "absolute",
@@ -582,9 +650,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   radialLabel: {
-    fontFamily: Fonts.medium,
-    fontSize: 11,
-    lineHeight: 16,
+    fontFamily: Fonts.semibold,
+    fontSize: 12,
+    lineHeight: 20,
+    maxWidth: "100%",
+    flexShrink: 0,
     color: Colors.surface,
     textAlign: "center",
     backgroundColor: Colors.foreground,
@@ -595,10 +665,16 @@ const styles = StyleSheet.create({
   menuFooter: {
     width: "100%",
     minHeight: 98,
-    alignItems: "center",
+    alignItems: "flex-start",
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 20,
+    paddingHorizontal: Space.lg,
     paddingTop: Space.sm,
   },
   close: {
+    borderWidth: 1,
+    borderColor: "transparent",
     width: 76,
     minHeight: 82,
     alignItems: "center",
@@ -614,10 +690,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   footerHome: {
-    position: "absolute",
-    left: "50%",
-    marginLeft: -126,
-    top: Space.md,
+    borderWidth: 1,
+    borderColor: "transparent",
     width: 76,
     minHeight: 78,
     alignItems: "center",

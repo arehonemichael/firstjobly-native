@@ -1,7 +1,10 @@
 import "../global.css";
+// Register private Community cleanup even when its screens are not mounted.
+import "../lib/community/store";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Platform, View } from "react-native";
-import { Stack } from "expo-router";
+import { AdMobLifecycle, markAdInteraction } from "../ads/AdMobLifecycle";
+import { Stack, usePathname } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import * as SplashScreen from "expo-splash-screen";
 import {
@@ -11,13 +14,15 @@ import {
   useFonts,
 } from "@expo-google-fonts/plus-jakarta-sans";
 import { Colors, Layout } from "../constants/theme";
+import { isExpoGo } from "../lib/runtime-environment";
 import { LaunchSplash } from "../components/launch-splash";
 import { useAuth } from "../hooks/use-auth";
+import { useCommunityNotifications } from "../hooks/use-community-notifications";
 import { useHomeHeroSession } from "../hooks/use-home-hero-session";
 import { useMotionPreference } from "../hooks/use-reduced-motion";
 
 // Hold only until our first branded frame is laid out, not until network data.
-if (Platform.OS !== "web") {
+if (Platform.OS !== "web" && !isExpoGo) {
   void SplashScreen.preventAutoHideAsync().catch(() => undefined);
   SplashScreen.setOptions({ fade: false, duration: 0 });
 }
@@ -26,8 +31,10 @@ if (Platform.OS !== "web") {
 let launchCompleted = false;
 
 export default function RootLayout() {
+  useCommunityNotifications();
   const { reducedMotion, motionReady } = useMotionPreference();
   const auth = useAuth();
+  const pathname = usePathname();
   useHomeHeroSession(auth.userId, auth.loading || !!auth.error);
   const [showLaunchSplash, setShowLaunchSplash] = useState(
     () => !launchCompleted,
@@ -37,7 +44,6 @@ export default function RootLayout() {
     setShowLaunchSplash(false);
   }, []);
   const [fontsLoaded, fontError] = useFonts({
-    FirstJoblyEditorial: require("../../assets/fonts/Lora-Variable.ttf"),
     PlusJakartaSans_400Regular,
     PlusJakartaSans_500Medium,
     PlusJakartaSans_600SemiBold,
@@ -50,7 +56,7 @@ export default function RootLayout() {
   }, [fontsLoaded, fontError]);
   const nativeHandoff = useRef(false);
   const onLayout = useCallback(() => {
-    if (Platform.OS === "web" || nativeHandoff.current) return;
+    if (Platform.OS === "web" || isExpoGo || nativeHandoff.current) return;
     nativeHandoff.current = true;
     try {
       SplashScreen.hide();
@@ -65,7 +71,11 @@ export default function RootLayout() {
   return (
     <>
       <StatusBar style="dark" />
-      <View style={stylesPage} onLayout={onLayout}>
+      <View
+        style={stylesPage}
+        onLayout={onLayout}
+        onTouchStart={markAdInteraction}
+      >
         <View
           testID="application-shell"
           style={[stylesPage, { opacity: ready || !showLaunchSplash ? 1 : 0 }]}
@@ -103,6 +113,11 @@ export default function RootLayout() {
             </Stack>
           </View>
         </View>
+        <AdMobLifecycle
+          ready={ready && !showLaunchSplash}
+          pathname={pathname}
+          userId={auth.userId}
+        />
         {showLaunchSplash && (
           <LaunchSplash
             ready={ready}

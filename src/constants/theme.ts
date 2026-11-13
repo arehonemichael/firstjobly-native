@@ -1,3 +1,4 @@
+import { Platform } from "react-native";
 /** Shared presentation tokens; brand colours remain unchanged. */
 export const Colors = {
   background: "#F6F7F9",
@@ -41,14 +42,19 @@ export const Radius = {
   pill: 999,
 } as const;
 
+const face = (name: string) =>
+  Platform.OS === "web"
+    ? `${name}, system-ui, -apple-system, "Segoe UI", sans-serif`
+    : name;
 export const Fonts = {
-  editorial: "FirstJoblyEditorial",
-  editorialItalic: "FirstJoblyEditorialItalic",
-  regular: "PlusJakartaSans_400Regular",
-  medium: "PlusJakartaSans_500Medium",
-  semibold: "PlusJakartaSans_600SemiBold",
-  bold: "PlusJakartaSans_600SemiBold",
-  extraBold: "PlusJakartaSans_600SemiBold",
+  // Compatibility aliases keep supporting screens on the same sans-serif face.
+  editorial: face("PlusJakartaSans_600SemiBold"),
+  editorialItalic: face("PlusJakartaSans_600SemiBold"),
+  regular: face("PlusJakartaSans_400Regular"),
+  medium: face("PlusJakartaSans_500Medium"),
+  semibold: face("PlusJakartaSans_600SemiBold"),
+  bold: face("PlusJakartaSans_600SemiBold"),
+  extraBold: face("PlusJakartaSans_600SemiBold"),
 } as const;
 
 export const Space = {
@@ -67,4 +73,13 @@ export const Type = {
   lead: 16,
   section: 24,
   title: 36,
+} as const;
+
+/** Navigation states share the audited brand palette. */
+export const NavigationColors = {
+  selected: Colors.primary,
+  selectedText: Colors.primaryPressed,
+  selectedSurface: Colors.primarySoft,
+  pressed: Colors.primaryPressed,
+  foreground: Colors.navy,
 } as const;

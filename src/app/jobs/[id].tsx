@@ -1,3 +1,5 @@
+import { recordApplyClick } from "../../lib/hot-jobs/clicks";
+import { HotJobBadge } from "../../components/ui/hot-job-badge";
 import { recordRecommendationActivity } from "../../lib/recommendations/api";
 import {
   AppText as Text,
@@ -153,6 +155,7 @@ export default function JobDetailsScreen() {
   const salaryLabel = salary(job);
 
   async function openApply() {
+    if (job!.apply_type === "easy_apply" || job!.external_url) void recordApplyClick(job!.id);
     if (job!.apply_type !== "easy_apply") {
       if (!job!.external_url) return;
       const canOpen = await Linking.canOpenURL(job!.external_url);
@@ -381,6 +384,7 @@ export default function JobDetailsScreen() {
         )}
 
         <View style={styles.badgeRow}>
+          <HotJobBadge job={job} />
           {job.apply_type === "easy_apply" ? (
             <View style={styles.easyBadge}>
               <Text style={styles.easyBadgeText}>Easy Apply</Text>

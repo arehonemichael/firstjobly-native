@@ -1,0 +1,100 @@
+{
+  "conditions": "6 cold trials, same 300 jobs, synthetic 40ms/HTTP request, same text bodies; warm feed immediately afterwards",
+  "baselineCommit": "e1b9c6b6298835e7c5df6eac92a5c8330b01ca24",
+  "before": {
+    "medianColdMs": 516,
+    "medianWarmMs": 0.04,
+    "samples": [
+      {
+        "cold": 605,
+        "warm": 0.04,
+        "requests": 8,
+        "warmRequests": 0,
+        "bytes": 1707181
+      },
+      {
+        "cold": 556,
+        "warm": 0.05,
+        "requests": 8,
+        "warmRequests": 0,
+        "bytes": 1707181
+      },
+      {
+        "cold": 665,
+        "warm": 0.04,
+        "requests": 8,
+        "warmRequests": 0,
+        "bytes": 1707181
+      },
+      {
+        "cold": 464,
+        "warm": 0.04,
+        "requests": 8,
+        "warmRequests": 0,
+        "bytes": 1707181
+      },
+      {
+        "cold": 476,
+        "warm": 0.11,
+        "requests": 8,
+        "warmRequests": 0,
+        "bytes": 1707181
+      },
+      {
+        "cold": 466,
+        "warm": 0.04,
+        "requests": 8,
+        "warmRequests": 0,
+        "bytes": 1707181
+      }
+    ]
+  },
+  "after": {
+    "medianColdMs": 110.5,
+    "medianWarmMs": 0.065,
+    "samples": [
+      {
+        "cold": 132,
+        "warm": 0.13,
+        "requests": 8,
+        "warmRequests": 0,
+        "bytes": 171481
+      },
+      {
+        "cold": 128,
+        "warm": 1.57,
+        "requests": 8,
+        "warmRequests": 0,
+        "bytes": 171481
+      },
+      {
+        "cold": 102,
+        "warm": 0.04,
+        "requests": 8,
+        "warmRequests": 0,
+        "bytes": 171481
+      },
+      {
+        "cold": 119,
+        "warm": 0.03,
+        "requests": 8,
+        "warmRequests": 0,
+        "bytes": 171481
+      },
+      {
+        "cold": 96,
+        "warm": 0.09,
+        "requests": 8,
+        "warmRequests": 0,
+        "bytes": 171481
+      },
+      {
+        "cold": 95,
+        "warm": 0.03,
+        "requests": 8,
+        "warmRequests": 0,
+        "bytes": 171481
+      }
+    ]
+  }
+}
