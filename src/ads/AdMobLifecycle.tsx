@@ -153,6 +153,7 @@ export function AdMobLifecycle({
       ["native-detail", ADS_CONFIG.native.detailEnabled, AD_UNITS.native],
       ["interstitial", ADS_CONFIG.interstitial.enabled, AD_UNITS.interstitial],
       ["app-open", ADS_CONFIG.appOpen.enabled, AD_UNITS.appOpen],
+      ["rewarded", ADS_CONFIG.rewarded.enabled, AD_UNITS.rewarded],
     ] as const)
       diag.record(
         "format",

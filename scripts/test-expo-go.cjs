@@ -21,6 +21,10 @@ function app(os, environment, dev = true, forceTest = false) {
       appOpenUnits: [],
       appOpenAds: [],
       appOpenShows: 0,
+      rewardedUnits: [],
+      rewardedAds: [],
+      rewardedShows: 0,
+      alerts: [],
     };
   const consentState = {
     canRequestAds: os === "android" && environment !== "storeClient",
@@ -85,6 +89,35 @@ function app(os, environment, dev = true, forceTest = false) {
       APP_OPEN: "test-open",
       INTERSTITIAL: "test-interstitial",
       NATIVE: "test-native",
+      REWARDED: "test-rewarded",
+    },
+    RewardedAdEventType: {
+      LOADED: "rewarded_loaded",
+      EARNED_REWARD: "rewarded_earned_reward",
+    },
+    RewardedAd: {
+      createForAdRequest(unit, options) {
+        calls.rewardedUnits.push({ unit, options });
+        const handlers = new Map();
+        const ad = {
+          load() {},
+          show: async () => {
+            calls.rewardedShows++;
+          },
+          removeAllListeners() {
+            handlers.clear();
+          },
+          addAdEventListener(event, handler) {
+            handlers.set(event, handler);
+            return () => handlers.delete(event);
+          },
+          emit(event) {
+            handlers.get(event)?.();
+          },
+        };
+        calls.rewardedAds.push(ad);
+        return ad;
+      },
     },
     InterstitialAd: {
       createForAdRequest: () => ({
@@ -149,6 +182,7 @@ function app(os, environment, dev = true, forceTest = false) {
           return { remove() {} };
         },
       },
+      Alert: { alert: (...args) => calls.alerts.push(args) },
       Platform: { OS: os, select: (v) => v[os] ?? v.default },
       StyleSheet: { create: (v) => v },
       View: "View",
@@ -304,6 +338,14 @@ for (const [os, environment] of [
       .openJobWithEarlyInterstitial(() => navigations++);
     hooks.useJobInterstitial().continueWithOptionalAd(() => navigations++);
     assert.equal(navigations, 2);
+    assert.equal(
+      await a
+        .load("src/ads/useRewardedDownload.ts")
+        .useRewardedDownload()
+        .beforeDownload(),
+      true,
+    );
+    assert.equal(a.calls.rewardedUnits.length, 0);
     assert.equal(a.load("src/ads/AdBanner.tsx").AdBanner(), null);
     assert.equal(
       a.load("src/ads/NativeAdBlock.tsx").NativeAdBlock({ variant: "feed" }),
@@ -350,6 +392,7 @@ test("standalone production keeps the existing real ad unit IDs", () => {
     units = a.load("src/ads/config.ts").AD_UNITS;
   assert.equal(units.interstitial, "ca-app-pub-1505001993402465/4410223100");
   assert.equal(units.banner, "ca-app-pub-1505001993402465/3915348751");
+  assert.equal(units.rewarded, "ca-app-pub-1505001993402465/9710408715");
   assert.equal(a.calls.sdk, 1);
 });
 
@@ -586,4 +629,75 @@ test("Android lifecycle wires a cold app-open opportunity once and does not repl
   t.mock.timers.tick(2000);
   assert.equal(a.calls.appOpenShows, 1);
   lifecycle.disposeAdvertisingRuntime();
+});
+
+test("rewarded download hook uses the official test unit, needs completion and consumes only after save", async (t) => {
+  t.mock.timers.enable({
+    apis: ["Date", "setTimeout"],
+    now: Date.parse("2026-11-13T12:00:00Z"),
+  });
+  const a = app("android", "bare"),
+    hook = a.load("src/ads/useRewardedDownload.ts"),
+    view = a.renderer(hook.useRewardedDownload);
+  let control = view.render();
+  assert.equal(control.canOfferAd, true);
+  assert.equal(a.calls.rewardedUnits[0].unit, "test-rewarded");
+  assert.equal(
+    a.calls.rewardedUnits[0].options.requestNonPersonalizedAdsOnly,
+    true,
+  );
+  const ad = a.calls.rewardedAds[0];
+  ad.emit("rewarded_loaded");
+  const pending = control.beforeDownload();
+  ad.emit("opened");
+  ad.emit("rewarded_earned_reward");
+  ad.emit("closed");
+  assert.equal(await pending, true);
+  control = view.render();
+  assert.equal(control.canOfferAd, false, "retry uses earned credit");
+  assert.equal(await control.beforeDownload(), true);
+  assert.equal(a.calls.rewardedShows, 1);
+  control.completeDownload();
+  control = view.render();
+  assert.equal(control.canOfferAd, true);
+  view.dispose();
+  a.load("src/ads/rewarded-manager.ts").rewardedManager._test.reset();
+});
+test("leaving the download screen during an ad cannot start a late download", async (t) => {
+  t.mock.timers.enable({
+    apis: ["Date", "setTimeout"],
+    now: Date.parse("2026-11-13T12:00:00Z"),
+  });
+  const a = app("android", "bare"),
+    hook = a.load("src/ads/useRewardedDownload.ts"),
+    view = a.renderer(hook.useRewardedDownload);
+  const control = view.render(),
+    ad = a.calls.rewardedAds[0];
+  ad.emit("rewarded_loaded");
+  const pending = control.beforeDownload();
+  view.dispose();
+  ad.emit("rewarded_earned_reward");
+  ad.emit("closed");
+  assert.equal(await pending, false);
+  a.load("src/ads/rewarded-manager.ts").rewardedManager._test.reset();
+});
+
+test("closing an opt-in rewarded ad early returns false and shows a plain cancellation message", async (t) => {
+  t.mock.timers.enable({
+    apis: ["Date", "setTimeout"],
+    now: Date.parse("2026-11-13T12:00:00Z"),
+  });
+  const a = app("android", "bare"),
+    hook = a.load("src/ads/useRewardedDownload.ts"),
+    view = a.renderer(hook.useRewardedDownload);
+  const control = view.render(),
+    ad = a.calls.rewardedAds[0];
+  ad.emit("rewarded_loaded");
+  const pending = control.beforeDownload();
+  ad.emit("opened");
+  ad.emit("closed");
+  assert.equal(await pending, false);
+  assert.equal(a.calls.alerts[0][0], "Download not started");
+  view.dispose();
+  a.load("src/ads/rewarded-manager.ts").rewardedManager._test.reset();
 });

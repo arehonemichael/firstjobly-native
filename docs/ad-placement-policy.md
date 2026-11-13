@@ -7,6 +7,7 @@ This is a rollout policy, not a demonstrated revenue optimum. Production fill, e
 - Home: existing banner plus a feed-native slot after the fourth recommended job when at least four recommendations exist.
 - Jobs: native slots after indices 3, 9, 15… (fourth, tenth, sixteenth jobs).
 - Job detail: existing banner/native placements. Apply does not trigger an ad.
+- CV/Z83 downloads: explicit opt-in rewarded ad using the supplied unit; [reward/fallback and verification details](rewarded-downloads.md).
 - Hot: footer banner. Saved: banner below its heading. No new Community/Profile placements.
 
 ## Job interstitials: 1, 3, 6… opportunities
@@ -50,3 +51,7 @@ Use official test units. Wait at least 60 seconds after closing a full-screen ad
 Rollback: set `appOpen.coldStartEnabled` false to restore background-only entry; raise `minLaunches` or the startup/format cooldowns, raise `afterFirstAdJobOpens` to 3 to restore the former second opportunity, raise `everyNthJobOpen`, or disable the corresponding formats. These are source settings requiring a JS update, not remote switches.
 
 Development/preview test creatives earn no revenue. Existing production builds use the unchanged production units with test mode off; no release/store publication was performed. Monitor revenue per active user alongside early exits, job opens and retention before increasing frequency further.
+
+## Rewarded download addition
+
+The current CV PDF and official Z83 download buttons now disclose a rewarded ad offer. Completing the ad and closing it permits the existing file workflow; early close cancels the attempt. Unavailable/denied/unsupported/no-fill/error paths leave downloads available without an ad. Earned credit remains until saving succeeds. The existing full-screen gap also applies. Development uses official rewarded test units; the supplied production unit is selected only with test mode off. See the linked report for files and the latest 89 ad / 17 runtime test results.

@@ -8,6 +8,7 @@ const { createFullscreenLock } = load("src/ads/fullscreen-lock.ts");
 const { ADS_CONFIG, shouldInsertNative } = load("src/ads/config.ts");
 const { createInterstitialManager } = load("src/ads/interstitial-manager.ts");
 const { createAdRecovery, loadNativeWithTimeout } = load("src/ads/recovery.ts");
+const { createRewardedManager } = load("src/ads/rewarded-manager.ts");
 const tick = () => new Promise((r) => setImmediate(r));
 function privacy({
   status = "NOT_REQUIRED",
@@ -1270,4 +1271,347 @@ test("cold app-open retains its persisted three-hour cooldown", async (t) => {
   f.control.beginColdStart(true);
   t.mock.timers.tick(2000);
   assert.equal(f.ads[0].shows, 0);
+});
+
+function rewardFixture(t, { allowed = true, enabled = true } = {}) {
+  t.mock.timers.enable({
+    apis: ["Date", "setTimeout"],
+    now: Date.parse("2026-11-13T12:00:00Z"),
+  });
+  const ads = [],
+    lock = createFullscreenLock();
+  const control = createRewardedManager(
+    {
+      permitted: () => allowed,
+      events: {
+        LOADED: "rewarded_loaded",
+        OPENED: "opened",
+        EARNED: "rewarded_earned_reward",
+        CLOSED: "closed",
+        ERROR: "error",
+      },
+      createAd() {
+        const ad = fakeAd();
+        ads.push(ad);
+        return ad;
+      },
+    },
+    { ...ADS_CONFIG.rewarded, enabled },
+    lock,
+  );
+  t.after(() => control._test.reset());
+  control.prepare();
+  return {
+    control,
+    ads,
+    lock,
+    deny() {
+      allowed = false;
+      control.revoke();
+    },
+  };
+}
+test("rewarded download waits for EARNED_REWARD and close; reward payload on load is not completion", async (t) => {
+  const f = rewardFixture(t);
+  f.ads[0].emit("rewarded_loaded");
+  let result;
+  const pending = f.control.request().then((value) => {
+    result = value;
+  });
+  f.ads[0].emit("opened");
+  await tick();
+  assert.equal(result, undefined);
+  assert.equal(f.control.getCredit(), false);
+  f.ads[0].emit("rewarded_earned_reward");
+  await tick();
+  assert.equal(result, undefined);
+  assert.equal(
+    await f.control.request(),
+    "busy",
+    "never download beneath the active ad",
+  );
+  f.ads[0].emit("closed");
+  await pending;
+  assert.equal(result, "earned");
+  assert.equal(f.lock.isHeld(), false);
+});
+test("closing a rewarded ad early cancels only that download attempt", async (t) => {
+  const f = rewardFixture(t);
+  f.ads[0].emit("rewarded_loaded");
+  const pending = f.control.request();
+  f.ads[0].emit("opened");
+  f.ads[0].emit("closed");
+  assert.equal(await pending, "cancelled");
+  assert.equal(f.control.getCredit(), false);
+  assert.equal(f.lock.isHeld(), false);
+});
+test("earned download survives a failed PDF/save attempt until a successful download consumes it", async (t) => {
+  const f = rewardFixture(t);
+  f.ads[0].emit("rewarded_loaded");
+  const pending = f.control.request();
+  f.ads[0].emit("opened");
+  f.ads[0].emit("rewarded_earned_reward");
+  f.ads[0].emit("rewarded_earned_reward");
+  f.ads[0].emit("closed");
+  assert.equal(await pending, "earned");
+  assert.equal(await f.control.request(), "earned");
+  assert.equal(f.ads.length, 1);
+  f.control.consumeReward();
+  assert.equal(f.control.getCredit(), false);
+  assert.equal(f.ads.length, 2);
+});
+for (const type of [
+  "error",
+  "reject",
+  "throw",
+  "start-timeout",
+  "safety-timeout",
+]) {
+  test(`rewarded ${type} resolves once with free fallback and releases the lock`, async (t) => {
+    const f = rewardFixture(t);
+    f.ads[0].emit("rewarded_loaded");
+    let calls = 0;
+    if (type === "reject") f.ads[0].reject = true;
+    if (type === "throw") f.ads[0].throws = true;
+    const pending = f.control.request().then((value) => {
+      calls++;
+      return value;
+    });
+    if (type === "error") f.ads[0].emit("error");
+    if (type === "start-timeout")
+      t.mock.timers.tick(ADS_CONFIG.rewarded.startTimeoutMs);
+    if (type === "safety-timeout") {
+      f.ads[0].emit("opened");
+      t.mock.timers.tick(ADS_CONFIG.rewarded.safetyTimeoutMs);
+    }
+    assert.equal(await pending, "unavailable");
+    assert.equal(calls, 1);
+    assert.equal(f.lock.isHeld(), false);
+    f.ads[0].emit("closed");
+    assert.equal(calls, 1);
+  });
+}
+test("unloaded rewarded requests continue without waiting and may preload for later opt-in", async (t) => {
+  const f = rewardFixture(t);
+  assert.equal(await f.control.request(), "unavailable");
+  assert.equal(f.ads[0].shows, 0);
+});
+test("rewarded loading times out and retries with bounded backoff", (t) => {
+  const f = rewardFixture(t);
+  t.mock.timers.tick(ADS_CONFIG.rewarded.loadTimeoutMs);
+  assert.equal(f.ads.length, 1);
+  t.mock.timers.tick(ADS_CONFIG.rewarded.retryBackoffMs[0] - 1);
+  assert.equal(f.ads.length, 1);
+  t.mock.timers.tick(1);
+  assert.equal(f.ads.length, 2);
+  f.ads[1].emit("error");
+  t.mock.timers.tick(ADS_CONFIG.rewarded.retryBackoffMs[1]);
+  assert.equal(f.ads.length, 3);
+  f.ads[2].emit("error");
+  t.mock.timers.tick(ADS_CONFIG.rewarded.retryBackoffMs[2]);
+  assert.equal(f.ads.length, 4);
+  f.ads[3].emit("error");
+  t.mock.timers.tick(600000);
+  assert.equal(f.ads.length, 4);
+  f.control.prepare();
+  assert.equal(f.ads.length, 5);
+});
+test("disabled or unpermitted rewarded paths never request an ad and downloads stay available", async (t) => {
+  const f = rewardFixture(t, { allowed: false });
+  assert.equal(f.ads.length, 0);
+  assert.equal(await f.control.request(), "unavailable");
+  const disabled = createRewardedManager(
+    {
+      permitted: () => true,
+      events: {},
+      createAd() {
+        assert.fail();
+      },
+    },
+    { ...ADS_CONFIG.rewarded, enabled: false },
+  );
+  assert.equal(await disabled.request(), "unavailable");
+  disabled._test.reset();
+});
+test("rewarded consent withdrawal resolves a pending request and cancels further loads", async (t) => {
+  const f = rewardFixture(t);
+  f.ads[0].emit("rewarded_loaded");
+  const pending = f.control.request();
+  f.deny();
+  assert.equal(await pending, "unavailable");
+  assert.equal(f.lock.isHeld(), false);
+  t.mock.timers.tick(600000);
+  assert.equal(f.ads.length, 1);
+});
+test("rewarded uses the existing cross-format lock and post-close gap", async (t) => {
+  const f = rewardFixture(t);
+  f.ads[0].emit("rewarded_loaded");
+  f.lock.tryAcquire("interstitial");
+  assert.equal(await f.control.request(), "unavailable");
+  f.lock.release("interstitial");
+  assert.equal(await f.control.request(), "unavailable");
+  assert.equal(f.ads[0].shows, 0);
+  t.mock.timers.tick(ADS_CONFIG.fullscreenMinGapMs);
+  const pending = f.control.request();
+  assert.equal(f.ads[0].shows, 1);
+  f.ads[0].emit("closed");
+  assert.equal(await pending, "cancelled");
+});
+
+// Execute the actual screen handlers with isolated PDF/native ports. No real
+// files, network requests, consent data or ad impressions are generated.
+function downloadHandler(file, name, deps) {
+  const fs = require("node:fs"),
+    path = require("node:path"),
+    ts = require("typescript");
+  const source = fs.readFileSync(path.join(__dirname, "..", file), "utf8");
+  const parsed = ts.createSourceFile(
+    file,
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  );
+  let target;
+  function visit(node) {
+    if (ts.isFunctionDeclaration(node) && node.name?.text === name)
+      target = node;
+    ts.forEachChild(node, visit);
+  }
+  visit(parsed);
+  assert.ok(target, name);
+  const code = ts.transpileModule(target.getText(parsed), {
+    compilerOptions: {
+      target: ts.ScriptTarget.ES2022,
+      module: ts.ModuleKind.CommonJS,
+    },
+  }).outputText;
+  return new Function(...Object.keys(deps), `${code}\nreturn ${name};`)(
+    ...Object.values(deps),
+  );
+}
+function downloadPorts(kind, before = async () => true) {
+  const events = [],
+    busy = [],
+    alerts = [],
+    lock = { current: false };
+  const deps = {
+    downloadLock: lock,
+    data: {
+      firstName: "Fixture",
+      lastName: "Person",
+      surnameAndNames: "Fixture Person",
+    },
+    beforeDownload: async () => {
+      events.push("ad");
+      return before();
+    },
+    completeDownload: () => events.push("consume"),
+    setBusy: (value) => busy.push(value),
+    savePdfToDownloads: async () => events.push("save"),
+    Alert: { alert: (...args) => alerts.push(args) },
+    console: { error() {} },
+    Print: {
+      printToFileAsync: async () => {
+        events.push("generate");
+        return { uri: "fixture.pdf" };
+      },
+    },
+    cvHtml: () => "fixture",
+    templateId: "fixture",
+    fileBase: () => "Fixture",
+    missingRequired: () => [],
+    TEMPLATE_URL: "https://fixture.invalid/z83.pdf",
+    fetch: async () => {
+      events.push("template");
+      return { ok: true, arrayBuffer: async () => new ArrayBuffer(1) };
+    },
+    fillZ83: async () => {
+      events.push("generate");
+      return new Uint8Array([1]);
+    },
+    File: class {
+      constructor() {
+        this.uri = "fixture.pdf";
+      }
+      write() {
+        events.push("write");
+      }
+    },
+    Paths: { cache: "/fixture" },
+  };
+  const handler = downloadHandler(
+    kind === "cv" ? "src/app/cv-maker.tsx" : "src/app/z83.tsx",
+    kind === "cv" ? "createPdf" : "download",
+    deps,
+  );
+  return { deps, events, busy, alerts, lock, handler };
+}
+for (const kind of ["cv", "z83"]) {
+  test(`${kind} download saves only after ad permission and consumes reward only after save`, async () => {
+    const f = downloadPorts(kind);
+    await f.handler();
+    assert.equal(f.events[0], "ad");
+    assert.ok(f.events.indexOf("generate") < f.events.indexOf("save"));
+    assert.equal(f.events.at(-1), "consume");
+    assert.equal(f.lock.current, false);
+    assert.equal(f.busy.at(-1), false);
+  });
+  test(`${kind} closed-ad cancellation cannot generate or save a PDF`, async () => {
+    const f = downloadPorts(kind, async () => false);
+    await f.handler();
+    assert.deepEqual(f.events, ["ad"]);
+    assert.equal(f.lock.current, false);
+    assert.equal(f.busy.at(-1), false);
+  });
+  test(`${kind} duplicate download taps cannot request twice or generate duplicate PDFs`, async () => {
+    let finish;
+    const f = downloadPorts(
+      kind,
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const pending = f.handler();
+    await f.handler();
+    assert.deepEqual(f.events, ["ad"]);
+    finish(true);
+    await pending;
+    assert.equal(f.events.filter((e) => e === "save").length, 1);
+    assert.equal(f.events.filter((e) => e === "consume").length, 1);
+  });
+  test(`${kind} save failure cannot consume the earned download`, async () => {
+    const f = downloadPorts(kind);
+    f.deps.savePdfToDownloads = async () => {
+      throw Error("storage unavailable");
+    };
+    const handler = downloadHandler(
+      kind === "cv" ? "src/app/cv-maker.tsx" : "src/app/z83.tsx",
+      kind === "cv" ? "createPdf" : "download",
+      f.deps,
+    );
+    await handler();
+    assert.equal(f.events.includes("consume"), false);
+    assert.equal(f.busy.at(-1), false);
+    assert.equal(f.lock.current, false);
+  });
+}
+test("CV name validation happens before an ad is requested", async () => {
+  const f = downloadPorts("cv");
+  f.deps.data.firstName = "";
+  f.deps.data.lastName = "";
+  await f.handler();
+  assert.deepEqual(f.events, []);
+  assert.equal(f.alerts.length, 1);
+});
+test("cancelling the Z83 incomplete-fields prompt requests no ad and releases the tap lock", async () => {
+  const f = downloadPorts("z83");
+  f.deps.missingRequired = () => ["Surname"];
+  f.deps.Alert.alert = (_title, _message, buttons) => buttons[0].onPress();
+  const handler = downloadHandler("src/app/z83.tsx", "download", f.deps);
+  await handler();
+  assert.deepEqual(f.events, []);
+  assert.equal(f.lock.current, false);
+  assert.equal(f.busy.at(-1), false);
 });

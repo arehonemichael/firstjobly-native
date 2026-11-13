@@ -6,6 +6,7 @@ const PROD = {
   appOpen: "ca-app-pub-1505001993402465/8648800689",
   interstitial: "ca-app-pub-1505001993402465/4410223100",
   native: "ca-app-pub-1505001993402465/9578738973",
+  rewarded: "ca-app-pub-1505001993402465/9710408715",
 } as const;
 
 export const ADS_TEST_MODE =
@@ -18,6 +19,7 @@ export const AD_UNITS = {
     ? (TestIds?.INTERSTITIAL ?? "")
     : PROD.interstitial,
   native: ADS_TEST_MODE ? (TestIds?.NATIVE ?? "") : PROD.native,
+  rewarded: ADS_TEST_MODE ? (TestIds?.REWARDED ?? "") : PROD.rewarded,
 } as const;
 
 export const ADS_CONFIG = {
@@ -39,6 +41,13 @@ export const ADS_CONFIG = {
     minLaunches: 1,
     cooldownMs: 3 * 60 * 60 * 1000,
     maxAdAgeMs: 3.5 * 60 * 60 * 1000,
+  },
+  rewarded: {
+    enabled: true,
+    loadTimeoutMs: 10000,
+    startTimeoutMs: 1500,
+    safetyTimeoutMs: 120000,
+    retryBackoffMs: [5000, 15000, 45000],
   },
   fullscreenMinGapMs: 60000,
   banner: { enabled: true, retryBackoffMs: [30000, 60000, 120000] },

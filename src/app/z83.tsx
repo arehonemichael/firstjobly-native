@@ -4,7 +4,7 @@ import {
   AppTouchableOpacity as TouchableOpacity,
 } from "../components/ui/primitives";
 import { Colors, Fonts } from "../constants/theme";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -22,6 +22,7 @@ import { File, Paths } from "expo-file-system";
 import { useAuth } from "../hooks/use-auth";
 import { supabase } from "../lib/supabase";
 import { fillZ83 } from "../lib/z83/fill";
+import { useRewardedDownload } from "../ads/useRewardedDownload";
 import { savePdfToDownloads } from "../lib/save-pdf";
 import {
   SA_LANGUAGES,
@@ -71,6 +72,9 @@ const sensitiveKeys: (keyof Z83Data)[] = [
 ];
 
 export default function Z83Screen() {
+  const { beforeDownload, canOfferAd, completeDownload } =
+    useRewardedDownload();
+  const downloadLock = useRef(false);
   const bottomContentPadding = useScreenBottomPadding(false);
   const { userId, isAuthenticated } = useAuth();
   const [data, setData] = useState<Z83Data>(() => emptyZ83());
@@ -195,24 +199,31 @@ export default function Z83Screen() {
   }
 
   async function download() {
-    const missing = missingRequired(data);
-    if (missing.length) {
-      const proceed = await new Promise<boolean>((resolve) => {
-        Alert.alert(
-          "Some required fields are incomplete",
-          missing.map((x) => `• ${x}`).join("\n"),
-          [
-            { text: "Go back", style: "cancel", onPress: () => resolve(false) },
-            { text: "Download anyway", onPress: () => resolve(true) },
-          ],
-          { cancelable: true, onDismiss: () => resolve(false) },
-        );
-      });
-      if (!proceed) return;
-    }
-
+    if (downloadLock.current) return;
+    downloadLock.current = true;
     setBusy(true);
     try {
+      const missing = missingRequired(data);
+      if (missing.length) {
+        const proceed = await new Promise<boolean>((resolve) => {
+          Alert.alert(
+            "Some required fields are incomplete",
+            missing.map((x) => `• ${x}`).join("\n"),
+            [
+              {
+                text: "Go back",
+                style: "cancel",
+                onPress: () => resolve(false),
+              },
+              { text: "Download anyway", onPress: () => resolve(true) },
+            ],
+            { cancelable: true, onDismiss: () => resolve(false) },
+          );
+        });
+        if (!proceed) return;
+      }
+
+      if (!(await beforeDownload())) return;
       const response = await fetch(TEMPLATE_URL);
       if (!response.ok) throw new Error("Official Z83 template unavailable");
       const template = await response.arrayBuffer();
@@ -228,6 +239,7 @@ export default function Z83Screen() {
 
       const fileName = `Z83_${safeName}.pdf`;
       await savePdfToDownloads(file.uri, fileName);
+      completeDownload();
 
       Alert.alert(
         "Downloaded",
@@ -240,6 +252,7 @@ export default function Z83Screen() {
         "Could not create the official PDF. Check your connection and try again.",
       );
     } finally {
+      downloadLock.current = false;
       setBusy(false);
     }
   }
@@ -974,10 +987,21 @@ export default function Z83Screen() {
                 size={18}
                 color={Colors.surface}
               />
-              <Text style={s.primaryText}>Download completed official Z83</Text>
+              <Text style={s.primaryText}>
+                {canOfferAd
+                  ? "Watch ad & download Z83"
+                  : "Download completed official Z83"}
+              </Text>
             </>
           )}
         </TouchableOpacity>
+
+        {canOfferAd && (
+          <Text style={s.hint}>
+            Finish the ad to download. If no ad is available, your download
+            continues without one.
+          </Text>
+        )}
 
         <TouchableOpacity
           style={s.clear}
@@ -1350,7 +1374,9 @@ const s = StyleSheet.create({
   },
   warningText: { color: Colors.muted, fontSize: 12, lineHeight: 20 },
   primary: {
-    height: 55,
+    minHeight: 55,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
     marginTop: 16,
     borderRadius: 11,
     backgroundColor: Colors.primary,
@@ -1360,6 +1386,8 @@ const s = StyleSheet.create({
     justifyContent: "center",
   },
   primaryText: {
+    flexShrink: 1,
+    textAlign: "center",
     color: Colors.surface,
     fontFamily: Fonts.medium,
     fontWeight: "500",
