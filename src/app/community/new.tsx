@@ -346,6 +346,19 @@ function Composer({
           private.
         </Text>
         {restored && <Notice>Your draft was restored on this device.</Notice>}
+        <Text style={s.heading}>Title</Text>
+        <TextInput
+          accessibilityLabel="Discussion title"
+          placeholder="What would you like help with?"
+          maxLength={140}
+          value={draft.title}
+          editable={!busy}
+          onChangeText={(title) =>
+            setDraft((current) => ({ ...current, title }))
+          }
+          style={s.field}
+        />
+        <Text style={s.muted}>{draft.title.length}/140</Text>
         <Text style={s.heading}>Topic</Text>
         <View style={s.row}>
           {Object.entries(TOPICS).map(([value, label]) => (
@@ -360,23 +373,10 @@ function Composer({
             />
           ))}
         </View>
-        <Text style={s.heading}>Title</Text>
-        <TextInput
-          accessibilityLabel="Discussion title"
-          placeholder="e.g. How do I follow up after an interview?"
-          maxLength={140}
-          value={draft.title}
-          editable={!busy}
-          onChangeText={(title) =>
-            setDraft((current) => ({ ...current, title }))
-          }
-          style={s.field}
-        />
-        <Text style={s.muted}>{draft.title.length}/140</Text>
-        <Text style={s.heading}>Details</Text>
+        <Text style={s.heading}>Message</Text>
         <TextInput
           accessibilityLabel="Discussion details"
-          placeholder="Give a bit of background (at least 20 characters)."
+          placeholder="Add enough detail for someone to help."
           multiline
           maxLength={5000}
           value={draft.body}

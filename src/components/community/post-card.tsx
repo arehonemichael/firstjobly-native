@@ -2,7 +2,12 @@ import { useState } from "react";
 import { View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import { Bookmark, MessageCircle, ThumbsUp } from "lucide-react-native";
+import {
+  Bookmark,
+  MessageCircle,
+  ThumbsUp,
+  MoreHorizontal,
+} from "lucide-react-native";
 import { AppText as Text, AppPressable as Pressable } from "../ui/primitives";
 import { Colors, Fonts } from "../../constants/theme";
 import {
@@ -59,9 +64,11 @@ export function AuthorLine({
           {initials(name)}
         </Text>
       </LinearGradient>
-      <View style={{ flex: 1, minWidth: 100 }}>
+      <View style={{ flex: 1, minWidth: 0 }}>
         <View style={s.row}>
-          <Text style={[s.body, { fontFamily: Fonts.semibold }]}>{name}</Text>
+          <Text style={[s.body, { fontFamily: Fonts.medium, flexShrink: 1 }]}>
+            {name}
+          </Text>
           {author.anonymous && <Text style={s.chip}>Anonymous</Text>}
           {author.isMine && <Text style={s.chip}>You</Text>}
         </View>
@@ -88,6 +95,7 @@ export function PostCard({
   renew(): void;
   onReplies?(): void;
 }) {
+  const [actionsOpen, setActionsOpen] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [message, setMessage] = useState("");
   const [report, setReport] = useState(false);
@@ -125,23 +133,27 @@ export function PostCard({
   }
   return (
     <View style={s.card} testID={`community-post-${post.id}`}>
-      <AuthorLine
-        author={post.author}
-        date={post.createdAt}
-        edited={post.edited}
-      />
-      <View style={s.row}>
-        {post.pinned && <Text style={s.chip}>Pinned</Text>}
-        <Text style={s.chip}>{TOPICS[post.topic] || "General"}</Text>
-        {post.sharedFromGraduateRoom && (
-          <Text style={s.chip}>Shared from GraduateRoom</Text>
-        )}
-        {canFollow && (
-          <Button
-            label={post.author.viewerFollows ? "Unfollow" : "Follow"}
-            disabled={mutationLocks.has(`${owner}:follow:${post.author.id}`)}
-            onPress={() => void toggle("follow")}
+      <View style={[s.row, { flexWrap: "nowrap", alignItems: "flex-start" }]}>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <AuthorLine
+            author={post.author}
+            date={post.createdAt}
+            edited={post.edited}
           />
+        </View>
+        {(canFollow || !post.author.isMine || viewer.canWrite) && (
+          <Pressable
+            accessibilityLabel={
+              actionsOpen
+                ? "Hide discussion actions"
+                : "More discussion actions"
+            }
+            accessibilityState={{ expanded: actionsOpen }}
+            onPress={() => setActionsOpen(!actionsOpen)}
+            style={[s.button, s.quietButton]}
+          >
+            <MoreHorizontal size={20} color={Colors.muted} />
+          </Pressable>
         )}
       </View>
       {!!statusMessage(post.status) && (
@@ -164,10 +176,18 @@ export function PostCard({
       <Text style={s.body} numberOfLines={full ? undefined : 3}>
         {post.body}
       </Text>
+      <View style={s.row}>
+        {post.pinned && <Text style={s.chip}>Pinned</Text>}
+        <Text style={s.metadata}>{TOPICS[post.topic] || "General"}</Text>
+        {post.sharedFromGraduateRoom && (
+          <Text style={s.metadata}>Shared from GraduateRoom</Text>
+        )}
+      </View>
       <CommunityMedia media={post.media || []} renew={renew} />
       <View style={s.row}>
         {viewer.canWrite && post.status === "visible" ? (
           <Button
+            quiet
             label={`Helpful · ${post.upvoteCount}`}
             selected={post.viewerVoted}
             disabled={mutationLocks.has(`${owner}:vote:${post.id}`)}
@@ -186,7 +206,7 @@ export function PostCard({
           style={[s.row, { minHeight: 44, paddingHorizontal: 8 }]}
         >
           <MessageCircle size={16} color={Colors.muted} />
-          <Text style={s.muted}>{post.commentCount} replies</Text>
+          <Text style={s.muted}>{post.commentCount}</Text>
         </Pressable>
         {viewer.canWrite && (
           <Pressable
@@ -200,42 +220,62 @@ export function PostCard({
             }}
             disabled={mutationLocks.has(`${owner}:save:${post.id}`)}
             onPress={() => void toggle("save")}
-            style={[s.button, post.viewerSaved && s.selected, s.row]}
+            style={[
+              s.button,
+              s.quietButton,
+              post.viewerSaved && s.selected,
+              s.row,
+            ]}
           >
             <Bookmark
               size={16}
-              color={Colors.primaryPressed}
+              color={post.viewerSaved ? Colors.primary : Colors.muted}
               fill={post.viewerSaved ? Colors.primarySoft : "none"}
             />
-            <Text style={s.buttonText}>
-              {post.viewerSaved ? "Saved" : "Save"}
-            </Text>
           </Pressable>
         )}
-        {!post.author.isMine && (
-          <Button label="Report discussion" onPress={() => setReport(true)} />
-        )}
-        {viewer.canWrite && post.author.isMine && (
-          <>
-            <Button
-              label="Delete discussion"
-              disabled={mutationLocks.has(`${owner}:delete:${post.id}`)}
-              onPress={() => void remove()}
-            />
-            {post.status === "visible" && (
-              <Button
-                label="Edit discussion"
-                onPress={() =>
-                  router.push({
-                    pathname: "/community/new",
-                    params: { edit: post.id },
-                  })
-                }
-              />
-            )}
-          </>
-        )}
       </View>
+      {actionsOpen && (
+        <View style={s.row}>
+          {canFollow && (
+            <Button
+              quiet
+              label={post.author.viewerFollows ? "Unfollow" : "Follow"}
+              disabled={mutationLocks.has(`${owner}:follow:${post.author.id}`)}
+              onPress={() => void toggle("follow")}
+            />
+          )}
+          {!post.author.isMine && (
+            <Button
+              quiet
+              label="Report discussion"
+              onPress={() => setReport(true)}
+            />
+          )}
+          {viewer.canWrite && post.author.isMine && (
+            <>
+              <Button
+                quiet
+                label="Delete discussion"
+                disabled={mutationLocks.has(`${owner}:delete:${post.id}`)}
+                onPress={() => void remove()}
+              />
+              {post.status === "visible" && (
+                <Button
+                  quiet
+                  label="Edit discussion"
+                  onPress={() =>
+                    router.push({
+                      pathname: "/community/new",
+                      params: { edit: post.id },
+                    })
+                  }
+                />
+              )}
+            </>
+          )}
+        </View>
+      )}
       {!!message && (
         <Text accessibilityLiveRegion="polite" style={s.muted}>
           {message}
