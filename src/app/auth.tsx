@@ -1,4 +1,5 @@
-import { Colors } from "../constants/theme";
+import { BrandWordmark } from "../components/brand-wordmark";
+import { Colors, Fonts, Radius, Space } from "../constants/theme";
 import {
   AppText as Text,
   AppTextInput as TextInput,
@@ -13,6 +14,7 @@ import {
   ScrollView,
   StyleSheet,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { Icon as Ionicons } from "../components/ui/icon";
 import { router, useLocalSearchParams, type Href } from "expo-router";
@@ -26,6 +28,7 @@ import { useScreenBottomPadding } from "../hooks/use-screen-bottom-padding";
 type Mode = "signin" | "signup" | "forgot";
 
 export default function AuthScreen() {
+  const { width } = useWindowDimensions();
   const { returnTo } = useLocalSearchParams<{ returnTo?: string | string[] }>();
   const destination = authDestination(returnTo) as Href;
   const bottomContentPadding = useScreenBottomPadding(false);
@@ -181,9 +184,10 @@ export default function AuthScreen() {
           </TouchableOpacity>
 
           <View style={styles.brand}>
-            <Text style={styles.wordmark}>
-              First<Text style={styles.pink}>Jobly</Text>
-            </Text>
+            <BrandWordmark
+              availableWidth={Math.min(width - Space.xl * 2, 432)}
+              preferredSize={32}
+            />
 
             <Text style={styles.subtitle}>
               {mode === "signup"
@@ -330,12 +334,15 @@ const styles = StyleSheet.create({
 
   page: {
     flex: 1,
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.background,
   },
 
   content: {
     flexGrow: 1,
-    paddingHorizontal: 24,
+    width: "100%",
+    maxWidth: 480,
+    alignSelf: "center",
+    paddingHorizontal: Space.xl,
     paddingBottom: 40,
   },
 
@@ -349,16 +356,6 @@ const styles = StyleSheet.create({
   brand: {
     alignItems: "center",
     marginTop: 46,
-  },
-
-  wordmark: {
-    color: Colors.foreground,
-    fontSize: 32,
-    fontWeight: "500",
-  },
-
-  pink: {
-    color: Colors.primaryPressed,
   },
 
   subtitle: {
@@ -375,7 +372,8 @@ const styles = StyleSheet.create({
   },
 
   label: {
-    color: Colors.muted,
+    color: Colors.navy,
+    fontFamily: Fonts.medium,
     fontSize: 13,
     fontWeight: "500",
     marginBottom: 8,
@@ -383,10 +381,11 @@ const styles = StyleSheet.create({
   },
 
   input: {
-    height: 52,
+    minHeight: 52,
+    paddingVertical: Space.md,
     borderWidth: 1,
     borderColor: Colors.input,
-    borderRadius: 10,
+    borderRadius: Radius.sm,
     paddingHorizontal: 16,
     color: Colors.foreground,
     fontSize: 15,
@@ -394,16 +393,19 @@ const styles = StyleSheet.create({
   },
 
   passwordWrap: {
-    height: 52,
+    backgroundColor: Colors.surface,
+    minHeight: 52,
     borderWidth: 1,
     borderColor: Colors.input,
-    borderRadius: 10,
+    borderRadius: Radius.sm,
     flexDirection: "row",
     alignItems: "center",
   },
 
   passwordInput: {
     flex: 1,
+    minHeight: 50,
+    paddingVertical: Space.md,
     paddingHorizontal: 16,
     color: Colors.foreground,
     fontSize: 15,
@@ -422,9 +424,11 @@ const styles = StyleSheet.create({
   },
 
   primary: {
-    height: 54,
+    minHeight: 54,
+    paddingVertical: Space.md,
+    paddingHorizontal: Space.lg,
     marginTop: 20,
-    borderRadius: 10,
+    borderRadius: Radius.sm,
     backgroundColor: Colors.primary,
     alignItems: "center",
     justifyContent: "center",
@@ -435,7 +439,10 @@ const styles = StyleSheet.create({
   },
 
   primaryText: {
-    color: Colors.surface,
+    maxWidth: "100%",
+    textAlign: "center",
+    color: Colors.primaryForeground,
+    fontFamily: Fonts.semibold,
     fontWeight: "500",
     fontSize: 15,
   },
@@ -458,7 +465,7 @@ const styles = StyleSheet.create({
   },
 
   link: {
-    color: Colors.primaryPressed,
+    color: Colors.primary,
     fontWeight: "500",
     fontSize: 13,
   },

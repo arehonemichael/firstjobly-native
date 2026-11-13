@@ -83,3 +83,6 @@ export const NavigationColors = {
   pressed: Colors.primaryPressed,
   foreground: Colors.navy,
 } as const;
+
+/** Canonical wordmark colours shared by Home and every auth mode. */
+export const BrandColors = { first: Colors.primary, jobly: Colors.navy } as const;

@@ -253,9 +253,10 @@ function check(v, label) {
       "entry follows actual initialization readiness without a minimum wait",
     );
     check(
-      await t.page
-        .getByRole("button", { name: "Open navigation menu", exact: true })
-        .isVisible(),
+      new URL(t.page.url()).pathname === "/" &&
+        (await t.page
+          .getByRole("tab", { name: "Home", exact: true })
+          .getAttribute("aria-selected")) === "true",
       "Home is the default destination",
     );
     await t.page

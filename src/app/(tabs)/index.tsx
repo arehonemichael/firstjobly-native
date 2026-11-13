@@ -1,3 +1,4 @@
+import { categoryPresentation } from "../../lib/home-presentation";
 import { HotJobsSection } from "../../components/home/hot-jobs";
 import { BrandWordmark } from "../../components/brand-wordmark";
 import { useRecommendations } from "../../hooks/use-recommendations";
@@ -12,7 +13,13 @@ import { RecommendationSkeleton } from "../../components/home/recommendation-ske
 import { HomeSessionHero } from "../../components/home/session-hero";
 import { useState } from "react";
 import { Image } from "expo-image";
-import { ActivityIndicator, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
+import {
+  ActivityIndicator,
+  ScrollView,
+  StyleSheet,
+  View,
+  useWindowDimensions,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import {
@@ -59,7 +66,11 @@ const categories = [
 ];
 
 export default function HomeScreen() {
-  const { width } = useWindowDimensions();
+  const { width, fontScale } = useWindowDimensions();
+  const categoryLayout = categoryPresentation(
+    Math.min(width, Layout.reading) - Space.xl * 2,
+    fontScale,
+  );
   const { user, userId, loading: authLoading } = useAuth();
   const { summary, loading: summaryLoading, retry } = useHomeSummary(userId);
   const {
@@ -254,7 +265,9 @@ export default function HomeScreen() {
               style={styles.brandIcon}
               contentFit="contain"
             />
-            <BrandWordmark availableWidth={Math.min(width, Layout.reading) - Space.lg * 2} />
+            <BrandWordmark
+              availableWidth={Math.min(width, Layout.reading) - Space.xl * 2}
+            />
           </View>
           <View style={styles.headerActions}>
             <Pressable
@@ -622,31 +635,42 @@ export default function HomeScreen() {
             Learnerships, graduate roles and public-sector opportunities
           </Text>
         </View>
-        <View style={styles.categories}>
+        <View testID="home-categories" style={styles.categories}>
           {categories.map(({ label, category, icon: Glyph }) => (
             <Pressable
               key={category}
+              testID="home-category"
+              accessibilityLabel={`Browse ${label}`}
               onPress={() =>
                 router.push({ pathname: "/jobs", params: { category } })
               }
               style={({ pressed, hovered }) => [
                 styles.category,
+                { width: categoryLayout.width },
                 (pressed || hovered) && styles.feedback,
               ]}
             >
               <Glyph
                 strokeWidth={1.5}
                 aria-hidden
-                size={18}
-                color={Colors.muted}
+                size={24}
+                color={Colors.navy}
               />
-              <Text style={[styles.link, styles.grow]}>{label}</Text>
-              <ArrowRight
-                strokeWidth={1.5}
-                aria-hidden
-                size={18}
-                color={Colors.muted}
-              />
+              <View
+                style={{
+                  width: "100%",
+                  minHeight: categoryLayout.labelHeight,
+                  justifyContent: "center",
+                }}
+              >
+                <Text
+                  testID="category-label"
+                  numberOfLines={2}
+                  style={styles.categoryLabel}
+                >
+                  {label}
+                </Text>
+              </View>
             </Pressable>
           ))}
         </View>
@@ -682,7 +706,7 @@ const styles = StyleSheet.create({
     maxWidth: "100%",
   },
   brandIcon: { width: 30, height: 30, borderRadius: 9 },
-  headerActions: { flexDirection: "row", gap: 2 },
+  headerActions: { flexDirection: "row", gap: 2, flexShrink: 0 },
   headerButton: {
     minWidth: 44,
     minHeight: 44,
@@ -908,15 +932,32 @@ const styles = StyleSheet.create({
     gap: Space.sm,
   },
   feedback: { opacity: 0.72 },
-  exploreHeader: { marginTop: Space.xxl, marginBottom: Space.md },
-  categories: { gap: Space.xs },
-  category: {
-    minHeight: 52,
+  exploreHeader: { marginTop: Space.xl, marginBottom: Space.md },
+  categories: {
     flexDirection: "row",
-    alignItems: "center",
+    flexWrap: "wrap",
     gap: Space.md,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-    paddingVertical: Space.sm,
+    marginBottom: Space.xl,
+  },
+  category: {
+    minHeight: 110,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: Space.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    paddingHorizontal: Space.md,
+    paddingVertical: Space.lg,
+  },
+  categoryLabel: {
+    width: "100%",
+    color: Colors.navy,
+    fontFamily: Fonts.semibold,
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: "center",
+    textAlignVertical: "center",
   },
 });
