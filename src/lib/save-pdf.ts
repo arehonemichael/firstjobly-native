@@ -1,11 +1,17 @@
 import { Platform } from "react-native";
+import * as Sharing from "expo-sharing";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as FileSystem from "expo-file-system/legacy";
 
 const DOWNLOADS_URI_KEY = "firstjobly.downloads.directory.v1";
 
 function fileBase(name: string) {
-  return name.replace(/\.pdf$/i, "").replace(/[\\/:*?"<>|]+/g, "_").trim() || "document";
+  return (
+    name
+      .replace(/\.pdf$/i, "")
+      .replace(/[\\/:*?"<>|]+/g, "_")
+      .trim() || "document"
+  );
 }
 
 /**
@@ -21,6 +27,7 @@ function fileBase(name: string) {
 export async function savePdfToDownloads(
   sourceUri: string,
   fileName: string,
+  options: { shareOnIos?: boolean } = {},
 ): Promise<string> {
   const cleanName = fileName.toLowerCase().endsWith(".pdf")
     ? fileName
@@ -32,6 +39,17 @@ export async function savePdfToDownloads(
     }
     const destination = `${FileSystem.documentDirectory}${cleanName}`;
     await FileSystem.copyAsync({ from: sourceUri, to: destination });
+    if (Platform.OS === "ios" && options.shareOnIos) {
+      if (!(await Sharing.isAvailableAsync()))
+        throw new Error(
+          "PDF saved in FirstJobly, but sharing is unavailable on this device.",
+        );
+      await Sharing.shareAsync(destination, {
+        mimeType: "application/pdf",
+        UTI: "com.adobe.pdf",
+        dialogTitle: "Save PDF",
+      });
+    }
     return destination;
   }
 
@@ -59,12 +77,11 @@ export async function savePdfToDownloads(
   });
 
   try {
-    const targetUri =
-      await FileSystem.StorageAccessFramework.createFileAsync(
-        directoryUri,
-        fileBase(cleanName),
-        "application/pdf",
-      );
+    const targetUri = await FileSystem.StorageAccessFramework.createFileAsync(
+      directoryUri,
+      fileBase(cleanName),
+      "application/pdf",
+    );
 
     await FileSystem.writeAsStringAsync(targetUri, base64, {
       encoding: FileSystem.EncodingType.Base64,

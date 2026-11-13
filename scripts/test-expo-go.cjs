@@ -7,7 +7,7 @@ const fs = require("node:fs"),
   path = require("node:path"),
   ts = require("typescript");
 const root = path.resolve(__dirname, "..");
-function app(os, environment, dev = true, forceTest = false) {
+function app(os, environment, dev = true, forceTest = false, iosEnv = {}) {
   const cache = new Map(),
     calls = {
       sdk: 0,
@@ -27,7 +27,8 @@ function app(os, environment, dev = true, forceTest = false) {
       alerts: [],
     };
   const consentState = {
-    canRequestAds: os === "android" && environment !== "storeClient",
+    canRequestAds:
+      ["android", "ios"].includes(os) && environment !== "storeClient",
     personalized: false,
     privacyRequired: false,
     failed: false,
@@ -286,7 +287,12 @@ function app(os, environment, dev = true, forceTest = false) {
       module.exports,
       local,
       dev,
-      { env: { EXPO_PUBLIC_ADS_TEST_MODE: forceTest ? "true" : undefined } },
+      {
+        env: {
+          EXPO_PUBLIC_ADS_TEST_MODE: forceTest ? "true" : undefined,
+          ...iosEnv,
+        },
+      },
     );
     return module.exports;
   }
@@ -355,6 +361,7 @@ for (const [os, environment] of [
     assert.equal(a.calls.sdk, 0);
     if (os === "web") {
       assert.equal(a.load("src/ads/sdk.web.ts").mobileAdsSDK, null);
+      assert.equal(a.load("src/ads/sdk.web.ts").nativeAdsPlatform, "web");
       assert.equal(a.calls.sdk, 0);
     }
     const rootElement = a.load("src/app/_layout.tsx").default();
@@ -412,8 +419,8 @@ test("root remounts share one app-open controller, subscription and test-unit pr
   component.disposeAdvertisingRuntime();
 });
 
-test("iOS native ads remain unsupported until real platform configuration is supplied", () => {
-  const a = app("ios", "bare");
+test("iOS unconfigured release safely disables ads rather than using Android units", () => {
+  const a = app("ios", "bare", false);
   assert.equal(a.load("src/ads/sdk.ts").mobileAdsSDK, null);
   assert.equal(a.calls.sdk, 0);
 });
@@ -700,4 +707,41 @@ test("closing an opt-in rewarded ad early returns false and shows a plain cancel
   assert.equal(a.calls.alerts[0][0], "Download not started");
   view.dispose();
   a.load("src/ads/rewarded-manager.ts").rewardedManager._test.reset();
+});
+
+for (const [dev, forceTest] of [
+  [true, false],
+  [false, true],
+]) {
+  test(`iOS ${dev ? "development" : "TestFlight test mode"} loads the native SDK with official test units`, () => {
+    const a = app("ios", "bare", dev, forceTest);
+    const units = a.load("src/ads/config.ts").AD_UNITS;
+    assert.equal(units.banner, "test-banner");
+    assert.equal(units.appOpen, "test-open");
+    assert.equal(units.interstitial, "test-interstitial");
+    assert.equal(units.rewarded, "test-rewarded");
+    assert.equal(a.calls.sdk, 1);
+    a.load("src/ads/useJobInterstitial.ts").useEarlyJobInterstitial();
+    assert.equal(a.calls.load, 1);
+  });
+}
+test("iOS configured production uses only its own platform's units", () => {
+  const env = {
+    EXPO_PUBLIC_ADMOB_IOS_APP_ID: "ca-app-pub-1111111111111111~1111111111",
+  };
+  const units = {
+    banner: "BANNER",
+    appOpen: "APP_OPEN",
+    interstitial: "INTERSTITIAL",
+    native: "NATIVE",
+    rewarded: "REWARDED",
+  };
+  for (const name of Object.values(units))
+    env[`EXPO_PUBLIC_ADMOB_IOS_${name}_ID`] =
+      "ca-app-pub-1111111111111111/2222222222";
+  const a = app("ios", "standalone", false, false, env);
+  const actual = a.load("src/ads/config.ts").AD_UNITS;
+  for (const key of Object.keys(units))
+    assert.equal(actual[key], "ca-app-pub-1111111111111111/2222222222");
+  assert.equal(a.calls.sdk, 1);
 });

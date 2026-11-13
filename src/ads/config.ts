@@ -1,13 +1,16 @@
-import { mobileAdsSDK } from "./sdk";
+import { IOS_PRODUCTION_UNITS } from "./ios-units";
+import { mobileAdsSDK, nativeAdsPlatform } from "./sdk";
 const TestIds = mobileAdsSDK?.TestIds;
 
-const PROD = {
+const ANDROID_PROD = {
   banner: "ca-app-pub-1505001993402465/3915348751",
   appOpen: "ca-app-pub-1505001993402465/8648800689",
   interstitial: "ca-app-pub-1505001993402465/4410223100",
   native: "ca-app-pub-1505001993402465/9578738973",
   rewarded: "ca-app-pub-1505001993402465/9710408715",
 } as const;
+
+const PROD = nativeAdsPlatform === "ios" ? IOS_PRODUCTION_UNITS : ANDROID_PROD;
 
 export const ADS_TEST_MODE =
   __DEV__ || process.env.EXPO_PUBLIC_ADS_TEST_MODE === "true";
