@@ -269,8 +269,8 @@ export default function HomeScreen() {
               />
             </Pressable>
             <Pressable
-              accessibilityLabel="Open Graduate Room"
-              onPress={() => router.push("/graduateroom")}
+              accessibilityLabel="Open Community"
+              onPress={() => router.push("/community")}
               style={styles.headerButton}
             >
               <MessageCircle

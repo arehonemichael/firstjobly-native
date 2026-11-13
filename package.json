@@ -65,7 +65,8 @@
     "test:startup": "node --test scripts/test-startup.cjs",
     "test:expo-go": "node --test scripts/test-expo-go.cjs",
     "test:ads": "node --test scripts/test-ads.cjs",
-    "benchmark:recommendations": "node scripts/benchmark-recommendations.cjs"
+    "benchmark:recommendations": "node scripts/benchmark-recommendations.cjs",
+    "test:community": "node --test scripts/test-community.cjs"
   },
   "private": true
 }

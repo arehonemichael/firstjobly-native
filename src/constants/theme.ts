@@ -74,3 +74,12 @@ export const Type = {
   section: 24,
   title: 36,
 } as const;
+
+/** Navigation states share the audited brand palette. */
+export const NavigationColors = {
+  selected: Colors.primary,
+  selectedText: Colors.primaryPressed,
+  selectedSurface: Colors.primarySoft,
+  pressed: Colors.primaryPressed,
+  foreground: Colors.navy,
+} as const;

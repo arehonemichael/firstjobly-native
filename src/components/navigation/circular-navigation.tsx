@@ -16,7 +16,7 @@ import {
   BriefcaseBusiness,
   Check,
   ClipboardList,
-  GraduationCap,
+  UsersRound,
   Home,
   Menu,
   User,
@@ -25,7 +25,14 @@ import {
 } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AppText as Text, AppPressable as Pressable } from "../ui/primitives";
-import { Colors, Fonts, Layout, Radius, Space } from "../../constants/theme";
+import {
+  Colors,
+  Fonts,
+  Layout,
+  NavigationColors,
+  Radius,
+  Space,
+} from "../../constants/theme";
 import { useReducedMotion } from "../../hooks/use-reduced-motion";
 import { radialLayout } from "../../lib/radial-layout";
 
@@ -38,7 +45,7 @@ const destinations = [
   { name: "saved", label: "Saved jobs", icon: Bookmark },
   { name: "applications", label: "Applications", icon: ClipboardList },
   { name: "tools", label: "Career tools", icon: Wrench },
-  { name: "graduateroom", label: "Graduate Room", icon: GraduationCap },
+  { name: "community", label: "Community", icon: UsersRound },
   { name: "profile", label: "Profile", icon: User },
 ];
 
@@ -210,7 +217,8 @@ export function CircularNavigation({ state, navigation }: TabBarProps) {
               ]
             : styles.desktopItem,
           !radial && selected && styles.selected,
-          (pressed || hovered) && styles.feedback,
+          hovered && styles.feedback,
+          pressed && styles.pressed,
         ]}
       >
         <View
@@ -223,7 +231,11 @@ export function CircularNavigation({ state, navigation }: TabBarProps) {
             strokeWidth={1.5}
             aria-hidden
             size={18}
-            color={selected ? Colors.primaryPressed : Colors.foreground}
+            color={
+              selected
+                ? NavigationColors.selectedText
+                : NavigationColors.foreground
+            }
           />
           {radial && selected && (
             <View style={styles.selectedMark}>
@@ -237,11 +249,11 @@ export function CircularNavigation({ state, navigation }: TabBarProps) {
           )}
         </View>
         <Text
-          maxFontSizeMultiplier={1.3}
           style={[
             styles.label,
             radial && styles.radialLabel,
             selected && styles.activeLabel,
+            radial && selected && styles.activeRadialLabel,
           ]}
         >
           {item.label}
@@ -282,7 +294,8 @@ export function CircularNavigation({ state, navigation }: TabBarProps) {
             style={({ pressed, hovered }) => [
               styles.home,
               active === "index" && styles.selected,
-              (pressed || hovered) && styles.feedback,
+              hovered && styles.feedback,
+              pressed && styles.pressed,
             ]}
           >
             <Home
@@ -317,7 +330,8 @@ export function CircularNavigation({ state, navigation }: TabBarProps) {
             onPress={() => setOpen(true)}
             style={({ pressed, hovered }) => [
               styles.menu,
-              (pressed || hovered) && styles.feedback,
+              hovered && styles.feedback,
+              pressed && styles.pressed,
             ]}
           >
             <View style={styles.menuCircle}>
@@ -400,7 +414,7 @@ export function CircularNavigation({ state, navigation }: TabBarProps) {
                 onPress={() => select("index")}
                 style={({ pressed }) => [
                   styles.footerHome,
-                  pressed && styles.feedback,
+                  pressed && styles.pressed,
                 ]}
               >
                 <View
@@ -416,9 +430,7 @@ export function CircularNavigation({ state, navigation }: TabBarProps) {
                     color={Colors.primaryPressed}
                   />
                 </View>
-                <Text maxFontSizeMultiplier={1.3} style={styles.radialLabel}>
-                  Home
-                </Text>
+                <Text style={styles.radialLabel}>Home</Text>
               </Pressable>
               <Pressable
                 nativeID="close-navigation"
@@ -427,7 +439,7 @@ export function CircularNavigation({ state, navigation }: TabBarProps) {
                 onPress={close}
                 style={({ pressed }) => [
                   styles.close,
-                  pressed && styles.feedback,
+                  pressed && styles.pressed,
                 ]}
               >
                 <View style={styles.closeCircle}>
@@ -438,9 +450,7 @@ export function CircularNavigation({ state, navigation }: TabBarProps) {
                     color={Colors.surface}
                   />
                 </View>
-                <Text maxFontSizeMultiplier={1.3} style={styles.radialLabel}>
-                  Close
-                </Text>
+                <Text style={styles.radialLabel}>Close</Text>
               </Pressable>
             </View>
           </Animated.View>
@@ -500,6 +510,7 @@ const styles = StyleSheet.create({
     padding: Space.md,
     gap: Space.xs,
     flexDirection: "row",
+    flexWrap: "wrap",
     justifyContent: "center",
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
@@ -507,8 +518,11 @@ const styles = StyleSheet.create({
   },
   desktopItem: {
     minHeight: 48,
-    maxWidth: 180,
-    flex: 1,
+    maxWidth: 220,
+    minWidth: 124,
+    flexBasis: 124,
+    flexGrow: 1,
+    paddingVertical: Space.sm,
     flexDirection: "row",
     gap: Space.sm,
     alignItems: "center",
@@ -518,6 +532,7 @@ const styles = StyleSheet.create({
   desktopIcon: {
     width: 28,
     height: 36,
+    flexShrink: 0,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -527,8 +542,16 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     color: Colors.foreground,
   },
-  activeLabel: { color: Colors.primaryPressed },
-  selected: { backgroundColor: Colors.primarySoft },
+  activeLabel: {
+    color: NavigationColors.selectedText,
+    fontFamily: Fonts.semibold,
+  },
+  activeRadialLabel: { backgroundColor: NavigationColors.selectedSurface },
+  selected: { backgroundColor: NavigationColors.selectedSurface },
+  pressed: {
+    backgroundColor: NavigationColors.selectedSurface,
+    borderColor: NavigationColors.pressed,
+  },
   feedback: { opacity: 0.76 },
   overlay: {
     flex: 1,
@@ -567,8 +590,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   activeCircle: {
-    backgroundColor: Colors.primarySoft,
-    borderColor: Colors.primary,
+    backgroundColor: NavigationColors.selectedSurface,
+    borderColor: NavigationColors.selected,
   },
   selectedMark: {
     position: "absolute",
@@ -583,8 +606,10 @@ const styles = StyleSheet.create({
   },
   radialLabel: {
     fontFamily: Fonts.medium,
-    fontSize: 11,
-    lineHeight: 16,
+    fontSize: 12,
+    lineHeight: 20,
+    maxWidth: "100%",
+    flexShrink: 0,
     color: Colors.surface,
     textAlign: "center",
     backgroundColor: Colors.foreground,
@@ -595,7 +620,11 @@ const styles = StyleSheet.create({
   menuFooter: {
     width: "100%",
     minHeight: 98,
-    alignItems: "center",
+    alignItems: "flex-start",
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 20,
+    paddingHorizontal: Space.lg,
     paddingTop: Space.sm,
   },
   close: {
@@ -614,10 +643,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   footerHome: {
-    position: "absolute",
-    left: "50%",
-    marginLeft: -126,
-    top: Space.md,
     width: 76,
     minHeight: 78,
     alignItems: "center",

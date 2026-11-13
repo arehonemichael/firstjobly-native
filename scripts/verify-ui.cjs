@@ -213,6 +213,24 @@ function check(value, label) {
         `comfortable navigation target at ${width}px`,
       );
     }
+    for (const label of ["Applications", "Career tools", "Community"]) {
+      const button = sheet.getByRole("button", { name: label, exact: true });
+      check(
+        await button.evaluate((el) => {
+          const label = el.lastElementChild;
+          const outer = el.getBoundingClientRect();
+          const text = label.getBoundingClientRect();
+          return (
+            label.scrollWidth <= label.clientWidth + 1 &&
+            label.scrollHeight <= label.clientHeight + 1 &&
+            text.left >= outer.left - 1 &&
+            text.right <= outer.right + 1 &&
+            text.bottom <= outer.bottom + 1
+          );
+        }),
+        `complete ${label} label at ${width}px`,
+      );
+    }
     const boxes = await sheet.getByRole("button").evaluateAll((nodes) =>
       nodes.map((el) => {
         const r = el.getBoundingClientRect();
@@ -292,7 +310,7 @@ function check(value, label) {
       ["Saved jobs", "saved"],
       ["Applications", "applications"],
       ["Career tools", "tools"],
-      ["Graduate Room", "graduateroom"],
+      ["Community", "community"],
       ["Profile", "profile"],
     ]) {
       await page.getByRole("button", { name: /^Open navigation menu/ }).click();

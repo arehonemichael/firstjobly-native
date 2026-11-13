@@ -143,6 +143,7 @@ function app(os, environment, dev = true, forceTest = false) {
           prepare: async () => {},
         },
       };
+    if (full.endsWith("/src/lib/community/store.ts")) return {};
     if (full.endsWith("/src/lib/recommendations/api.ts"))
       return { getHomeProfile: async () => ({ onboarding_completed: true }) };
     if (full.includes("/src/hooks/"))
@@ -154,6 +155,7 @@ function app(os, environment, dev = true, forceTest = false) {
           retry() {},
         }),
         useHomeHeroSession() {},
+        useCommunityNotifications() {},
         useMotionPreference: () => ({ reducedMotion: true, motionReady: true }),
       };
     if (full.includes("/components/ui/primitives"))

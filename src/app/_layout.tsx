@@ -1,4 +1,6 @@
 import "../global.css";
+// Register private Community cleanup even when its screens are not mounted.
+import "../lib/community/store";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Platform, View } from "react-native";
 import { AdMobLifecycle, markAdInteraction } from "../ads/AdMobLifecycle";
@@ -15,6 +17,7 @@ import { Colors, Layout } from "../constants/theme";
 import { isExpoGo } from "../lib/runtime-environment";
 import { LaunchSplash } from "../components/launch-splash";
 import { useAuth } from "../hooks/use-auth";
+import { useCommunityNotifications } from "../hooks/use-community-notifications";
 import { useHomeHeroSession } from "../hooks/use-home-hero-session";
 import { useMotionPreference } from "../hooks/use-reduced-motion";
 
@@ -28,6 +31,7 @@ if (Platform.OS !== "web" && !isExpoGo) {
 let launchCompleted = false;
 
 export default function RootLayout() {
+  useCommunityNotifications();
   const { reducedMotion, motionReady } = useMotionPreference();
   const auth = useAuth();
   const pathname = usePathname();
