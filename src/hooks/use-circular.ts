@@ -21,7 +21,7 @@ import type {
   Filters,
   Page,
 } from "../lib/circular/contract";
-import { entryLevel, listPath } from "../lib/circular/contract";
+import { listPath } from "../lib/circular/contract";
 const listeners = new Set<() => void>();
 export function circularChanged() {
   invalidateCircular();
@@ -120,10 +120,10 @@ export function useCircularFeed(filters: Filters, saved = false) {
     extra?.path === path &&
     extra?.owner === query.userId &&
     extra?.base === query.data;
-  const items = [
-    ...(query.data?.items || []),
-    ...(valid ? extra.items : []),
-  ].filter((item) => entryLevel(item) && !isWithdrawn(query.userId, item.id));
+  const items = [...(query.data?.items || []), ...(valid ? extra.items : [])];
+  const visibleItems = saved
+    ? items.filter((item) => !isWithdrawn(query.userId, item.id))
+    : items;
   const more =
     !saved &&
     (valid
@@ -166,7 +166,9 @@ export function useCircularFeed(filters: Filters, saved = false) {
   }
   return {
     ...query,
-    items: Array.from(new Map(items.map((item) => [item.id, item])).values()),
+    items: Array.from(
+      new Map(visibleItems.map((item) => [item.id, item])).values(),
+    ),
     more,
     paging,
     pageError: valid ? extra.error : undefined,

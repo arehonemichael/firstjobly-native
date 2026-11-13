@@ -1,5 +1,7 @@
 # Government circular jobs — mobile integration
 
+Follow-up: [empty-feed audit and fix](empty-feed-audit.md) removes the redundant eligibility gate, fixes stale empty/default-filter handling and adds safe development diagnostics. The original implementation verification below is a historical snapshot; see the audit for the updated results.
+
 Branch: `feat/government-circular-jobs`, based on `ads-revenue-fix` (`743aef7`). Main, Lovable, the database, the website and existing endpoint implementations are unchanged.
 
 ## Navigation inventory and resulting layout
@@ -14,9 +16,9 @@ Home retains its shortcuts and recommendation/ad placements, adds a live-metadat
 
 - Only the supplied `/api/app/circular-jobs`, `/circular-jobs/saved`, job detail/save/apply-intent, `/circular-batches/latest` and `/circular-alerts` contracts are used. No `circular_*` tables are accessed directly.
 - Requests use the exact apex host and the signed-in user's token in **both** `Authorization` and `x-fj-token`. A 401 refreshes once. A 429 blocks requests by that owner for 60 seconds, with disabled/countdown retry UI. Unknown network failures do not automatically replay mutations. Requests have a 20-second fetch/body timeout.
-- Owner-scoped in-memory query cache expires after five minutes and clears on account changes/sign-out. Blurred screens do not subscribe to mutation refreshes. Pagination remains tied to its original first-page snapshot; refreshes cannot append old pages to new results.
+- Owner-scoped in-memory query cache expires after five minutes and clears on account changes/sign-out. Empty lists and null latest batches are not cached. Blurred screens do not subscribe to mutation refreshes. Pagination remains tied to its original first-page snapshot; refreshes cannot append old pages to new results.
 - Search debounces 300ms; cleared controls are omitted from query strings. Supported province, closing-soon and qualification filters go to the server. Internships are filtered by the returned `job_type`, with further pages available even when a page has no matches. No unsupported job-type query is sent.
-- Only API-returned jobs are displayed. A defensive title/experience guard also rejects clearly senior roles or details requiring more than three years. No senior-role filters are added.
+- Only API-returned jobs are displayed. Eligibility is enforced by the server; the app does not classify titles or filter jobs again by experience, province, salary or closing date. No senior-role filters are added.
 - Dates use SAST. Salary wording uses “per year”. Closing-soon covers the API's seven days, but pink urgency is restricted to today/tomorrow/within two days. “Applied” requires `sent`, never `started`.
 - Every official-PDF tap fetches a fresh latest-batch response. Android saves via the existing Downloads/SAF utility, preserves a response filename when provided (otherwise a circular-number/year filename), and launches a PDF viewer with URI read permission. Missing viewer/save permission/download failures have recoverable messages. Web provides a browser PDF link/download fallback.
 - The per-user new-batch marker is persisted as a batch ID only. Opening Gov jobs marks it seen. A batch notification refreshes metadata and keeps the notified batch filter. Store changes use React external-store subscriptions so updates work with the enabled React Compiler.

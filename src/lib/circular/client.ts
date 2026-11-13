@@ -2,7 +2,18 @@ import { supabase } from "../supabase";
 import { createCircularTransport } from "./transport";
 import { createOwnerCache, createApplications } from "./state";
 import { deleteTemporary } from "./io";
-export const circularAPI = createCircularTransport(supabase.auth);
+const debugCircular =
+  typeof __DEV__ !== "undefined" &&
+  __DEV__ &&
+  process.env.EXPO_PUBLIC_CIRCULAR_DEBUG === "true";
+export const circularAPI = createCircularTransport(
+  supabase.auth,
+  fetch,
+  Date.now,
+  debugCircular
+    ? (entry) => console.info("[FirstJobly circular]", JSON.stringify(entry))
+    : undefined,
+);
 export const circularCache = createOwnerCache();
 export const applications = createApplications((uri) => {
   void deleteTemporary(uri);

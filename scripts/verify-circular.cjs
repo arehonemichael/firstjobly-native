@@ -201,6 +201,10 @@ function check(value, label) {
       guest = false,
       errorStatus = 0,
       slow = false,
+      realistic = false,
+      offline = false,
+      malformed = false,
+      initialEmpty = false,
     } = {}) {
       const context = await browser.newContext({
         viewport: { width: 360, height: 900 },
@@ -235,6 +239,32 @@ function check(value, label) {
         enabled: false,
         pdfGets: 0,
         errors: [],
+        diagnostics: [],
+      };
+      if (realistic)
+        state.items = Array.from({ length: 128 }, (_, i) =>
+          job(
+            "fixture-" + (i + 1),
+            i === 0
+              ? "CLERK: OFFICE OF THE DIRECTOR"
+              : "FIXTURE OPPORTUNITY " + (i + 1),
+            i === 0
+              ? {
+                  centre: null,
+                  province: null,
+                  salary_text: null,
+                  closing_date: "2000-01-01",
+                  closes_in_days: 17,
+                  is_closing_soon: false,
+                  is_expired: false,
+                }
+              : {},
+          ),
+        );
+      if (initialEmpty) state.items = [];
+      const currentBatch = {
+        ...batch,
+        job_count: realistic ? 128 : batch.job_count,
       };
       await context.route("**/ehwqqjqtevppsnmxximg.supabase.co/**", (r) => {
         const url = new URL(r.request().url());
@@ -274,6 +304,12 @@ function check(value, label) {
           "both session token headers",
         );
         if (slow) await new Promise((resolve) => setTimeout(resolve, 800));
+        if (offline && path.startsWith("/circular-jobs"))
+          return r.abort("internetdisconnected");
+        if (malformed && path.startsWith("/circular-jobs"))
+          return r.fulfill({ json: { jobs: [] } });
+        if (errorStatus === 403 && path.startsWith("/circular-jobs"))
+          return r.fulfill({ status: 403, body: "error code: 1010" });
         if (errorStatus && path.startsWith("/circular-jobs"))
           return r.fulfill({
             status: errorStatus,
@@ -286,7 +322,7 @@ function check(value, label) {
           });
         if (path === "/circular-batches/latest") {
           state.pdfGets++;
-          return r.fulfill({ json: { batch } });
+          return r.fulfill({ json: { batch: currentBatch } });
         }
         if (path === "/circular-alerts") {
           if (req.method() === "POST")
@@ -300,6 +336,11 @@ function check(value, label) {
         if (path === "/circular-jobs") {
           const page = +(url.searchParams.get("page") || 1);
           let items = state.items;
+          if (
+            url.searchParams.get("batch_id") &&
+            url.searchParams.get("batch_id") !== batch.id
+          )
+            items = [];
           if (url.searchParams.get("search"))
             items = items.filter((j) =>
               j.post_title
@@ -312,11 +353,14 @@ function check(value, label) {
             );
           return r.fulfill({
             json: {
-              items: page === 1 ? items.slice(0, 2) : items.slice(2),
+              items: items.slice(
+                (page - 1) * (realistic ? 20 : 2),
+                page * (realistic ? 20 : 2),
+              ),
               page,
               page_size: 20,
               total: items.length,
-              has_more: page === 1 && items.length > 2,
+              has_more: page * (realistic ? 20 : 2) < items.length,
             },
           });
         }
@@ -358,6 +402,13 @@ function check(value, label) {
       const page = await context.newPage();
       page.on("pageerror", (e) => state.errors.push(e.message));
       page.on("console", (m) => {
+        if (
+          m.type() === "info" &&
+          m.text().startsWith("[FirstJobly circular] ")
+        )
+          state.diagnostics.push(
+            JSON.parse(m.text().slice("[FirstJobly circular] ".length)),
+          );
         if (
           m.type() === "error" &&
           !m.text().includes("Failed to load resource")
@@ -406,20 +457,21 @@ function check(value, label) {
     for (let n = 0; n < 100 && state.pdfGets === beforePDF; n++)
       await new Promise((r) => setTimeout(r, 20));
     check(state.pdfGets > beforePDF, "PDF tap fetches a fresh signed URL");
-    await page
-      .getByTestId("circular-feed")
-      .evaluate((el) => el.scrollTo(0, el.scrollHeight));
+    for (const popup of context.pages())
+      if (popup !== page) await popup.close();
+    await page.bringToFront();
+    await page.getByTestId("circular-feed").evaluate((el) => {
+      el.scrollTop = el.scrollHeight;
+    });
+    const moreControl = page.getByRole("button", {
+      name: "Load more jobs",
+      exact: true,
+    });
+    if (await moreControl.count())
+      await moreControl.evaluate((el) => el.click()).catch(() => {});
     await page
       .getByRole("button", { name: "Open Office Assistant", exact: true })
-      .waitFor()
-      .catch(async (error) => {
-        console.log(
-          "PAGING",
-          state.calls.map((c) => ({ path: c.path, query: c.query })),
-          await page.locator("body").innerText(),
-        );
-        throw error;
-      });
+      .waitFor();
     check(
       state.calls.some(
         (c) => c.query.page === "2" && c.query.page_size === "20",
@@ -637,6 +689,194 @@ function check(value, label) {
       .getByRole("button", { name: "Open Administration Clerk" })
       .waitFor();
     await slow.context.close();
+    // 128 is an isolated reproduction of the owner's audited count, not a live probe.
+    const audit = await setup({ realistic: true });
+    await audit.page.goto(base + "/circular-jobs");
+    await audit.page
+      .getByRole("button", {
+        name: "Open Clerk: Office Of The Director",
+        exact: true,
+      })
+      .waitFor();
+    const first = audit.state.calls.find((c) => c.path === "/circular-jobs");
+    check(
+      JSON.stringify(first.query) ===
+        JSON.stringify({ page: "1", page_size: "20" }),
+      "first load has no default filters",
+    );
+    check(
+      await audit.page
+        .getByText("Salary not stated", { exact: true })
+        .isVisible(),
+      "nullable salary and location do not drop an approved row",
+    );
+    check(
+      await audit.page.getByText(/^Closes .*Jan$/).isVisible(),
+      "server expiry flags are respected instead of device date filtering",
+    );
+    await audit.page.screenshot({ path: output + "/audit-128-jobs.png" });
+    check(
+      audit.state.diagnostics.some(
+        (d) => d.status === 200 && d.total === 128 && d.itemCount === 20,
+      ),
+      "dev diagnostics record 200/128 from isolated API fixture",
+    );
+    console.log(
+      "ISOLATED_FIXTURE_DIAGNOSTIC " +
+        JSON.stringify(audit.state.diagnostics.find((d) => d.total === 128)),
+    );
+    for (let pageNumber = 2; pageNumber <= 7; pageNumber++) {
+      const lastCard = audit.page.getByRole("button", {
+        name: "Open Fixture Opportunity " + Math.min(pageNumber * 20, 128),
+        exact: true,
+      });
+      for (let tries = 0; tries < 100 && !(await lastCard.count()); tries++) {
+        await audit.page.getByTestId("circular-feed").evaluate((el) => {
+          el.scrollTop += 700;
+        });
+        await audit.page.waitForTimeout(100);
+      }
+      await audit.page
+        .getByRole("button", {
+          name: "Open Fixture Opportunity " + Math.min(pageNumber * 20, 128),
+          exact: true,
+        })
+        .waitFor()
+        .catch(async (error) => {
+          console.log(
+            "AUDIT_PAGINATION",
+            await audit.page.getByTestId("circular-feed").evaluate((el) => ({
+              top: el.scrollTop,
+              height: el.scrollHeight,
+              client: el.clientHeight,
+            })),
+            audit.state.calls
+              .filter((c) => c.path === "/circular-jobs")
+              .map((c) => c.query),
+          );
+          await audit.page.screenshot({
+            path: output + "/audit-pagination-debug.png",
+          });
+          throw error;
+        });
+      check(
+        audit.state.calls.some((c) => c.query.page === String(pageNumber)),
+        "loads page " + pageNumber + " of the 128-row fixture",
+      );
+    }
+    await audit.page.goto(base + "/circular-jobs/fixture-1");
+    await audit.page.getByText("Do I qualify?", { exact: true }).waitFor();
+    check(
+      await audit.page
+        .getByText("Clerk: Office Of The Director", { exact: true })
+        .isVisible(),
+      "server-approved title is not rejected on detail",
+    );
+    await audit.page
+      .getByRole("button", { name: "Apply", exact: true })
+      .click();
+    await audit.page
+      .getByText("How will you apply?", { exact: true })
+      .waitFor();
+    check(true, "approved detail is not rejected by Apply");
+    await audit.page.goto(base + "/circular-jobs?batch=old-unavailable-batch");
+    await audit.page
+      .getByText("No open government jobs right now", { exact: true })
+      .waitFor();
+    await audit.page.getByRole("tab", { name: "Home", exact: true }).click();
+    await audit.page
+      .getByText(/Circular 41 of 2026 · 128 entry-level jobs/)
+      .waitFor();
+    await audit.page.screenshot({ path: output + "/audit-home-128.png" });
+    await audit.page
+      .getByRole("button", { name: "Government jobs", exact: true })
+      .click();
+    await audit.page
+      .getByRole("button", {
+        name: "Open Clerk: Office Of The Director",
+        exact: true,
+      })
+      .waitFor();
+    check(
+      audit.state.calls.filter((c) => c.path === "/circular-jobs").at(-1).query
+        .batch_id === undefined,
+      "Home clears a stale notification batch",
+    );
+    await audit.page
+      .getByRole("textbox", { name: "Search government jobs" })
+      .fill("no-matching-fixture");
+    await audit.page
+      .getByText("No open government jobs right now", { exact: true })
+      .waitFor();
+    await audit.page
+      .getByRole("button", { name: "Clear filters", exact: true })
+      .click();
+    await audit.page
+      .getByRole("button", {
+        name: "Open Clerk: Office Of The Director",
+        exact: true,
+      })
+      .waitFor();
+    check(true, "Clear filters restores API results");
+    check(
+      audit.state.errors.length === 0,
+      "no runtime errors with nullable fields and 128 rows",
+    );
+    await audit.context.close();
+    const newlyApproved = await setup({ initialEmpty: true });
+    await newlyApproved.page.goto(base + "/circular-jobs");
+    await newlyApproved.page
+      .getByText("No open government jobs right now", { exact: true })
+      .waitFor();
+    newlyApproved.state.items = [job("new-approved")];
+    await newlyApproved.page
+      .getByRole("tab", { name: "Home", exact: true })
+      .click();
+    await newlyApproved.page
+      .getByRole("tab", { name: "Gov jobs", exact: true })
+      .click();
+    await newlyApproved.page
+      .getByRole("button", { name: "Open Administration Clerk", exact: true })
+      .waitFor();
+    check(
+      newlyApproved.state.calls.filter((c) => c.path === "/circular-jobs")
+        .length >= 2,
+      "earlier empty response is not reused on reopening Gov jobs",
+    );
+    await newlyApproved.context.close();
+    for (const [options, message] of [
+      [
+        { offline: true },
+        "Could not connect. Check your connection and try again.",
+      ],
+      [{ malformed: true }, "Could not read the response. Please try again."],
+      [
+        { errorStatus: 403 },
+        "The jobs service blocked this request. Please try again.",
+      ],
+      [{ errorStatus: 500 }, "Could not load government jobs."],
+    ]) {
+      const failed = await setup(options);
+      await failed.page.goto(base + "/circular-jobs");
+      await failed.page.getByText(message, { exact: true }).waitFor();
+      check(
+        (await failed.page
+          .getByText("No open government jobs right now", { exact: true })
+          .count()) === 0,
+        "error never becomes empty: " + message,
+      );
+      check(
+        (await failed.page
+          .getByRole("button", { name: "Try again", exact: true })
+          .count()) > 0,
+        "error has Retry",
+      );
+      if (options.offline)
+        await failed.page.screenshot({
+          path: output + "/audit-offline-error.png",
+        });
+      await failed.context.close();
+    }
     console.log(`${checks} browser checks passed; screenshots in ${output}`);
   } finally {
     await browser.close();

@@ -7,7 +7,7 @@ import { Colors } from "../../constants/theme";
 import { useLatestCircular } from "../../hooks/use-circular";
 import { circularAPI } from "../../lib/circular/client";
 import type { Batch } from "../../lib/circular/contract";
-import { saDate } from "../../lib/circular/contract";
+import { saDate, governmentHomeDestination } from "../../lib/circular/contract";
 import { downloadBatch, openURL } from "../../lib/circular/io";
 import { Button, ErrorState, cs } from "./shared";
 export function LatestCircularCard({ compact = false }: { compact?: boolean }) {
@@ -36,7 +36,7 @@ export function LatestCircularCard({ compact = false }: { compact?: boolean }) {
     return (
       <Pressable
         accessibilityLabel="Government jobs"
-        onPress={() => router.push("/circular-jobs")}
+        onPress={() => router.push(governmentHomeDestination())}
         style={cs.card}
       >
         <View style={cs.row}>
@@ -46,7 +46,7 @@ export function LatestCircularCard({ compact = false }: { compact?: boolean }) {
         </View>
         <Text style={cs.muted}>
           {batch
-            ? `Circular ${batch.circular_number} · ${batch.job_count} entry-level jobs${batch.earliest_closing_date ? " · closes from " + saDate(batch.earliest_closing_date) : ""}`
+            ? `Circular ${batch.circular_number} of ${batch.circular_year} · ${batch.job_count} entry-level jobs${batch.earliest_closing_date ? " · closes from " + saDate(batch.earliest_closing_date) : ""}`
             : "Browse entry-level jobs from official government circulars."}
         </Text>
       </Pressable>

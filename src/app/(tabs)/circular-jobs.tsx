@@ -4,14 +4,17 @@ import { useEffect } from "react";
 import { useLocalSearchParams } from "expo-router";
 import { useCircularBadge, circularChanged } from "../../hooks/use-circular";
 export default function GovernmentJobs() {
-  const { batch } = useLocalSearchParams<{ batch?: string }>();
+  const { batch, reset } = useLocalSearchParams<{
+    batch?: string;
+    reset?: string;
+  }>();
   useEffect(() => {
     if (batch) circularChanged();
   }, [batch]);
   useCircularBadge(true);
   return (
     <PageShell title="Government jobs">
-      <CircularFeed />
+      <CircularFeed key={reset || "browse"} />
     </PageShell>
   );
 }
