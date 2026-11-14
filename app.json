@@ -20,7 +20,7 @@
     },
     "android": {
       "package": "com.first.firstjobly",
-      "versionCode": 34,
+      "versionCode": 35,
       "adaptiveIcon": {
         "backgroundColor": "#061A30",
         "foregroundImage": "./assets/images/icon.png"
