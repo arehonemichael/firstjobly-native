@@ -51,9 +51,7 @@ export async function saveApplicationPDF(_uri: string, _name?: string) {
 export async function chooseSupporting(): Promise<
   { uri: string; name: string }[] | null
 > {
-  throw Error(
-    "Use the installed iOS or iOS or Android app to attach documents.",
-  );
+  throw Error("Use the installed iOS or Android app to attach documents.");
 }
 export async function emailPaths() {
   return {
@@ -71,4 +69,12 @@ export async function openEmail(
   throw Error(
     "Use the installed app for email attachments. Copy application details from this page.",
   );
+}
+
+export async function prepareSavedPDF(
+  _name: string,
+  _signedURL: () => Promise<string>,
+  _stillOwner: () => boolean,
+): Promise<{ uri: string; name: string }> {
+  throw Error("Use the installed iOS or Android app to attach saved PDFs.");
 }

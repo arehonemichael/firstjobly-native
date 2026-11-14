@@ -1,3 +1,4 @@
+import { z83Name, z83Text } from "./format";
 import {
   PDFDocument,
   StandardFonts,
@@ -61,7 +62,7 @@ function drawText(
   box: TextBox,
   value: string
 ) {
-  const text = (value ?? "").trim();
+  const text = z83Text((value ?? "").trim());
   if (!text) return;
   const page = pages[box.page];
   if (!page) return;
@@ -146,7 +147,7 @@ export async function fillZ83(
   drawText(pages, font, A.reference, data.reference);
   drawText(pages, font, A.availability, data.availability);
 
-  drawText(pages, font, B.surnameAndNames, data.surnameAndNames);
+  drawText(pages, font, B.surnameAndNames, z83Name(data.surnameAndNames));
   drawText(pages, font, B.dateOfBirth, data.dateOfBirth);
   chars(pages, font, ID_DIGIT_BOXES, data.idNumber);
   chars(pages, font, PASSPORT_BOXES, data.passportNumber);

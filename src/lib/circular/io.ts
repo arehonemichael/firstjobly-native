@@ -1,3 +1,4 @@
+import { mailShare } from "./mail-share";
 import { assertPdf } from "../document-export";
 import { mailtoURL, type EmailPaths } from "./email-contract";
 import { Platform, Linking } from "react-native";
@@ -142,6 +143,12 @@ export async function compose(
   for (const uri of [z83, cv, ...supporting]) await assertPdf(uri);
   if (stillOwner && !stillOwner())
     throw Error("Your application session ended. Reopen the job.");
+  if (Platform.OS === "ios" && mailShare) {
+    // mailto never supports attachments. UIKit supplies every selected PDF at once.
+    // No recipient API exists for arbitrary share targets: keep it visible/copyable.
+    mailtoURL(email, subject, body); // Validate the audited recipient before handoff.
+    return mailShare.shareAsync([z83, cv, ...supporting], subject, body);
+  }
   if (!(await MailComposer.isAvailableAsync())) {
     if (Platform.OS === "ios") return "manual" as const;
     throw Error(
@@ -189,3 +196,49 @@ async function savePDF(uri: string, name: string) {
     );
   }
 }
+
+/** Copy a chosen private profile PDF into this application's temporary files.
+ * No uploads, no persistent signed URL, no cross-account late completion. */
+export async function prepareSavedPDF(
+  name: string,
+  signedURL: () => Promise<string>,
+  stillOwner: () => boolean,
+) {
+  if (!FS.cacheDirectory) throw Error("Document storage is unavailable.");
+  const safeName = name.replace(/[^a-zA-Z0-9._-]/g, "-").slice(-100);
+  const folder =
+    FS.cacheDirectory +
+    `application-attachment-${Date.now()}-${++attachmentSerial}/`;
+  const uri = folder + safeName;
+  try {
+    await FS.makeDirectoryAsync(folder, { intermediates: true });
+    for (let attempt = 0; attempt < 2; attempt++) {
+      if (!stillOwner())
+        throw Error("Your application session ended. Reopen the job.");
+      const url = await signedURL();
+      if (!url.startsWith("https://"))
+        throw Error("This document link is unavailable.");
+      const result = await FS.downloadAsync(url, uri);
+      if ([401, 403].includes(result.status) && attempt === 0) continue;
+      if (result.status !== 200)
+        throw Error("Could not download the document. Please try again.");
+      const info = await FS.getInfoAsync(uri);
+      if (
+        !info.exists ||
+        info.isDirectory ||
+        !info.size ||
+        info.size > 5 * 1024 * 1024
+      )
+        throw Error("Choose a non-empty PDF, 5 MB or smaller.");
+      await assertPdf(uri);
+      if (!stillOwner())
+        throw Error("Your application session ended. Reopen the job.");
+      return { uri, name };
+    }
+    throw Error("The document link expired. Please try again.");
+  } catch (error) {
+    await FS.deleteAsync(folder, { idempotent: true }).catch(() => undefined);
+    throw error;
+  }
+}
+let attachmentSerial = 0;

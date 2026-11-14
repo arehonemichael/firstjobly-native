@@ -109,7 +109,7 @@ function session(id) {
     await box("Surname and full names").waitFor();
     assert.equal(
       await box("Surname and full names").inputValue(),
-      "FIXTURE, Alice",
+      "FIXTURE ALICE",
     );
     assert.equal(
       await box("Date of birth (DD/MM/YYYY)").inputValue(),
@@ -173,7 +173,7 @@ function session(id) {
     await page.waitForFunction(
       () =>
         document.querySelector('[aria-label="Surname and full names"]')
-          ?.value === "FIXTURE, Bob",
+          ?.value === "FIXTURE BOB",
     );
     assert.equal(await box("Identity number").inputValue(), "");
     await page.goto(base + "/cv-maker");

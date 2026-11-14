@@ -4,7 +4,10 @@ const { Buffer } = require("node:buffer");
 const { load } = require("./resume-fixture.cjs");
 const { editZ83, reusableZ83, z83FromProfile, initialZ83 } = load(
   "src/lib/z83/reusable.ts",
-  { "./types": load("src/lib/z83/types.ts", {}) },
+  {
+    "./types": load("src/lib/z83/types.ts", {}),
+    "./format": load("src/lib/z83/format.ts", {}),
+  },
 );
 const { createSecureZ83 } = load("src/lib/z83/secure-store.ts", {});
 const { mailtoURL } = load("src/lib/circular/email-contract.ts", {});
@@ -105,7 +108,7 @@ test("profile maps verified fields without inferring identity, equity, citizensh
       },
     ],
   );
-  assert.equal(result.surnameAndNames, "MEMBER, Test");
+  assert.equal(result.surnameAndNames, "MEMBER TEST");
   assert.equal(result.dateOfBirth, "09/05/1998");
   assert.match(result.contactDetails, /Fixture road/);
   assert.equal(result.languages[0].speak, "");
@@ -155,7 +158,7 @@ test("returning saved details remain editable; two jobs never share job identity
     assert.equal(b[field], "");
   const snapshot = JSON.parse(JSON.stringify(a));
   b.surnameAndNames = "Edited";
-  assert.equal(snapshot.surnameAndNames, "Returning");
+  assert.equal(snapshot.surnameAndNames, "RETURNING");
   assert.equal(initialZ83({}, null).department, "");
   assert.equal(initialZ83({}, null).preferredLanguage, "");
   assert.equal(initialZ83({}, null).method, "");
@@ -226,6 +229,7 @@ function native({
   share = true,
   clients = [],
   defaultApp = false,
+  shareModule = null,
 } = {}) {
   const files = new Map([
     ["file:///cache/source.pdf", "%PDF-1.7\nfixture"],
@@ -282,6 +286,7 @@ function native({
     },
   });
   const io = load("src/lib/circular/io.ts", {
+    "./mail-share": { mailShare: shareModule },
     "../document-export": doc,
     "./email-contract": load("src/lib/circular/email-contract.ts", {}),
     "react-native": {
@@ -485,6 +490,7 @@ test("generated Z83 PDF is non-empty, reopenable and uses a separate application
   const { PDFDocument } = require("pdf-lib");
   const types = load("src/lib/z83/types.ts", {});
   const fill = load("src/lib/z83/fill.ts", {
+    "./format": load("src/lib/z83/format.ts", {}),
     "./pdf-lib": require("pdf-lib"),
     "./coords": load("src/lib/z83/coords.ts", {}),
   });
@@ -608,4 +614,195 @@ test("changing job identity clears prior signing details without rewriting gener
   assert.equal(next.initials, "");
   assert.equal(snapshot.signature, "explicit-old-signature");
   assert.equal(original.position, "Job A");
+});
+
+test("iOS app chooser hands all six selected PDFs, exact subject and edited body together without opening an inbox", async () => {
+  const calls = [];
+  const f = native({
+    mail: false,
+    shareModule: {
+      shareAsync: async (...args) => {
+        calls.push(args);
+        return "handoff";
+      },
+    },
+  });
+  const support = [1, 2, 3, 4].map((i) => `file:///cache/support-${i}.pdf`);
+  for (const uri of support) f.files.set(uri, "%PDF-1.7\nfixture");
+  const result = await f.io.compose(
+    "jobs@example.test",
+    "CLERK — REF/42",
+    "file:///cache/z83.pdf",
+    "file:///cache/cv.pdf",
+    "Please consider my application. All required PDFs are attached.",
+    support,
+    () => true,
+  );
+  assert.equal(result, "handoff");
+  assert.deepEqual(calls, [
+    [
+      ["file:///cache/z83.pdf", "file:///cache/cv.pdf", ...support],
+      "CLERK — REF/42",
+      "Please consider my application. All required PDFs are attached.",
+    ],
+  ]);
+  assert.equal(
+    f.events.some((x) => x[0] === "open" || x[0] === "compose"),
+    false,
+  );
+  assert.ok(f.files.has("file:///cache/z83.pdf"));
+});
+test("app chooser cancellation/error retains all source documents for retry; expired ownership and bad PDF never present", async () => {
+  let called = 0;
+  const f = native({
+    shareModule: {
+      shareAsync: async () => {
+        called++;
+        return "cancelled";
+      },
+    },
+  });
+  const args = [
+    "jobs@example.test",
+    "REF",
+    "file:///cache/z83.pdf",
+    "file:///cache/cv.pdf",
+    "Message",
+    [],
+  ];
+  assert.equal(await f.io.compose(...args), "cancelled");
+  assert.ok(f.files.has(args[2]));
+  await assert.rejects(
+    f.io.compose(...args, () => false),
+    /session ended/,
+  );
+  f.files.set(args[3], "<html>not a PDF</html>");
+  await assert.rejects(f.io.compose(...args), /readable PDF/);
+  assert.equal(called, 1);
+  const failure = native({
+    shareModule: {
+      shareAsync: async () => {
+        throw Error("Share target failed");
+      },
+    },
+  });
+  await assert.rejects(failure.io.compose(...args), /Share target failed/);
+  assert.ok(failure.files.has(args[2]));
+});
+test("optional native module safely supports old installed iOS builds", () => {
+  const requested = [];
+  const result = load("src/lib/circular/mail-share.ts", {
+    expo: {
+      requireOptionalNativeModule: (name) => {
+        requested.push(name);
+        return null;
+      },
+    },
+  });
+  assert.equal(result.mailShare, null);
+  assert.deepEqual(requested, ["FirstJoblyMail"]);
+});
+test("reusing a selected profile PDF uses a fresh signed URL, retries expiry, and retains its owned local copy", async () => {
+  const f = native();
+  f.statuses([403, 200]);
+  let links = 0;
+  const file = await f.io.prepareSavedPDF(
+    "Private CV.pdf",
+    async () => `https://storage.example.test/fresh-${++links}`,
+    () => true,
+  );
+  assert.equal(links, 2);
+  assert.equal(file.name, "Private CV.pdf");
+  assert.ok(f.files.has(file.uri));
+  assert.equal(
+    f.events.some((x) => x[0] === "share"),
+    false,
+  );
+  await f.io.deleteTemporary(file.uri);
+  assert.equal(f.files.has(file.uri), false);
+});
+test("profile attachment errors or account switch clean partial copies and never hand off another user's document", async () => {
+  for (const mode of ["status", "owner"]) {
+    const f = native();
+    if (mode === "status") f.statuses([500]);
+    let owner = true;
+    await assert.rejects(
+      f.io.prepareSavedPDF(
+        "CV.pdf",
+        async () => {
+          if (mode === "owner") owner = false;
+          return "https://storage.example.test/fresh";
+        },
+        () => owner,
+      ),
+      /download|session ended/,
+    );
+    assert.equal(
+      [...f.files.keys()].some((x) => x.includes("application-attachment-")),
+      false,
+    );
+  }
+});
+test("Z83 surname-first names have no comma, including legacy saved answers and manual edits; typing spaces still works", () => {
+  const initial = initialZ83(
+    z83FromProfile({ last_name: "Gundula", first_name: "Arehone" }, []),
+    null,
+  );
+  assert.equal(initial.surnameAndNames, "GUNDULA AREHONE");
+  assert.equal(
+    initialZ83({}, { surnameAndNames: "Gundula,   Arehone" }).surnameAndNames,
+    "GUNDULA AREHONE",
+  );
+  const typed = editZ83(initial, { surnameAndNames: "Gundula, " });
+  assert.equal(typed.surnameAndNames, "GUNDULA ");
+  assert.equal(
+    editZ83(typed, { surnameAndNames: typed.surnameAndNames + "Arehone" })
+      .surnameAndNames,
+    "GUNDULA AREHONE",
+  );
+});
+test("every printed Z83 text value uses block capitals without changing enum keys or signature input", async () => {
+  const pdf = require("pdf-lib");
+  const drawn = [];
+  const fill = load("src/lib/z83/fill.ts", {
+    "./format": load("src/lib/z83/format.ts", {}),
+    "./coords": load("src/lib/z83/coords.ts", {}),
+    "./pdf-lib": {
+      ...pdf,
+      PDFDocument: {
+        load: async (...args) => {
+          const doc = await pdf.PDFDocument.load(...args);
+          for (const page of doc.getPages()) {
+            const draw = page.drawText.bind(page);
+            page.drawText = (text, options) => {
+              drawn.push(text);
+              draw(text, options);
+            };
+          }
+          return doc;
+        },
+      },
+    },
+  });
+  const template = await pdf.PDFDocument.create();
+  template.addPage([612, 792]);
+  template.addPage([612, 792]);
+  const data = {
+    ...initialZ83({}, null),
+    surnameAndNames: "Gundula, Arehone",
+    position: "Administration Clerk",
+    department: "Health",
+    contactDetails: "member@example.test",
+    gender: "female",
+    disability: "no",
+    languages: [{ name: "English", speak: "Good", write: "Fair" }],
+  };
+  const before = JSON.stringify(data);
+  await fill.fillZ83(data, await template.save());
+  assert.ok(drawn.includes("GUNDULA AREHONE"));
+  assert.ok(drawn.some((v) => v.includes("ADMINISTRATION")));
+  assert.ok(drawn.includes("MEMBER@EXAMPLE.TEST"));
+  assert.ok(drawn.includes("GOOD"));
+  assert.ok(drawn.every((value) => value === value.toUpperCase()));
+  assert.equal(JSON.stringify(data), before);
 });
