@@ -1,55 +1,46 @@
-# Member account deletion and iOS release
+# Member account deletion by emailed code
 
-Branch `feat/account-self-deletion`, based on `release/ios-app-store`. Owner confirmed the Lovable endpoint is published. Original verified API/retention audit: [account-self-deletion-contract.md](account-self-deletion-contract.md).
+Branch `feat/account-deletion-email-code`, based on `fix/resume-home-gov-loading`. The owner supplied the [final published API contract](account-deletion-email-code-contract.md), dated 14 November 2026. The database and backend are managed by Lovable; this mobile branch applies no SQL, provisions no keys and sends no live emails or deletion requests.
 
 ## App flow
 
-Profile and Settings expose **Delete my account**. The screen lists removed account/profile/documents/applications/saves/Community data and the exact retained report text, anonymous Apply/device activity, deletion/audit email/ID, and contact/employer messages. It discloses no configured server retention period and that externally saved/older untracked PDF copies require manual removal.
+Profile/Settings → Delete my account → type account email → **Send confirmation code** → enter six digits → acknowledge permanence → **Permanently delete my account**. Both email/password and Google-only members use this in-app code flow. There is no Google verification button, new browser login, Supabase OTP workaround or temporary auth-session replacement. Ordinary sign-in logic is unchanged.
 
-The user types their current account email, explicitly acknowledges permanent deletion, and supplies a password or verifies Google again. Passwords stay in component/request memory only and clear after every request/unmount. No password, JWT, code, verifier or API body is logged or persisted by this flow. There is no OTP invention. Server `methods` are hints; server authorization and AMR freshness remain authoritative.
+The existing account/retention disclosure and optional device-reminder switch remain. Codes stay in component/request memory, never AsyncStorage or logs, and clear after a deletion attempt/unmount. The form is keyed by account, current email and session_id so another sign-in/account never inherits the code/typed confirmation. Normal token refresh preserves the form. JWT decoding here only isolates local UI; the server authenticates the token and enforces all bindings. The parser uses no Buffer/atob dependency for Hermes compatibility and does not expose decoded claims.
 
-Only `POST https://firstjobly.co.za/api/app/account/delete` is used, with the current user's bearer access token in Authorization. JSON contains only normalized `confirmEmail` and optional password. No arbitrary target/user ID, publishable key bearer, refresh-token bearer, URL tokens, `x-fj-token`, admin-function transport, table mutation or automatic destructive replay.
+## Exact requests and responses
 
-Exactly `200 {deleted:true}` confirms deletion. Timeout/network loss/malformed success is unknown; 401/403/409/422/429/500 shows the friendly error and does not initiate local cleanup. `Retry-After` blocks early repeat attempts locally. Explicit repeat taps are locked. A deletion POST is never refreshed/replayed automatically, even with `retry_safe:true`.
+- Send: `POST https://firstjobly.co.za/api/app/account/delete-code` with body `{}` and current member bearer token only. No recipient field or token in a URL/body. One request per explicit tap, no refresh/replay.
+- Delete: `POST https://firstjobly.co.za/api/app/account/delete` with `{confirmEmail,emailCode}`. Confirmation is trimmed/lowercased; the code remains a string so leading zeroes survive. Mixed password/proof/code input is rejected locally; server validation remains authoritative.
+- The transport still supports the existing password/recent-auth method for backward compatibility; the current deletion screen uses email codes only. Legacy Google verification modules/callback remain for compatibility but the deletion screen no longer imports or invokes them. No dependency/config cleanup or ad changes were bundled here.
+- Send `200 sent:true` displays masked recipient, expiry information and resend countdown. `202 send_uncertain` explicitly says delivery is unconfirmed: check inbox, enter the code if it arrives, and no automatic resend. A network timeout or malformed send success is also treated as uncertain, with a conservative 60-second wait.
+- Retry-After/body waits are honoured for 429, 502 send_failed and 503 send_busy. Send and delete waits are separate; a normal resend cooldown does not block entering/deleting with a received code. code_locked blocks both. Timers use absolute deadlines, update on foreground, stop after their deadline and clean up on unmount.
+- Friendly server errors are shown, including attempts_left for code_wrong. Expired/used/missing/wrong-session/changed-email challenges or a partial deletion failure prompt a new code. No automatic retry or fallback to recent login is attempted. A missing/unsupported auth session offers normal sign-in with the deletion return destination; the main code flow never asks for Google verification.
+- Only exact `200 {deleted:true}` confirms deletion. A timeout, malformed response, 401 or other failure never shows success or starts deletion-specific local cleanup. A 500 may mean partial removal; the code is consumed and a new code is required for another explicit attempt.
 
-The confirmed result survives the local sign-out as a parent completion view. Local cleanup errors have a separate **Retry local cleanup** path that never sends another deletion POST.
+## Local cleanup unchanged
 
-## Google-only members
+Confirmed deletion marks only that owner's generated PDFs as deleted, then uses the existing serialized auth-mutation cleanup. It removes their Community draft, owner caches/markers and tracked app-owned files. Shared CV/Z83 drafts and the local session/reminder setting are cleared only while the original owner still owns the session. Another account's session/private device drafts remain protected if the account changed mid-request. Confirmed completion survives local sign-out. **Retry local cleanup** never sends another deletion POST.
 
-Use an isolated auth client and native SHA-256/CSPRNG PKCE (`expo-crypto`). The auth service's standard public PKCE code exchange uses the same wire contract as the installed auth-js implementation. The verifier is closure-only; a fresh token is accepted only if its verified user matches both the original account and the app's current session. It is used only for the explicit deletion request and never replaces the app's current account. Temporary auth sessions are disposed on mismatch/unmount/completion. No implicit access-token URL callback is accepted.
+External Downloads/Files copies and older untracked PDFs still need manual removal. Anonymous weekly reminders continue unless the member chooses to disable them. Retained reports/audit/email/anonymous activity are disclosed accurately; no promise of erasing every trace or a fabricated retention period is made.
 
-**Owner/Lovable action:** allow `firstjobly://account-delete-callback` as a redirect in the existing shared auth project. Do not replace the backend or add a second OAuth app unnecessarily. The callback route only returns to the active browser verification; arbitrary incoming callback codes are never exchanged automatically. Test Google verification on a native build; web Google verification is not offered by this screen.
+## Verification
 
-## Account and local-data isolation
+- 400 Node tests pass, including 31 new email-code transport/scope cases: exact requests, leading-zero codes, mixed proofs, 202, mail failure/busy/locks, retries/deadlines, network/body timeout, missing/switching sessions, token refresh, malformed responses, Unicode and native decoding without atob, and code errors without destructive replay/fallback.
+- 13 isolated Chromium scenarios pass: email and Google-only UI; send/confirm flow; wrong-code attempts; 202 usable code and manual-only resend countdown; send failure/busy/locked states; refresh versus same-account re-login; partial-failure/new-code retry; confirmed deletion/local cleanup; cleanup-only retry; account switch during deletion; offline, 401 and staff protection. These use intercepted auth/API requests and simulated success, not real emails/deletions.
+- Typecheck, focused lint and iOS/Android JS exports pass. Full lint retains the existing 8 errors/16 warnings; dependencies and Expo/native configuration are unchanged. No claim of a clean repository-wide lint run.
+- Not verified here: delivery to a real inbox, a correct live code leading to real deletion, physical iOS/Android keyboard/autofill and lifecycle behavior, or a real Google-only member. The supplied backend audit also says correct-code deletion and Google-only sign-in were not live-tested. Owner-authorized disposable-account tests are still required before release; never use the owner's staff account or real members for destructive checks.
 
-- Device cleanup starts only after confirmed server deletion. It removes the owner's Community draft, recommendation/device marker keys and tracked app-owned generated PDFs; existing auth listeners clear owner caches on local sign-out.
-- Shared legacy CV/Z83 device-draft keys and the local session are cleared only while the original account still owns the session. A newer account's drafts/session/reminder setting are untouched. The user's optional **Also turn off weekly device reminders** is separate; anonymous reminders otherwise continue by design.
-- Explicit app sign-in/up/out and confirmed cleanup share an auth-mutation queue, preventing those app actions racing the cleanup check/sign-out. CV and Profile form state remounts on account changes; normal auth requests and destinations are unchanged.
-- Cleanup attempts independent stages even after a local file failure, then reports any failure. It does not turn incomplete local cleanup into a second server deletion. If the matching local session disappeared first, shared drafts are left alone with an explicit note.
-- New generated PDF cache files and iOS app-document copies are tracked by owner. Confirmed deletion marks that owner in memory so late PDF work is discarded rather than resurrecting their tracked files. iOS copies use an owner-specific subfolder; normal Z83 cache names include account/time to avoid shared-name collisions. External Android Downloads/Files exports are not deleted; app roots, traversal paths and another user's file ledger cannot be purged. Legacy PDFs without ownership metadata cannot safely be attributed and removed without risking another user's files; the screen discloses manual removal (or uninstalling for old app-private data).
-- CV/Z83 generation, Apply/email handoff, existing rewarded gates, production ad IDs and anonymous weekly reminder schedules remain unchanged.
-
-## Verification and remaining release checks
-
-- Read-only live endpoint checks: GET 405, OPTIONS 204. No live deletion POST, account creation, member data removal, admin operation or database/schema change was performed.
-- Isolated transport tests cover the exact URL/headers/body/4KB cap, wrong ownership/confirmation, password/recent-sign-in payloads, same-user Google proof, status/error handling, no retries, rate limit, timeout, malformed success and rapid taps.
-- Cleanup tests cover account switches before/during cleanup, incomplete file cleanup, optional reminders, no-current-session behavior, auth-action serialization and PDF path/ledger isolation. Google tests use native/auth/crypto ports to verify S256, same-account matching, temporary-session disposal and no global session replacement.
-- Browser auth/API fixtures cover disclosure/typed confirmation, 500 preserving session/data, explicit retry, confirmed success/local sign-out, offline unknown result, 401 and staff-protected paths. No real credentials or real destructive operations are used.
-- Automated results: **334 Node tests**, typecheck and focused lint pass; iOS production and Android JavaScript exports pass. The 120 Home/nav/login browser checks also pass.
-- Repository lint retains the existing **8 errors/16 warnings**; no new focused lint findings. Expo Doctor remains **20/21** with the existing 21 SDK patch mismatches.
-- Physical iOS/Android OAuth and deletion remain unverified here. The server audit did not test successful real-member deletion or forced partial failures. Before public review, owner-authorized disposable-account tests must confirm removal/retention, partial failure recovery and Google-only reauthentication. Never use the owner's staff account or a real member as a destructive test.
-
-## Build
-
-Native `expo-crypto` was added for secure PKCE, so rebuild rather than relying on Metro/OTA alone. iOS build number is **4**, Android version code **34**. Production mode still uses real iOS ads; use official test inventory while testing interactions.
+## PowerShell
 
 ```powershell
 git fetch origin
-git switch feat/account-self-deletion
+git switch feat/account-deletion-email-code
+git pull --ff-only
 npm ci
 npm run typecheck
 npm run test:account-deletion
-npx eas-cli@latest build --platform ios --profile ios-testflight
+npx expo start --dev-client -c
 ```
 
-Confirm callback registration and complete approved on-device/server tests before App Review. If build 4 is uploaded to App Store Connect, increase the number before a subsequent upload. For the public candidate use `--profile ios-production`, then submit that exact completed build ID; upload and Apple review do not constitute an already-completed public deployment.
+No new native dependency/configuration is introduced by this change. The previously configured binary versions remain iOS build 4 / Android version code 34; increment as required for the next store upload. EAS signing/submission and real device/live deletion tests were not performed here. Use the appropriate existing EAS profile when making the next signed build; keep real production inventory separate from official-test inventory during testing.

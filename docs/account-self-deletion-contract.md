@@ -1,3 +1,5 @@
+> Updated contract: emailed deletion codes are published as of 14 November 2026. See [account-deletion-email-code-contract.md](account-deletion-email-code-contract.md). The original password/recent-sign-in audit below is historical and remains relevant for backward compatibility; its statement that no deletion OTP exists is superseded.
+
 > Publication update: the owner confirmed this endpoint is live on 14 November 2026. Read-only GET/OPTIONS returned 405/204 from the apex endpoint. The supplied audit below is preserved verbatim; its initial preview-only status predates that confirmation. No successful live deletion was tested by this app workspace.
 
 # FirstJobly — member self-deletion API (for the mobile app)

@@ -18,7 +18,11 @@ const token =
   Buffer.from('{"alg":"HS256"}').toString("base64url") +
   "." +
   Buffer.from(
-    JSON.stringify({ sub: owner, exp: Math.floor(Date.now() / 1000) + 3600 }),
+    JSON.stringify({
+      sub: owner,
+      session_id: "00000000-0000-4000-8000-000000000010",
+      exp: Math.floor(Date.now() / 1000) + 3600,
+    }),
   ).toString("base64url") +
   ".fixture";
 const session = {
@@ -35,7 +39,12 @@ const session = {
     args: ["--no-sandbox", "--disable-dev-shm-usage"],
   });
   try {
-    async function setup(replies, failLogout = false) {
+    async function setup(
+      replies,
+      failLogout = false,
+      codeReply = null,
+      google = false,
+    ) {
       const context = await browser.newContext({
         viewport: { width: 390, height: 844 },
         reducedMotion: "reduce",
@@ -46,7 +55,16 @@ const session = {
             "sb-ehwqqjqtevppsnmxximg-auth-token",
             JSON.stringify(s),
           ),
-        session,
+        google
+          ? {
+              ...session,
+              user: {
+                ...user,
+                identities: [{ id: owner, provider: "google" }],
+                app_metadata: { provider: "google", providers: ["google"] },
+              },
+            }
+          : session,
       );
       await context.addInitScript(() =>
         localStorage.setItem("firstjobly.cv.draft.v1", "private-fixture-draft"),
@@ -55,6 +73,7 @@ const session = {
       const heldReply = new Promise((resolve) => {
         release = resolve;
       });
+      let codePosts = 0;
       let posts = 0,
         logouts = 0;
       const errors = [];
@@ -77,6 +96,27 @@ const session = {
         },
       );
       await context.route("https://firstjobly.co.za/api/**", async (r) => {
+        if (r.request().url().endsWith("/api/app/account/delete-code")) {
+          codePosts++;
+          assert.deepEqual(r.request().postDataJSON(), {});
+          assert.equal(r.request().headers().authorization, "Bearer " + token);
+          if (codeReply === "offline") return r.abort("failed");
+          const result = codeReply ?? {
+            status: 200,
+            body: {
+              sent: true,
+              maskedEmail: "me****@example.test",
+              expiresInSeconds: 600,
+              expiresAt: new Date(Date.now() + 600000).toISOString(),
+              retryAfterSeconds: 60,
+            },
+          };
+          return r.fulfill({
+            status: result.status,
+            json: result.body,
+            headers: result.headers ?? {},
+          });
+        }
         if (!r.request().url().endsWith("/api/app/account/delete"))
           return r.fulfill({ json: { enabled: false } });
         if (r.request().method() === "OPTIONS")
@@ -93,7 +133,7 @@ const session = {
         assert.equal(r.request().headers()["x-fj-token"], undefined);
         assert.deepEqual(Object.keys(r.request().postDataJSON()).sort(), [
           "confirmEmail",
-          "password",
+          "emailCode",
         ]);
         const reply = replies[Math.min(posts - 1, replies.length - 1)];
         if (reply === "offline") return r.abort("failed");
@@ -104,6 +144,7 @@ const session = {
       page.setDefaultTimeout(60000);
       page.setDefaultNavigationTimeout(120000);
       page.on("pageerror", (e) => errors.push(e.message));
+      await page.clock.install();
       await page.goto(base + "/account-delete");
       await page
         .getByRole("textbox", { name: "Confirm account email" })
@@ -116,6 +157,9 @@ const session = {
         allowLogout() {
           failLogout = false;
         },
+        get codePosts() {
+          return codePosts;
+        },
         get posts() {
           return posts;
         },
@@ -124,13 +168,22 @@ const session = {
         },
       };
     }
+    async function requestCode(f) {
+      const send = f.page.getByRole("button", {
+        name: /^Send (confirmation code|again)/,
+      });
+      if (await send.isDisabled()) await f.page.clock.fastForward(61000);
+      await send.click();
+      await f.page.getByText(/Confirmation code sent to/).waitFor();
+    }
     async function confirm(f) {
       await f.page
         .getByRole("textbox", { name: "Confirm account email" })
         .fill("member@example.test");
+      await requestCode(f);
       await f.page
-        .getByLabel("Confirm account password", { exact: true })
-        .fill("fixture-password");
+        .getByLabel("Email confirmation code", { exact: true })
+        .fill("012345");
       await f.page
         .getByRole("switch", { name: "I understand deletion is permanent" })
         .click();
@@ -179,13 +232,14 @@ const session = {
       );
       assert.equal(
         await f.page
-          .getByLabel("Confirm account password", { exact: true })
+          .getByLabel("Email confirmation code", { exact: true })
           .inputValue(),
         "",
       );
+      await requestCode(f);
       await f.page
-        .getByLabel("Confirm account password", { exact: true })
-        .fill("fixture-password");
+        .getByLabel("Email confirmation code", { exact: true })
+        .fill("012345");
       await f.page
         .getByRole("button", {
           name: "Permanently delete my account",
@@ -299,6 +353,256 @@ const session = {
       await f.context.close();
       console.log(
         "PASS uncertain/auth/protected result sends once and preserves session",
+      );
+    }
+    for (const google of [false, true]) {
+      const f = await setup(
+        [
+          {
+            status: 403,
+            body: { error: "Wrong code", code: "code_wrong", attempts_left: 4 },
+          },
+        ],
+        false,
+        null,
+        google,
+      );
+      await f.page
+        .getByLabel("Confirm account email", { exact: true })
+        .fill("member@example.test");
+      assert.equal(
+        await f.page
+          .getByRole("button", { name: "Verify with Google again" })
+          .count(),
+        0,
+      );
+      assert.equal(
+        await f.page
+          .getByLabel("Confirm account password", { exact: true })
+          .count(),
+        0,
+      );
+      await requestCode(f);
+      assert.equal(f.codePosts, 1);
+      assert.equal(f.posts, 0);
+      await f.page
+        .getByLabel("Email confirmation code", { exact: true })
+        .fill("012345");
+      await f.page
+        .getByRole("switch", { name: "I understand deletion is permanent" })
+        .click();
+      await f.page
+        .getByRole("button", {
+          name: "Permanently delete my account",
+          exact: true,
+        })
+        .click();
+      await f.page.getByText("4 attempts left for this code.").waitFor();
+      assert.equal(f.posts, 1);
+      assert.equal(f.logouts, 0);
+      assert.deepEqual(f.errors, []);
+      await f.context.close();
+      console.log(
+        "PASS email-code UI, no Google/password verification, wrong-code attempt count; provider=" +
+          (google ? "google" : "email"),
+      );
+    }
+    {
+      const f = await setup([{ status: 200, body: { deleted: true } }], false, {
+        status: 202,
+        body: {
+          sent: false,
+          code: "send_uncertain",
+          error: "Check inbox",
+          maskedEmail: "me****@example.test",
+          expiresInSeconds: 600,
+          expiresAt: new Date(Date.now() + 600000).toISOString(),
+          retryAfterSeconds: 60,
+        },
+      });
+      await f.page
+        .getByLabel("Confirm account email", { exact: true })
+        .fill("member@example.test");
+      await f.page
+        .getByRole("button", { name: "Send confirmation code", exact: true })
+        .click();
+      await f.page.getByText(/Delivery is not confirmed/).waitFor();
+      assert.equal(f.codePosts, 1);
+      assert.equal(f.posts, 0);
+      assert.equal(
+        await f.page
+          .getByRole("button", { name: /Send again in/ })
+          .isDisabled(),
+        true,
+      );
+      await f.page.clock.fastForward(61000);
+      assert.equal(f.codePosts, 1);
+      assert.equal(f.posts, 0);
+      assert.equal(
+        await f.page
+          .getByRole("button", { name: "Send again", exact: true })
+          .isEnabled(),
+        true,
+      );
+      await f.page
+        .getByLabel("Email confirmation code", { exact: true })
+        .fill("012345");
+      await f.page
+        .getByRole("switch", { name: "I understand deletion is permanent" })
+        .click();
+      await f.page
+        .getByRole("button", {
+          name: "Permanently delete my account",
+          exact: true,
+        })
+        .click();
+      await f.page
+        .getByText("Account deletion confirmed", { exact: true })
+        .waitFor();
+      assert.equal(f.codePosts, 1);
+      assert.equal(f.posts, 1);
+      assert.deepEqual(f.errors, []);
+      await f.context.close();
+      console.log(
+        "PASS 202 keeps delivered code usable, countdown enables manual resend only",
+      );
+    }
+    {
+      const f = await setup([{ status: 200, body: { deleted: true } }]);
+      await f.page
+        .getByLabel("Confirm account email", { exact: true })
+        .fill("member@example.test");
+      await requestCode(f);
+      await f.page
+        .getByLabel("Email confirmation code", { exact: true })
+        .fill("012345");
+      async function changeSession(sessionId, event) {
+        const jwt =
+          "eyJhbGciOiJIUzI1NiJ9." +
+          Buffer.from(
+            JSON.stringify({
+              sub: owner,
+              session_id: sessionId,
+              exp: Math.floor(Date.now() / 1000) + 3600,
+            }),
+          ).toString("base64url") +
+          ".fixture";
+        await f.page.evaluate(
+          ({ next, event }) => {
+            const key = "sb-ehwqqjqtevppsnmxximg-auth-token";
+            localStorage.setItem(key, JSON.stringify(next));
+            const channel = new BroadcastChannel(key);
+            channel.postMessage({ event, session: next });
+            setTimeout(() => channel.close(), 100);
+          },
+          { next: { ...session, access_token: jwt }, event },
+        );
+      }
+      await changeSession(
+        "00000000-0000-4000-8000-000000000010",
+        "TOKEN_REFRESHED",
+      );
+      await f.page.waitForTimeout(250);
+      assert.equal(
+        await f.page
+          .getByLabel("Email confirmation code", { exact: true })
+          .inputValue(),
+        "012345",
+      );
+      await changeSession("00000000-0000-4000-8000-000000000011", "SIGNED_IN");
+      await f.page.waitForFunction(
+        () =>
+          document.querySelector('[aria-label="Email confirmation code"]')
+            ?.value === "",
+      );
+      assert.equal(
+        await f.page
+          .getByLabel("Confirm account email", { exact: true })
+          .inputValue(),
+        "",
+      );
+      assert.equal(f.codePosts, 1);
+      assert.equal(f.posts, 0);
+      assert.deepEqual(f.errors, []);
+      await f.context.close();
+      console.log(
+        "PASS refresh keeps code; same-account re-login clears code/confirmation without sending",
+      );
+    }
+    for (const result of [
+      {
+        status: 502,
+        body: {
+          error: "Mail refused",
+          code: "send_failed",
+          retry_after_seconds: 60,
+        },
+        headers: { "Retry-After": "60" },
+      },
+      {
+        status: 503,
+        body: { error: "Code busy", code: "send_busy", retry_after_seconds: 5 },
+        headers: { "Retry-After": "5" },
+      },
+      {
+        status: 429,
+        body: {
+          error: "Codes locked",
+          code: "code_locked",
+          retry_after_seconds: 900,
+        },
+        headers: { "Retry-After": "900" },
+      },
+    ]) {
+      const f = await setup(
+        [{ status: 200, body: { deleted: true } }],
+        false,
+        result,
+      );
+      await f.page
+        .getByLabel("Confirm account email", { exact: true })
+        .fill("member@example.test");
+      await f.page
+        .getByRole("button", { name: "Send confirmation code", exact: true })
+        .click();
+      await f.page.getByText(result.body.error, { exact: true }).waitFor();
+      assert.equal(f.codePosts, 1);
+      assert.equal(f.posts, 0);
+      assert.equal(f.logouts, 0);
+      assert.equal(
+        await f.page
+          .getByRole("button", { name: /Send again in/ })
+          .isDisabled(),
+        true,
+      );
+      if (result.body.code === "code_locked") {
+        await f.page
+          .getByLabel("Email confirmation code", { exact: true })
+          .fill("012345");
+        await f.page
+          .getByRole("switch", { name: "I understand deletion is permanent" })
+          .click();
+        assert.equal(
+          await f.page
+            .getByRole("button", {
+              name: "Permanently delete my account",
+              exact: true,
+            })
+            .isDisabled(),
+          true,
+        );
+      }
+      assert.equal(
+        await f.page.evaluate(() =>
+          localStorage.getItem("firstjobly.cv.draft.v1"),
+        ),
+        "private-fixture-draft",
+      );
+      assert.deepEqual(f.errors, []);
+      await f.context.close();
+      console.log(
+        "PASS send failure/cooldown preserves private data: " +
+          result.body.code,
       );
     }
   } finally {

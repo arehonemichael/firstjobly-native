@@ -5,13 +5,28 @@ import { draftStorage } from "../community/draft-storage";
 import { invalidateRecommendations } from "../recommendations/api";
 import { clearGeneratedFiles, markGeneratedOwnerDeleted } from "./owned-files";
 import { weeklyReminders } from "../reminders/runtime";
+import { createDeletionCodeSender } from "./email-code";
 import { createAccountDeletion } from "./deletion";
 import { cleanupDeletedAccount } from "./cleanup";
-const deletionTransport = createAccountDeletion(async () => {
+const currentDeletionSession = async () => {
   const { data, error } = await supabase.auth.getSession();
   return error ? null : data.session;
-});
+};
+const deletionTransport = createAccountDeletion(currentDeletionSession);
+const codeSender = createDeletionCodeSender(currentDeletionSession);
 export const accountDeletion = {
+  sendCode: codeSender.send,
+  async deleteWithEmailCode(owner: string, email: string, code: string) {
+    const result = await deletionTransport.delete(
+      owner,
+      email,
+      undefined,
+      undefined,
+      code,
+    );
+    markGeneratedOwnerDeleted(result.owner);
+    return result;
+  },
   async delete(...args: Parameters<typeof deletionTransport.delete>) {
     const result = await deletionTransport.delete(...args);
     markGeneratedOwnerDeleted(result.owner);
