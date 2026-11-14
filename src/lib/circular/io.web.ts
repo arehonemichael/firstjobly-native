@@ -26,19 +26,49 @@ export async function chooseCV(): Promise<{
   uri: string;
   name: string;
 } | null> {
-  throw Error("Use the Android app to attach a CV and send your Z83 with it.");
+  throw Error(
+    "Use the iOS or Android app to attach a CV and send your Z83 with it.",
+  );
 }
 export async function compose(
   _email: string,
   _subject: string,
   _z83: string,
   _cv: string,
-) {
-  throw Error("Email attachments are available in the Android app.");
+  _body?: string,
+  _supporting?: string[],
+  _stillOwner?: () => boolean,
+): Promise<"manual" | "cancelled" | "handoff"> {
+  throw Error("Email attachments are available in the iOS or Android app.");
 }
 export async function deleteTemporary(uri: string) {
   if (uri.startsWith("blob:")) URL.revokeObjectURL(uri);
 }
-export async function saveApplicationPDF(_uri: string) {
-  throw Error("Use the Android app to save this application PDF.");
+export async function saveApplicationPDF(_uri: string, _name?: string) {
+  throw Error("Use the iOS or Android app to save this application PDF.");
+}
+
+export async function chooseSupporting(): Promise<
+  { uri: string; name: string }[] | null
+> {
+  throw Error(
+    "Use the installed iOS or iOS or Android app to attach documents.",
+  );
+}
+export async function emailPaths() {
+  return {
+    composer: false,
+    defaultApp: false,
+    clients: [] as { label: string; url: string }[],
+  };
+}
+export async function openEmail(
+  _email: string,
+  _subject: string,
+  _body: string,
+  _clientURL?: string,
+) {
+  throw Error(
+    "Use the installed app for email attachments. Copy application details from this page.",
+  );
 }

@@ -1,3 +1,5 @@
+import { useAuth } from "../../hooks/use-auth";
+import type { EmailPaths } from "../../lib/circular/email-contract";
 import {
   useCallback,
   useEffect,
@@ -9,6 +11,7 @@ import { AppState, ScrollView, View, Platform } from "react-native";
 import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
 import {
   AppText as Text,
+  AppTextInput as TextInput,
   AppPressable as Pressable,
 } from "../../components/ui/primitives";
 import {
@@ -29,12 +32,27 @@ import {
 } from "../../lib/circular/contract";
 import {
   chooseCV,
+  chooseSupporting,
+  emailPaths,
+  openEmail,
   compose,
   copy,
   openURL,
   saveApplicationPDF,
 } from "../../lib/circular/io";
 export default function CircularApply() {
+  const params = useLocalSearchParams<{
+    jobId?: string;
+    application?: string;
+  }>();
+  const { userId } = useAuth();
+  return (
+    <CircularApplyForm
+      key={`${userId || "guest"}:${params.application || params.jobId || "none"}`}
+    />
+  );
+}
+function CircularApplyForm() {
   const params = useLocalSearchParams<{
     jobId?: string;
     application?: string;
@@ -55,6 +73,25 @@ export default function CircularApply() {
   const [confirm, setConfirm] = useState(false);
   const [sent, setSent] = useState(false);
   const [licence, setLicence] = useState(false);
+  const [message, setMessage] = useState("Please find my Z83 and CV attached.");
+  const [manualEmail, setManualEmail] = useState(false);
+  const [paths, setPaths] = useState<EmailPaths>({
+    composer: false,
+    defaultApp: false,
+    clients: [],
+  });
+  const [handoffNote, setHandoffNote] = useState("");
+  useEffect(() => {
+    let alive = true;
+    void emailPaths()
+      .then((value) => {
+        if (alive) setPaths(value);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
   const locked = useRef(false);
   const handoff = useRef(false);
   const departing = useRef(false);
@@ -65,6 +102,10 @@ export default function CircularApply() {
   );
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active")
+        void emailPaths()
+          .then(setPaths)
+          .catch(() => {});
       if (state === "active" && handoff.current) {
         handoff.current = false;
         setConfirm(true);
@@ -120,15 +161,32 @@ export default function CircularApply() {
           throw Error(
             "No email address is provided. Check the official circular.",
           );
-        handoff.current = true;
-        await compose(
+        const result = await compose(
           session.detail.apply.emails[0],
           session.detail.apply.email_subject,
           session.z83,
           session.cv,
+          message,
+          (session.supporting ?? []).map((file) => file.uri),
+          () => applications.get(query.userId, session.key) === session,
         );
-        handoff.current = false;
-        setConfirm(true);
+        if (result === "manual") {
+          setConfirm(false);
+          setManualEmail(true);
+          setHandoffNote(
+            "Apple Mail’s composer is unavailable. Use the email options below; your documents and application details are still here.",
+          );
+        } else if (result === "cancelled") {
+          setConfirm(false);
+          setHandoffNote(
+            "Email composer closed without sending. Your application has not been marked sent.",
+          );
+        } else {
+          setConfirm(true);
+          setHandoffNote(
+            "Email handoff finished. FirstJobly cannot confirm sending or delivery.",
+          );
+        }
       } else if (session.method === "online") {
         handoff.current = true;
         await openURL(session.detail.apply.urls[0]);
@@ -136,6 +194,31 @@ export default function CircularApply() {
       } else {
         setConfirm(true);
       }
+    } catch (e) {
+      handoff.current = false;
+      setError(e as Error);
+    } finally {
+      locked.current = false;
+      setBusy(false);
+    }
+  }
+  async function openManualEmail(clientURL?: string) {
+    if (!session || locked.current) return;
+    locked.current = true;
+    setBusy(true);
+    setError(undefined);
+    try {
+      handoff.current = true;
+      await openEmail(
+        session.detail.apply.emails[0],
+        session.detail.apply.email_subject,
+        message,
+        clientURL,
+      );
+      setHandoffNote(
+        "Email app opened. Attach your saved documents and review all details before sending. Opening an app does not submit an application.",
+      );
+      setConfirm(true);
     } catch (e) {
       handoff.current = false;
       setError(e as Error);
@@ -302,9 +385,10 @@ export default function CircularApply() {
                 only.
               </Text>
               <Text style={cs.muted}>
-                Sensitive answers stay on this device in memory. They are
-                cleared when the PDF is made. Temporary PDFs are removed when
-                you finish or leave this application.
+                Answers stay in memory unless you explicitly choose to remember
+                reusable details securely. Job details and declarations are
+                never remembered. Temporary PDFs are removed when you finish or
+                leave this application.
               </Text>
               {detail.z83_requirements?.job_specific?.map((item) => (
                 <Text key={item.field} style={cs.muted}>
@@ -316,14 +400,22 @@ export default function CircularApply() {
                   <Text>Z83 PDF ready</Text>
                   <Button
                     label={
-                      savedPDF
-                        ? "Z83 saved to Downloads"
-                        : "Save Z83 to Downloads"
+                      Platform.OS === "ios"
+                        ? "Save Z83 to Files"
+                        : savedPDF
+                          ? "Z83 saved to Downloads"
+                          : "Save Z83 to Downloads"
                     }
                     secondary
                     onPress={() =>
                       void saveApplicationPDF(session.z83!)
-                        .then(() => setSavedPDF(true))
+                        .then(() => {
+                          if (Platform.OS !== "ios") setSavedPDF(true);
+                          else
+                            setHandoffNote(
+                              "Export options closed. If you chose Save to Files, check Files for your copy; saving or cancellation cannot be confirmed.",
+                            );
+                        })
                         .catch(setError)
                     }
                   />
@@ -378,6 +470,49 @@ export default function CircularApply() {
               />
             </View>
             <View style={cs.card}>
+              <Text style={cs.heading}>Supporting documents</Text>
+              <Text style={cs.muted}>
+                Add up to four supporting PDFs, 5 MB each, if the advert
+                requires them.
+              </Text>
+              {(session.supporting ?? []).map((file, index) => (
+                <View key={file.uri}>
+                  <Text>{file.name}</Text>
+                  <Button
+                    label={`Remove supporting PDF ${index + 1}`}
+                    secondary
+                    onPress={() => {
+                      if (query.userId)
+                        applications.setSupporting(
+                          query.userId,
+                          session.key,
+                          (session.supporting ?? []).filter(
+                            (item) => item.uri !== file.uri,
+                          ),
+                        );
+                    }}
+                  />
+                </View>
+              ))}
+              <Button
+                label="Choose supporting PDFs"
+                secondary
+                disabled={busy}
+                onPress={() =>
+                  void chooseSupporting()
+                    .then((files) => {
+                      if (files && query.userId)
+                        applications.setSupporting(
+                          query.userId,
+                          session.key,
+                          files,
+                        );
+                    })
+                    .catch(setError)
+                }
+              />
+            </View>
+            <View style={cs.card}>
               <Text style={cs.heading}>
                 3. Apply by {methodLabels[session.method].toLowerCase()}
               </Text>
@@ -389,16 +524,130 @@ export default function CircularApply() {
                   <Text selectable style={cs.muted}>
                     Subject: {detail.apply.email_subject}
                   </Text>
+                  <Button
+                    label="Copy email address"
+                    secondary
+                    onPress={() =>
+                      void copy(detail.apply.emails[0]).catch(setError)
+                    }
+                  />
+                  <Button
+                    label="Copy subject"
+                    secondary
+                    onPress={() =>
+                      void copy(detail.apply.email_subject).catch(setError)
+                    }
+                  />
+                  <Text>Message</Text>
+                  <TextInput
+                    accessibilityLabel="Application email message"
+                    multiline
+                    value={message}
+                    onChangeText={setMessage}
+                    style={cs.input}
+                  />
+                  <Button
+                    label="Copy message"
+                    secondary
+                    onPress={() => void copy(message).catch(setError)}
+                  />
                   <Text style={cs.muted}>
-                    Your Z83 and CV will be attached. Review the email before
-                    sending.
+                    Apple Mail’s composer and Android email intents can include
+                    your selected documents. Other email apps may need you to
+                    attach saved documents manually. Always review recipient,
+                    subject and attachments.
                   </Text>
+                  <Button
+                    label="Other email apps / manual attachments"
+                    secondary
+                    onPress={() => setManualEmail((v) => !v)}
+                  />
+                  {manualEmail && (
+                    <View style={{ gap: 12 }}>
+                      <Text style={cs.muted}>
+                        Save each document below using Save to Files on iOS. In
+                        your email app, paste the copied recipient, subject and
+                        message, then attach the files. Share options may offer
+                        compatible apps, one document at a time; recipient and
+                        subject are not prefilled there.
+                      </Text>
+                      {session.z83 && (
+                        <Button
+                          label={
+                            Platform.OS === "ios"
+                              ? "Save/share Z83 via Files"
+                              : "Save Z83 PDF"
+                          }
+                          secondary
+                          onPress={() =>
+                            void saveApplicationPDF(
+                              session.z83!,
+                              "Z83.pdf",
+                            ).catch(setError)
+                          }
+                        />
+                      )}
+                      {session.cv && (
+                        <Button
+                          label={
+                            Platform.OS === "ios"
+                              ? "Save CV to Files"
+                              : "Save CV PDF"
+                          }
+                          secondary
+                          onPress={() =>
+                            void saveApplicationPDF(
+                              session.cv!,
+                              "CV.pdf",
+                            ).catch(setError)
+                          }
+                        />
+                      )}
+                      {(session.supporting ?? []).map((file, index) => (
+                        <Button
+                          key={file.uri}
+                          label={`Save supporting PDF ${index + 1}`}
+                          secondary
+                          onPress={() =>
+                            void saveApplicationPDF(
+                              file.uri,
+                              `Supporting-document-${index + 1}.pdf`,
+                            ).catch(setError)
+                          }
+                        />
+                      ))}
+                      {paths.defaultApp && (
+                        <Button
+                          label="Open default email app — attach files manually"
+                          secondary
+                          disabled={busy}
+                          onPress={() => void openManualEmail()}
+                        />
+                      )}
+                      {paths.clients.map((client) => (
+                        <Button
+                          key={client.url}
+                          label={`Open ${client.label} — add details and files manually`}
+                          secondary
+                          disabled={busy}
+                          onPress={() => void openManualEmail(client.url)}
+                        />
+                      ))}
+                      {!paths.defaultApp && !paths.clients.length && (
+                        <Text style={cs.muted}>
+                          No email app could be opened from FirstJobly. Your
+                          application details remain here. Copy them and save
+                          the documents, then open an email app yourself.
+                        </Text>
+                      )}
+                    </View>
+                  )}
                 </>
               )}
               {session.method === "online" && (
                 <Text style={cs.muted}>
-                  Save your Z83 to Downloads first, then open the employer’s
-                  site and upload your Z83 and CV there.
+                  Save your Z83 using the document action above, then open the
+                  employer’s site and upload your Z83 and CV there.
                 </Text>
               )}
               {(session.method === "post" ||
@@ -426,7 +675,9 @@ export default function CircularApply() {
                   busy
                     ? "Opening…"
                     : session.method === "email"
-                      ? "Open email with attachments"
+                      ? Platform.OS === "ios" && !paths.composer
+                        ? "Choose an email app"
+                        : "Open email with attachments"
                       : session.method === "online"
                         ? "Open application site"
                         : "I’ve finished applying"
@@ -440,7 +691,8 @@ export default function CircularApply() {
               />
               {Platform.OS === "web" && (
                 <Text style={cs.muted}>
-                  Use the Android app to generate and attach documents.
+                  Use the installed iOS or Android app to generate and attach
+                  documents.
                 </Text>
               )}
             </View>
@@ -474,6 +726,9 @@ export default function CircularApply() {
               }}
             />
           </>
+        )}
+        {!!handoffNote && (
+          <Text accessibilityLiveRegion="polite">{handoffNote}</Text>
         )}
         {error && (
           <ErrorState error={error} retry={() => setError(undefined)} />

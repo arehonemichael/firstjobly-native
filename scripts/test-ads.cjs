@@ -1499,6 +1499,9 @@ function downloadPorts(kind, before = async () => true) {
     Platform: { OS: "android" },
     userId: "fixture-user",
     rememberGeneratedFile: async () => {},
+    reviewed: true,
+    assertPdf: async () => {},
+    deleteTemporary: async () => {},
     downloadLock: lock,
     circularMode: false,
     data: {

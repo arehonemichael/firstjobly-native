@@ -10,9 +10,12 @@
     "ios": {
       "bundleIdentifier": "com.first.firstjobly",
       "supportsTablet": true,
-      "buildNumber": "4",
+      "buildNumber": "5",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "LSApplicationQueriesSchemes": [
+          "mailto"
+        ]
       }
     },
     "android": {
@@ -50,7 +53,8 @@
         }
       ],
       "expo-image",
-      "expo-notifications"
+      "expo-notifications",
+      "expo-mail-composer"
     ],
     "experiments": {
       "typedRoutes": true,

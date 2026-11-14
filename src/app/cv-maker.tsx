@@ -1,3 +1,5 @@
+import { assertPdf } from "../lib/document-export";
+import { deleteTemporary } from "../lib/circular/io";
 import { rememberGeneratedFile } from "../lib/account/owned-files";
 import {
   AppText as Text,
@@ -61,33 +63,42 @@ function CvMakerForm() {
   const [aiBusy, setAiBusy] = useState<string | null>(null);
 
   useEffect(() => {
-    void Promise.all([
-      AsyncStorage.getItem(STORAGE_KEY),
-      AsyncStorage.getItem(TEMPLATE_KEY),
-    ]).then(([raw, tpl]) => {
+    let alive = true;
+    void (async () => {
+      // Legacy device-wide drafts cannot be assigned safely to an account.
+      if (!userId) {
+        if (alive) setLoaded(true);
+        return;
+      }
+      const [raw, tpl] = await Promise.all([
+        AsyncStorage.getItem(`${STORAGE_KEY}:${userId}`),
+        AsyncStorage.getItem(`${TEMPLATE_KEY}:${userId}`),
+      ]);
+      if (!alive) return;
       if (raw) {
         try {
-          setData({ ...emptyCv(), ...(JSON.parse(raw) as Partial<CvData>) });
+          setData({ ...emptyCv(), ...JSON.parse(raw) });
         } catch {}
       }
       if (
-        tpl === "classic" ||
-        tpl === "professional" ||
-        tpl === "graduate" ||
-        tpl === "skills" ||
-        tpl === "compact"
-      ) {
-        setTemplateId(tpl);
-      }
+        ["classic", "professional", "graduate", "skills", "compact"].includes(
+          tpl ?? "",
+        )
+      )
+        setTemplateId(tpl as TemplateId);
       setLoaded(true);
+    })().catch(() => {
+      if (alive) setLoaded(true);
     });
-  }, []);
-
+    return () => {
+      alive = false;
+    };
+  }, [userId]);
   useEffect(() => {
-    if (!loaded) return;
-    void AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    void AsyncStorage.setItem(TEMPLATE_KEY, templateId);
-  }, [data, templateId, loaded]);
+    if (!loaded || !userId) return;
+    void AsyncStorage.setItem(`${STORAGE_KEY}:${userId}`, JSON.stringify(data));
+    void AsyncStorage.setItem(`${TEMPLATE_KEY}:${userId}`, templateId);
+  }, [data, templateId, loaded, userId]);
 
   const patch = (changes: Partial<CvData>) =>
     setData((current) => ({ ...current, ...changes }));
@@ -220,6 +231,7 @@ function CvMakerForm() {
       return;
     }
 
+    let temporary: string | null = null;
     downloadLock.current = true;
     setBusy(true);
     try {
@@ -229,22 +241,27 @@ function CvMakerForm() {
         base64: false,
       });
 
+      temporary = result.uri;
+      await assertPdf(result.uri);
       await rememberGeneratedFile(userId, result.uri);
-      const fileName = `${fileBase(data)}.pdf`;
+      const fileName =
+        Platform.OS === "ios" ? "CV.pdf" : `${fileBase(data)}.pdf`;
       await savePdfToDownloads(result.uri, fileName, {
         shareOnIos: true,
         ownerId: userId,
+        isCurrent: async () =>
+          (await supabase.auth.getSession()).data.session?.user.id === userId ||
+          (!userId && !(await supabase.auth.getSession()).data.session),
       });
       completeDownload();
 
       Alert.alert(
         Platform.OS === "ios" ? "PDF ready" : "Downloaded",
         Platform.OS === "ios"
-          ? `${fileName} is ready. Choose Save to Files in the share sheet to keep a copy outside FirstJobly.`
+          ? "Export options closed. If you chose Save to Files, open Files to find your copy. FirstJobly cannot confirm whether you saved or cancelled."
           : `${fileName} has been saved to your Downloads folder.`,
       );
     } catch (error) {
-      console.error("CV PDF failed:", error);
       if (
         error instanceof Error &&
         error.message === "DOWNLOAD_PERMISSION_DENIED"
@@ -257,6 +274,7 @@ function CvMakerForm() {
         Alert.alert("CV Maker", "Could not download the PDF.");
       }
     } finally {
+      if (temporary) await deleteTemporary(temporary);
       downloadLock.current = false;
       setBusy(false);
     }
@@ -792,7 +810,13 @@ function CvMakerForm() {
                 color={Colors.surface}
               />
               <Text style={s.primaryText}>
-                {canOfferAd ? "Watch ad & download PDF" : "Download PDF"}
+                {Platform.OS === "ios"
+                  ? canOfferAd
+                    ? "Watch ad & save CV to Files"
+                    : "Save CV to Files"
+                  : canOfferAd
+                    ? "Watch ad & download PDF"
+                    : "Download PDF"}
               </Text>
             </>
           )}

@@ -1,13 +1,15 @@
+import { exportStoredDocument } from "../../lib/document-export";
 import {
   AppText as Text,
   AppTouchableOpacity as TouchableOpacity,
 } from "../ui/primitives";
 import { Colors, Fonts } from "../../constants/theme";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Linking,
+  Platform,
   StyleSheet,
   View,
 } from "react-native";
@@ -15,6 +17,8 @@ import { Icon as Ionicons } from "../ui/icon";
 import * as DocumentPicker from "expo-document-picker";
 
 import { supabase } from "../../lib/supabase";
+
+const advanceDocumentRead = (counter: { current: number }) => ++counter.current;
 
 const MAX_BYTES = 5 * 1024 * 1024;
 
@@ -70,7 +74,10 @@ export function DocumentsSection({
   const [loading, setLoading] = useState(true);
   const [busyKind, setBusyKind] = useState<string | null>(null);
 
+  const requestVersion = useRef(0);
+  const exporting = useRef(false);
   const load = useCallback(async () => {
+    const ticket = advanceDocumentRead(requestVersion);
     setLoading(true);
 
     const { data, error } = await supabase
@@ -78,6 +85,7 @@ export function DocumentsSection({
       .select("*")
       .eq("user_id", userId);
 
+    if (ticket !== requestVersion.current) return;
     setLoading(false);
 
     if (error) {
@@ -92,6 +100,9 @@ export function DocumentsSection({
 
   useEffect(() => {
     void load();
+    return () => {
+      advanceDocumentRead(requestVersion);
+    };
   }, [load]);
 
   async function choose(kind: Kind) {
@@ -211,7 +222,41 @@ export function DocumentsSection({
     ]);
   }
 
+  async function saveToFiles(doc: UserDocument) {
+    if (exporting.current) return;
+    exporting.current = true;
+    setBusyKind(doc.kind);
+    try {
+      await exportStoredDocument(
+        doc,
+        async () => {
+          const { data, error } = await supabase.storage
+            .from("documents")
+            .createSignedUrl(doc.file_path, 60);
+          if (error || !data?.signedUrl)
+            throw Error("Could not access the document. Please try again.");
+          return data.signedUrl;
+        },
+        async () =>
+          (await supabase.auth.getSession()).data.session?.user.id === userId,
+      );
+      Alert.alert(
+        "Export options closed",
+        "If you chose Save to Files, open Files to find your copy. Saving or cancellation cannot be confirmed here.",
+      );
+    } catch (e) {
+      Alert.alert(
+        "Documents",
+        e instanceof Error ? e.message : "Could not export this document.",
+      );
+    } finally {
+      exporting.current = false;
+      setBusyKind(null);
+    }
+  }
+
   async function open(doc: UserDocument) {
+    if (Platform.OS === "ios") return saveToFiles(doc);
     const { data, error } = await supabase.storage
       .from("documents")
       .createSignedUrl(doc.file_path, 60);
@@ -314,6 +359,32 @@ export function DocumentsSection({
                 </>
               ) : null}
             </View>
+            {doc && Platform.OS === "ios" && (
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel={`Save ${kind.label} to Files`}
+                disabled={busy}
+                style={[
+                  styles.upload,
+                  {
+                    marginTop: 10,
+                    flex: 0,
+                    minHeight: 44,
+                    backgroundColor: Colors.surface,
+                    borderWidth: 1,
+                    borderColor: Colors.input,
+                  },
+                ]}
+                onPress={() => void saveToFiles(doc)}
+              >
+                <Ionicons
+                  name="download-outline"
+                  size={18}
+                  color={Colors.foreground}
+                />
+                <Text style={styles.outlineText}>Save to Files</Text>
+              </TouchableOpacity>
+            )}
           </View>
         );
       })}

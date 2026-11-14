@@ -20,7 +20,7 @@ The existing account/retention disclosure and optional device-reminder switch re
 
 ## Local cleanup unchanged
 
-Confirmed deletion marks only that owner's generated PDFs as deleted, then uses the existing serialized auth-mutation cleanup. It removes their Community draft, owner caches/markers and tracked app-owned files. Shared CV/Z83 drafts and the local session/reminder setting are cleared only while the original owner still owns the session. Another account's session/private device drafts remain protected if the account changed mid-request. Confirmed completion survives local sign-out. **Retry local cleanup** never sends another deletion POST.
+Confirmed deletion also removes explicitly remembered Z83 details from the OS secure store; a failure offers local-cleanup retry. Confirmed deletion marks only that owner's generated PDFs as deleted, then uses the existing serialized auth-mutation cleanup. It removes their Community draft, owner caches/markers and tracked app-owned files. Shared CV/Z83 drafts and the local session/reminder setting are cleared only while the original owner still owns the session. Another account's session/private device drafts remain protected if the account changed mid-request. Confirmed completion survives local sign-out. **Retry local cleanup** never sends another deletion POST.
 
 External Downloads/Files copies and older untracked PDFs still need manual removal. Anonymous weekly reminders continue unless the member chooses to disable them. Retained reports/audit/email/anonymous activity are disclosed accurately; no promise of erasing every trace or a fabricated retention period is made.
 
