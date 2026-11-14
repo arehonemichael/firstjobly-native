@@ -512,6 +512,20 @@ function check(value, label) {
       .getByRole("button", { name: "Unsave Administration Clerk", exact: true })
       .waitFor();
     check(state.items[0].saved, "save circular uses API");
+    check(!page.url().includes("/circular-jobs/clerk-1"), "Save does not open a job");
+    for (const region of ["location", "salary", "closing", "padding"]) {
+      const card = page.getByRole("button", { name: "Open Administration Clerk", exact: true });
+      if (region === "padding") {
+        const rect = await card.boundingBox();
+        await page.mouse.click(rect.x + 7, rect.y + rect.height - 7);
+      } else if (region === "location") await card.getByText("Pretoria · Gauteng", { exact: true }).click();
+      else if (region === "salary") await card.getByText("R216 417 per year", { exact: true }).click();
+      else await card.getByText(/^Closes /).first().click();
+      await page.getByText("Do I qualify?", { exact: true }).waitFor();
+      check(page.url().includes("/circular-jobs/clerk-1"), `whole card opens from ${region}`);
+      await page.goBack();
+      await card.waitFor();
+    }
     await page
       .getByRole("button", { name: "Open Administration Clerk" })
       .click();
