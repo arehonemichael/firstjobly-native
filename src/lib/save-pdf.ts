@@ -1,3 +1,7 @@
+import {
+  rememberGeneratedFile,
+  assertGeneratedOwnerActive,
+} from "./account/owned-files";
 import { Platform } from "react-native";
 import * as Sharing from "expo-sharing";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -27,8 +31,9 @@ function fileBase(name: string) {
 export async function savePdfToDownloads(
   sourceUri: string,
   fileName: string,
-  options: { shareOnIos?: boolean } = {},
+  options: { shareOnIos?: boolean; ownerId?: string | null } = {},
 ): Promise<string> {
+  assertGeneratedOwnerActive(options.ownerId);
   const cleanName = fileName.toLowerCase().endsWith(".pdf")
     ? fileName
     : `${fileName}.pdf`;
@@ -37,8 +42,14 @@ export async function savePdfToDownloads(
     if (!FileSystem.documentDirectory) {
       throw new Error("Documents directory is unavailable");
     }
-    const destination = `${FileSystem.documentDirectory}${cleanName}`;
+    const folder = options.ownerId
+      ? `${FileSystem.documentDirectory}firstjobly-generated/${encodeURIComponent(options.ownerId)}/`
+      : FileSystem.documentDirectory;
+    if (options.ownerId)
+      await FileSystem.makeDirectoryAsync(folder, { intermediates: true });
+    const destination = `${folder}${cleanName}`;
     await FileSystem.copyAsync({ from: sourceUri, to: destination });
+    await rememberGeneratedFile(options.ownerId ?? null, destination);
     if (Platform.OS === "ios" && options.shareOnIos) {
       if (!(await Sharing.isAvailableAsync()))
         throw new Error(
@@ -83,6 +94,7 @@ export async function savePdfToDownloads(
       "application/pdf",
     );
 
+    assertGeneratedOwnerActive(options.ownerId);
     await FileSystem.writeAsStringAsync(targetUri, base64, {
       encoding: FileSystem.EncodingType.Base64,
     });

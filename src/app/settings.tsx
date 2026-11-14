@@ -20,6 +20,11 @@ export default function Settings() {
           secondary
           onPress={() => router.push("/notifications")}
         />
+        <Button
+          label="Delete my account"
+          secondary
+          onPress={() => router.push("/account-delete")}
+        />
       </View>
     </PageShell>
   );

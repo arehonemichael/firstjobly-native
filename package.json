@@ -11,6 +11,7 @@
     "expo": "~57.0.15",
     "expo-clipboard": "~57.0.2",
     "expo-constants": "~57.0.10",
+    "expo-crypto": "~57.0.4",
     "expo-dev-client": "~57.0.21",
     "expo-device": "~57.0.1",
     "expo-document-picker": "~57.0.1",
@@ -74,7 +75,8 @@
     "test:hot-jobs": "node --test scripts/test-hot-jobs.cjs",
     "test:circular": "node --test scripts/test-circular.cjs",
     "test:ios": "node --test scripts/test-ios-build.cjs scripts/test-expo-go.cjs",
-    "test:reminders": "node --test scripts/test-weekly-reminders.cjs"
+    "test:reminders": "node --test scripts/test-weekly-reminders.cjs",
+    "test:account-deletion": "node --test scripts/test-account-deletion.cjs"
   },
   "private": true
 }

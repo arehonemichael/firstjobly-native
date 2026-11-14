@@ -124,7 +124,7 @@ Only after iPhone testing and real IDs are ready:
 npx eas-cli@latest build --platform ios --profile ios-production
 ```
 
-Do not publicly submit the test-ad build as the final release. Before requesting public App Review, complete privacy policy/support URLs, accurate App Privacy and age/content declarations, screenshots (including iPad while tablet support is enabled), reviewer account/instructions, Community moderation/report/block requirements and account deletion. The current Profile screen has no in-app account deletion flow; obtain the existing site's supported deletion/API contract before implementing one. No backend route or table was invented here. Confirm external application links and CV/Z83 export/mail work on-device.
+Do not publicly submit the test-ad build as the final release. Before requesting public App Review, complete privacy policy/support URLs, accurate App Privacy and age/content declarations, screenshots (including iPad while tablet support is enabled), reviewer account/instructions, Community moderation/report/block requirements and account deletion. The member account-deletion flow is now implemented on `feat/account-self-deletion` using the published member endpoint; see [account-self-deletion.md](account-self-deletion.md) for Google callback configuration and remaining approved live/device tests. No backend route or table was invented here. Confirm external application links and CV/Z83 export/mail work on-device.
 
 ## Verification
 
@@ -141,3 +141,5 @@ AdMob ID update: the release guard also covers `ios-production`. Tests verify th
 ## Weekly reminder build update
 
 `feat/weekly-device-reminders` adds guest-capable local weekly notifications. Its current iOS build number is **2** (Android version code **33**); increase the iOS number to **3** for the next upload after this one. The original first-build instructions above refer to build 1. See [weekly-device-reminders.md](weekly-device-reminders.md) for the new build/install/permission steps. No server push setup is required for these chosen device reminders.
+
+Latest account-deletion candidate: iOS build **4**, Android version code **34**, with secure native Google PKCE (`expo-crypto`). Earlier build-number examples above describe prior candidates. Public submission still requires the approved deletion/Google verification checks described in [account-self-deletion.md](account-self-deletion.md).
