@@ -11,6 +11,7 @@ export class AccountDeletionError extends Error {
     public status = 0,
     public methods: string[] = [],
     public retryAt = 0,
+    public attemptsLeft?: number,
   ) {
     super(message);
   }
@@ -36,6 +37,7 @@ export function createAccountDeletion(
       confirmEmail: string,
       password?: string,
       proof?: { userId: string; accessToken: string },
+      emailCode?: string,
     ) {
       let retryAt = blocked.get(owner) ?? 0;
       if (retryAt <= now()) {
@@ -76,9 +78,21 @@ export function createAccountDeletion(
             "confirmation_mismatch",
             422,
           );
+        if (
+          emailCode !== undefined &&
+          (!/^\d{6}$/.test(emailCode.trim()) ||
+            password !== undefined ||
+            proof !== undefined)
+        )
+          throw new AccountDeletionError(
+            "Enter the six-digit email code, without another verification method.",
+            "invalid_request",
+            400,
+          );
         const body = JSON.stringify({
           confirmEmail: email,
           ...(password ? { password } : {}),
+          ...(emailCode === undefined ? {} : { emailCode: emailCode.trim() }),
         });
         const bytes = [...body].reduce(
           (size, c) =>
@@ -124,6 +138,7 @@ export function createAccountDeletion(
           code?: unknown;
           methods?: unknown;
           retry_after_seconds?: unknown;
+          attempts_left?: unknown;
         } | null;
         if (response.status === 200 && value?.deleted === true) {
           blocked.delete(owner);
@@ -151,6 +166,12 @@ export function createAccountDeletion(
             ? value.methods.filter((v): v is string => typeof v === "string")
             : [],
           retryAt,
+          typeof value?.attempts_left === "number" &&
+          Number.isInteger(value.attempts_left) &&
+          value.attempts_left >= 0 &&
+          value.attempts_left <= 4
+            ? value.attempts_left
+            : undefined,
         );
       } finally {
         clearTimeout(timer);

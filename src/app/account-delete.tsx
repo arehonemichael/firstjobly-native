@@ -1,6 +1,6 @@
 import { useScreenBottomPadding } from "../hooks/use-screen-bottom-padding";
 import { useEffect, useRef, useState } from "react";
-import { Platform, ScrollView, Switch, View } from "react-native";
+import { AppState, ScrollView, Switch, View } from "react-native";
 import { router } from "expo-router";
 import type { User } from "@supabase/supabase-js";
 import { useAuth } from "../hooks/use-auth";
@@ -18,7 +18,7 @@ import {
 import { Colors } from "../constants/theme";
 import { accountDeletion, finishAccountDeletion } from "../lib/account/client";
 import { AccountDeletionError } from "../lib/account/deletion";
-import { reauthenticateGoogle } from "../lib/account/google-reauth";
+import { deletionSessionScope } from "../lib/account/session-scope";
 export default function DeleteAccountScreen() {
   const auth = useAuth();
   const bottom = useScreenBottomPadding(false);
@@ -97,7 +97,11 @@ export default function DeleteAccountScreen() {
         <SignIn returnTo="/account-delete" />
       ) : (
         <DeletionForm
-          key={auth.user.id}
+          key={deletionSessionScope(
+            auth.session?.access_token ?? "",
+            auth.user.id,
+            auth.user.email,
+          )}
           user={auth.user}
           onDeleted={(owner, stop) => void cleanup(owner, stop)}
         />
@@ -113,106 +117,134 @@ function DeletionForm({
   onDeleted(owner: string, stop: boolean): void;
 }) {
   const bottom = useScreenBottomPadding(false);
-  const [email, setEmail] = useState(""),
-    [password, setPassword] = useState("");
-  const [confirmed, setConfirmed] = useState(false),
-    [stopReminders, setStopReminders] = useState(false);
-  const [busy, setBusy] = useState(false),
-    [error, setError] = useState(""),
-    [notice, setNotice] = useState("");
-  const [code, setCode] = useState(""),
-    [passwordHint, setPasswordHint] = useState(false);
+  const [email, setEmail] = useState("");
+  const [emailCode, setEmailCode] = useState("");
+  const [confirmed, setConfirmed] = useState(false);
+  const [stopReminders, setStopReminders] = useState(false);
+  const [busy, setBusy] = useState<"send" | "delete" | null>(null);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [errorCode, setErrorCode] = useState("");
+  const [sendAt, setSendAt] = useState(0);
+  const [deleteAt, setDeleteAt] = useState(0);
+  const [expiresAt, setExpiresAt] = useState(0);
+  const [clock, setClock] = useState(Date.now);
+  const [requested, setRequested] = useState(false);
   const lock = useRef(false),
     alive = useRef(true);
-  const proof = useRef<Awaited<ReturnType<typeof reauthenticateGoogle>> | null>(
-    null,
-  );
   useEffect(() => {
     alive.current = true;
     return () => {
       alive.current = false;
-      const value = proof.current;
-      proof.current = null;
-      void value?.dispose();
     };
   }, []);
-  const providers = [
-    ...(user.identities?.map((identity) => identity.provider) ?? []),
-    ...(Array.isArray(user.app_metadata.providers)
-      ? user.app_metadata.providers.filter(
-          (value: unknown): value is string => typeof value === "string",
-        )
-      : []),
-  ];
-  const google =
-    providers.includes("google") || user.app_metadata.provider === "google";
-  const passwordAllowed =
-    passwordHint || !google || providers.includes("email");
-  async function verifyGoogle() {
-    if (lock.current || !user.email) return;
-    lock.current = true;
-    setBusy(true);
-    setError("");
-    try {
-      const value = await reauthenticateGoogle(user.id, user.email);
-      if (!alive.current) {
-        await value.dispose();
-        return;
-      }
-      await proof.current?.dispose();
-      proof.current = value;
-      setPassword("");
+  useEffect(() => {
+    if (Math.max(sendAt, deleteAt, expiresAt) <= Date.now()) return;
+    const deadline = Math.max(sendAt, deleteAt, expiresAt);
+    const update = () => {
+      const value = Date.now();
+      setClock(value);
+      if (value >= deadline) clearInterval(timer);
+    };
+    const timer = setInterval(update, 1000);
+    const state = AppState.addEventListener("change", (next) => {
+      if (next === "active") update();
+    });
+    return () => {
+      clearInterval(timer);
+      state.remove();
+    };
+  }, [sendAt, deleteAt, expiresAt]);
+  const sendWait = Math.max(0, Math.ceil((sendAt - clock) / 1000));
+  const deleteWait = Math.max(0, Math.ceil((deleteAt - clock) / 1000));
+  const matches =
+    !!user.email &&
+    email.trim().toLowerCase() === user.email.trim().toLowerCase();
+  function failure(value: unknown, sending: boolean) {
+    const e = value instanceof AccountDeletionError ? value : null;
+    setError(
+      value instanceof Error
+        ? value.message
+        : "Something went wrong. Please try again yourself.",
+    );
+    setErrorCode(e?.code ?? "");
+    if (e?.retryAt) {
+      if (sending || e.code === "code_locked")
+        setSendAt((old) => Math.max(old, e.retryAt));
+      if (!sending || e.code === "code_locked")
+        setDeleteAt((old) => Math.max(old, e.retryAt));
+    }
+    if (e?.attemptsLeft !== undefined)
+      setNotice(`${e.attemptsLeft} attempts left for this code.`);
+    if (
+      [
+        "deletion_failed",
+        "code_expired",
+        "code_used",
+        "code_missing",
+        "code_session_mismatch",
+        "code_email_changed",
+      ].includes(e?.code ?? "")
+    ) {
+      setExpiresAt(0);
       setNotice(
-        "Google verified. Review the consequences, type your email and tap Permanently delete my account.",
+        "Request a new confirmation code before trying again. Your account has not been confirmed deleted.",
+      );
+    }
+    setClock(Date.now());
+  }
+  async function sendCode() {
+    if (lock.current || !matches || sendAt > Date.now()) return;
+    lock.current = true;
+    setBusy("send");
+    setError("");
+    setNotice("");
+    setErrorCode("");
+    setEmailCode("");
+    try {
+      const result = await accountDeletion.sendCode(user.id);
+      if (!alive.current) return;
+      setRequested(true);
+      setSendAt(result.retryAt);
+      setExpiresAt(result.expiresAt);
+      setClock(Date.now());
+      setNotice(
+        result.sent
+          ? `Confirmation code sent to ${result.maskedEmail}. Enter it below. A new code replaces the previous one.`
+          : `Check your inbox at ${result.maskedEmail}. Delivery is not confirmed, but the code stays valid if it arrives. Nothing will be resent automatically.`,
       );
     } catch (e) {
-      if (alive.current)
-        setError(
-          e instanceof Error ? e.message : "Google verification failed.",
-        );
+      if (alive.current) failure(e, true);
     } finally {
       lock.current = false;
-      if (alive.current) setBusy(false);
+      if (alive.current) setBusy(null);
     }
   }
   async function remove() {
     if (
       lock.current ||
+      !matches ||
       !confirmed ||
-      !user.email ||
-      email.trim().toLowerCase() !== user.email.trim().toLowerCase()
+      !/^\d{6}$/.test(emailCode.trim()) ||
+      deleteAt > Date.now()
     )
       return;
     lock.current = true;
-    setBusy(true);
+    setBusy("delete");
     setError("");
     setNotice("");
+    setErrorCode("");
     try {
-      await accountDeletion.delete(
-        user.id,
-        email,
-        password || undefined,
-        proof.current ?? undefined,
-      );
+      await accountDeletion.deleteWithEmailCode(user.id, email, emailCode);
       onDeleted(user.id, stopReminders);
     } catch (e) {
-      if (alive.current) {
-        setError(
-          e instanceof Error ? e.message : "Deletion could not be confirmed.",
-        );
-        if (e instanceof AccountDeletionError) {
-          setCode(e.code);
-          setPasswordHint(e.methods.includes("password"));
-          if (e.retryAt)
-            setNotice(
-              `Try again after ${new Date(e.retryAt).toLocaleTimeString("en-ZA", { hour12: false })}.`,
-            );
-        }
-      }
+      if (alive.current) failure(e, false);
     } finally {
-      if (alive.current) setPassword("");
       lock.current = false;
-      if (alive.current) setBusy(false);
+      if (alive.current) {
+        setEmailCode("");
+        setBusy(null);
+      }
     }
   }
   return (
@@ -247,99 +279,125 @@ function DeletionForm({
           address.
         </Text>
       )}
-      {
+      <Text>Type your account email to confirm</Text>
+      <TextInput
+        accessibilityLabel="Confirm account email"
+        value={email}
+        onChangeText={setEmail}
+        editable={!busy}
+        autoCapitalize="none"
+        autoCorrect={false}
+        keyboardType="email-address"
+        style={cs.input}
+      />
+      <Text style={cs.muted}>
+        We’ll email a six-digit code to this account. Enter it here to confirm
+        deletion. You do not need to sign in to Google again.
+      </Text>
+      <Button
+        label={
+          busy === "send"
+            ? "Sending code…"
+            : sendWait
+              ? `Send again in ${sendWait}s`
+              : requested
+                ? "Send again"
+                : "Send confirmation code"
+        }
+        secondary
+        disabled={!!busy || !matches || sendWait > 0}
+        onPress={() => void sendCode()}
+      />
+      <Text>Confirmation code</Text>
+      <TextInput
+        accessibilityLabel="Email confirmation code"
+        value={emailCode}
+        onChangeText={setEmailCode}
+        editable={!busy}
+        keyboardType="number-pad"
+        autoCapitalize="none"
+        autoCorrect={false}
+        maxLength={6}
+        autoComplete="one-time-code"
+        textContentType="oneTimeCode"
+        style={cs.input}
+      />
+      <Text style={cs.muted}>
+        Codes expire after 10 minutes and can be used once. Entering the code
+        alone does not delete your account.
+      </Text>
+      {!!expiresAt && expiresAt <= clock && (
+        <Text accessibilityLiveRegion="polite">
+          This code may have expired. Request a new code if needed.
+        </Text>
+      )}
+      <View style={[cs.row, { flexWrap: "nowrap" }]}>
+        <Switch
+          accessibilityLabel="I understand deletion is permanent"
+          value={confirmed}
+          onValueChange={setConfirmed}
+          disabled={!!busy}
+          trackColor={{ true: Colors.primary, false: Colors.border }}
+        />
+        <Text style={{ flex: 1 }}>
+          I understand this permanently deletes my account.
+        </Text>
+      </View>
+      <View style={[cs.row, { flexWrap: "nowrap" }]}>
+        <Switch
+          accessibilityLabel="Also turn off weekly device reminders"
+          value={stopReminders}
+          onValueChange={setStopReminders}
+          disabled={!!busy}
+          trackColor={{ true: Colors.primary, false: Colors.border }}
+        />
+        <Text style={{ flex: 1 }}>
+          Also turn off this phone’s weekly reminders.
+        </Text>
+      </View>
+      <Button
+        label={
+          busy === "delete" ? "Please wait…" : "Permanently delete my account"
+        }
+        disabled={
+          !!busy ||
+          !matches ||
+          !confirmed ||
+          !/^\d{6}$/.test(emailCode.trim()) ||
+          deleteWait > 0
+        }
+        onPress={() => void remove()}
+      />
+      {deleteWait > 0 && (
+        <Text accessibilityLiveRegion="polite">
+          Try deletion again in {deleteWait}s.
+        </Text>
+      )}
+      {["auth_required", "session_unsupported"].includes(errorCode) && (
         <>
-          <Text>Type your account email to confirm</Text>
-          <TextInput
-            accessibilityLabel="Confirm account email"
-            value={email}
-            onChangeText={setEmail}
-            editable={!busy}
-            autoCapitalize="none"
-            autoCorrect={false}
-            keyboardType="email-address"
-            style={cs.input}
-          />
-          {passwordAllowed && (
-            <>
-              <Text>
-                Password (required unless you signed in within the last 10
-                minutes)
-              </Text>
-              <TextInput
-                accessibilityLabel="Confirm account password"
-                value={password}
-                onChangeText={setPassword}
-                editable={!busy}
-                secureTextEntry
-                autoCapitalize="none"
-                autoComplete="current-password"
-                textContentType="password"
-                style={cs.input}
-              />
-            </>
-          )}
-          {google && (
-            <Button
-              label="Verify with Google again"
-              secondary
-              disabled={busy || Platform.OS === "web"}
-              onPress={() => void verifyGoogle()}
-            />
-          )}
-          <View style={[cs.row, { flexWrap: "nowrap" }]}>
-            <Switch
-              accessibilityLabel="I understand deletion is permanent"
-              value={confirmed}
-              onValueChange={setConfirmed}
-              disabled={busy}
-              trackColor={{ true: Colors.primary, false: Colors.border }}
-            />
-            <Text style={{ flex: 1 }}>
-              I understand this permanently deletes my account.
-            </Text>
-          </View>
-          <View style={[cs.row, { flexWrap: "nowrap" }]}>
-            <Switch
-              accessibilityLabel="Also turn off weekly device reminders"
-              value={stopReminders}
-              onValueChange={setStopReminders}
-              disabled={busy}
-              trackColor={{ true: Colors.primary, false: Colors.border }}
-            />
-            <Text style={{ flex: 1 }}>
-              Also turn off this phone’s weekly reminders.
-            </Text>
-          </View>
+          <Text style={cs.muted}>
+            Your session needs a fresh sign-in. After signing in, request a new
+            deletion code.
+          </Text>
           <Button
-            label={busy ? "Please wait…" : "Permanently delete my account"}
-            disabled={
-              busy ||
-              !confirmed ||
-              !user.email ||
-              email.trim().toLowerCase() !== user.email.trim().toLowerCase()
+            label="Sign in again"
+            secondary
+            disabled={!!busy}
+            onPress={() =>
+              router.push({
+                pathname: "/auth",
+                params: { returnTo: "/account-delete" },
+              })
             }
-            onPress={() => void remove()}
           />
-          {["auth_required", "reauth_required", "reauth_failed"].includes(
-            code,
-          ) && (
-            <Button
-              label="Sign in again"
-              secondary
-              disabled={busy}
-              onPress={() =>
-                router.push({
-                  pathname: "/auth",
-                  params: { returnTo: "/account-delete" },
-                })
-              }
-            />
-          )}
         </>
-      }
+      )}
       {(!user.email ||
-        ["staff_protected", "manual_deletion_required"].includes(code)) && (
+        [
+          "staff_protected",
+          "manual_deletion_required",
+          "send_unavailable",
+        ].includes(errorCode)) && (
         <Button
           label="Contact support"
           secondary
