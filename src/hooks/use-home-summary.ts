@@ -1,4 +1,5 @@
-import { useCallback, useState } from "react";
+import { subscribeHomeResume } from "../lib/resume/events";
+import { useCallback, useEffect, useState } from "react";
 import { useFocusEffect } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { getHomeProfile } from "../lib/recommendations/api";
@@ -31,6 +32,10 @@ export function useHomeSummary(userId: string | null) {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [loading, setLoading] = useState(false);
   const [revision, setRevision] = useState(0);
+  useEffect(
+    () => subscribeHomeResume(() => setRevision((value) => value + 1)),
+    [],
+  );
   useFocusEffect(
     useCallback(() => {
       void revision; // Explicit retry invalidates this focused read.

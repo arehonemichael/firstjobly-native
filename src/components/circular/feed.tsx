@@ -1,5 +1,6 @@
+import { traceCircularRender } from "../../lib/circular/client";
 import { useExtraBoundary } from "../../ads/useExtraBoundary";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FlatList, View, ScrollView } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import {
@@ -38,6 +39,28 @@ export function CircularFeed({ saved = false }: { saved?: boolean }) {
     { ...filters, ...(batch ? { batch_id: batch } : {}) },
     saved,
   );
+  const { data, receivedAt, transformMs } = query;
+  const itemCount = query.items.length;
+  const painted = useRef<{ data: typeof data; count: number } | null>(null);
+  useEffect(() => {
+    if (
+      !data ||
+      (painted.current?.data === data && painted.current?.count === itemCount)
+    )
+      return;
+    const frame = requestAnimationFrame(() => {
+      painted.current = { data, count: itemCount };
+      traceCircularRender({
+        source: saved ? "saved" : "government-jobs",
+        items: itemCount,
+        transformMs,
+        ...(receivedAt === undefined || itemCount !== data.items.length
+          ? {}
+          : { receivedToFrameMs: performance.now() - receivedAt }),
+      });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [data, receivedAt, itemCount, transformMs, saved]);
   const hasFilters = !!(
     search.trim() ||
     filters.province ||

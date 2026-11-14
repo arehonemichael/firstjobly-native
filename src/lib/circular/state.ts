@@ -18,6 +18,15 @@ export function createOwnerCache(now: () => number = Date.now) {
       const row = records.get(owner + "|" + key);
       if (row && row.expires > now() && cacheable(row.value))
         return row.value as T;
+      if (row && row.expires + 55 * 60000 <= now())
+        records.delete(owner + "|" + key);
+      return undefined;
+    },
+    // List-only stale fallback; never use this for expiring download/detail URLs.
+    peek<T>(owner: string, key: string): T | undefined {
+      const row = records.get(owner + "|" + key);
+      if (row && row.expires + 55 * 60000 > now() && cacheable(row.value))
+        return row.value as T;
       records.delete(owner + "|" + key);
       return undefined;
     },
@@ -26,7 +35,9 @@ export function createOwnerCache(now: () => number = Date.now) {
         records.delete(owner + "|" + key);
         return;
       }
+      records.delete(owner + "|" + key);
       records.set(owner + "|" + key, { value, expires: now() + 300000 });
+      if (records.size > 100) records.delete(records.keys().next().value!);
     },
     clear() {
       records.clear();

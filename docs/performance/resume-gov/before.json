@@ -1,0 +1,29 @@
+{
+  "conditions": "Expo web development, Chromium390x900, isolated signed-in responses120ms, one job, warm tab return; expiry tested separately with a fake clock; not live/device",
+  "samples": [
+    {
+      "shellMs": 336,
+      "usableMs": 421,
+      "cachedVisible": true,
+      "returnMs": 528,
+      "listRequests": 1,
+      "latestRequests": 1
+    },
+    {
+      "shellMs": 201,
+      "usableMs": 305,
+      "cachedVisible": true,
+      "returnMs": 384,
+      "listRequests": 1,
+      "latestRequests": 1
+    },
+    {
+      "shellMs": 128,
+      "usableMs": 312,
+      "cachedVisible": true,
+      "returnMs": 405,
+      "listRequests": 1,
+      "latestRequests": 1
+    }
+  ]
+}

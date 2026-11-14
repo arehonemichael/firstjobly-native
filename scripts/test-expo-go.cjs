@@ -245,6 +245,8 @@ function app(os, environment, dev = true, forceTest = false, iosEnv = {}) {
           subscribe: () => () => {},
         },
       };
+    if (full.endsWith("/src/components/resume-lifecycle.tsx"))
+      return { ResumeLifecycle: () => null };
     if (full.endsWith("/src/lib/community/store.ts")) return {};
     if (full.endsWith("/src/lib/recommendations/api.ts"))
       return { getHomeProfile: async () => ({ onboarding_completed: true }) };

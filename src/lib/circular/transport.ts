@@ -1,6 +1,7 @@
 import { validCircularResponse } from "./response";
 import {
   emitDiagnostic,
+  utf8Bytes,
   responseSummary,
   type CircularTrace,
 } from "./diagnostics";
@@ -91,6 +92,7 @@ export function createCircularTransport(
       const timer = setTimeout(() => abort.abort(), 20000);
       let response: Response;
       let payload: unknown;
+      const started = now();
       try {
         response = await send(url, {
           method,
@@ -104,7 +106,9 @@ export function createCircularTransport(
           redirect: "error",
           cache: "no-store",
         });
+        const headersAt = now();
         const text = await response.text();
+        const bodyAt = now();
         try {
           payload = JSON.parse(text);
         } catch {
@@ -120,6 +124,11 @@ export function createCircularTransport(
             xFjToken: !!current.access_token,
             tokenLength: current.access_token.length,
             status: response.status,
+            headersMs: headersAt - started,
+            bodyMs: bodyAt - headersAt,
+            parseMs: now() - bodyAt,
+            requestMs: now() - started,
+            ...(trace ? { payloadBytes: utf8Bytes(text) } : {}),
             bodyPreview: text,
             ...responseSummary(payload),
           },
