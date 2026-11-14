@@ -48,3 +48,13 @@ export function isWithdrawn(owner: string | null, id: string) {
 supabase.auth.onAuthStateChange((event) => {
   if (event === "SIGNED_OUT") withdrawn.clear();
 });
+
+export function traceCircularRender(entry: {
+  source: string;
+  items: number;
+  transformMs: number;
+  receivedToFrameMs?: number;
+}) {
+  if (debugCircular)
+    console.info("[FirstJobly circular render]", JSON.stringify(entry));
+}

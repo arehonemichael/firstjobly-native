@@ -12,6 +12,11 @@ export type CircularDiagnostic = {
   page?: number;
   hasMore?: boolean;
   batchJobCount?: number;
+  headersMs?: number;
+  bodyMs?: number;
+  parseMs?: number;
+  requestMs?: number;
+  payloadBytes?: number;
 };
 export type CircularTrace = (entry: CircularDiagnostic) => void;
 /** Diagnostics must never expose a credential, even if a server echoes it. */
@@ -62,4 +67,14 @@ export function responseSummary(payload: unknown) {
       ? { batchJobCount: batch.job_count }
       : {}),
   };
+}
+
+/** UTF-8 payload size, not compressed wire bytes; works without native Buffer. */
+export function utf8Bytes(text: string) {
+  let size = 0;
+  for (const char of text) {
+    const point = char.codePointAt(0)!;
+    size += point <= 0x7f ? 1 : point <= 0x7ff ? 2 : point <= 0xffff ? 3 : 4;
+  }
+  return size;
 }

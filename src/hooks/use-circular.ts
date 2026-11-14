@@ -1,6 +1,8 @@
+import { prepareCircularItems } from "../lib/circular/list";
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   useSyncExternalStore,
@@ -27,7 +29,7 @@ export function circularChanged() {
   invalidateCircular();
   for (const listener of listeners) listener();
 }
-export function useCircularQuery<T>(path: string | null) {
+export function useCircularQuery<T>(path: string | null, retainPages = false) {
   const { userId, loading: authLoading } = useAuth();
   const [snapshot, setSnapshot] = useState<{
     owner: string | null;
@@ -35,7 +37,23 @@ export function useCircularQuery<T>(path: string | null) {
     data?: T;
     error?: Error;
     loading: boolean;
-  }>({ owner: null, path: null, loading: false });
+    receivedAt?: number;
+  }>(() => {
+    const cached =
+      userId && path
+        ? (circularCache.get<T>(userId, path) ??
+          (path.startsWith("/circular-jobs?") || path === "/circular-jobs/saved"
+            ? circularCache.peek<T>(userId, path)
+            : undefined))
+        : undefined;
+    return cached === undefined
+      ? { owner: null, path: null, loading: false }
+      : { owner: userId, path, data: cached, loading: false };
+  });
+  const current = useRef({ snapshot, retainPages });
+  useLayoutEffect(() => {
+    current.current = { snapshot, retainPages };
+  }, [snapshot, retainPages]);
   const version = useRef(0);
   const alive = useRef(true);
   useEffect(() => {
@@ -48,6 +66,22 @@ export function useCircularQuery<T>(path: string | null) {
     async (force = false) => {
       const call = ++version.current;
       if (!userId || !path) return;
+      const prior = current.current.snapshot;
+      // A paginated browsing window stays intact on detail/tab return. Explicit
+      // refresh replaces it atomically; refreshing only page 1 would lose rows/scroll.
+      if (
+        !force &&
+        current.current.retainPages &&
+        prior.owner === userId &&
+        prior.path === path &&
+        prior.data &&
+        circularCache.peek<T>(userId, path) === prior.data
+      )
+        return;
+      const stale =
+        path.startsWith("/circular-jobs?") || path === "/circular-jobs/saved"
+          ? circularCache.peek<T>(userId, path)
+          : undefined;
       const cached = !force ? circularCache.get<T>(userId, path) : undefined;
       if (cached !== undefined) {
         if (alive.current)
@@ -57,14 +91,23 @@ export function useCircularQuery<T>(path: string | null) {
       setSnapshot((old) => ({
         owner: userId,
         path,
-        data: old.owner === userId && old.path === path ? old.data : undefined,
+        data:
+          old.owner === userId && old.path === path
+            ? (old.data ?? stale)
+            : stale,
         loading: true,
       }));
       try {
         const data = await circularAPI.request<T>(userId, path);
         if (alive.current && version.current === call) {
           circularCache.set(userId, path, data);
-          setSnapshot({ owner: userId, path, data, loading: false });
+          setSnapshot({
+            owner: userId,
+            path,
+            data,
+            loading: false,
+            receivedAt: performance.now(),
+          });
         }
       } catch (error) {
         if (alive.current && version.current === call)
@@ -91,6 +134,7 @@ export function useCircularQuery<T>(path: string | null) {
   const valid = snapshot.owner === userId && snapshot.path === path;
   return {
     data: valid ? snapshot.data : undefined,
+    receivedAt: valid ? snapshot.receivedAt : undefined,
     error: valid ? snapshot.error : undefined,
     loading:
       authLoading || (!!userId && !!path && (!valid || snapshot.loading)),
@@ -104,7 +148,6 @@ export function useLatestCircular() {
 }
 export function useCircularFeed(filters: Filters, saved = false) {
   const path = saved ? "/circular-jobs/saved" : listPath(filters);
-  const query = useCircularQuery<Page | { items: CircularJob[] }>(path);
   const [extra, setExtra] = useState<{
     path: string;
     owner: string;
@@ -114,23 +157,34 @@ export function useCircularFeed(filters: Filters, saved = false) {
     more: boolean;
     error?: Error;
   } | null>(null);
+  const query = useCircularQuery<Page | { items: CircularJob[] }>(
+    path,
+    !!extra && extra.path === path && extra.items.length > 0,
+  );
+  const pagingContext = useRef({ path, owner: query.userId, base: query.data });
+  useLayoutEffect(() => {
+    pagingContext.current = { path, owner: query.userId, base: query.data };
+  }, [path, query.userId, query.data]);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   const [paging, setPaging] = useState(false);
   const lock = useRef(false);
   const valid =
     extra?.path === path &&
     extra?.owner === query.userId &&
     extra?.base === query.data;
-  const items = [...(query.data?.items || []), ...(valid ? extra.items : [])];
-  const visibleItems = saved
-    ? items.filter((item) => !isWithdrawn(query.userId, item.id))
-    : items;
   const more =
     !saved &&
     (valid
       ? extra.more
       : !!(query.data && "has_more" in query.data && query.data.has_more));
   async function next() {
-    if (!query.userId || !more || lock.current) return;
+    if (!query.userId || !more || lock.current || query.loading) return;
     lock.current = true;
     setPaging(true);
     const owner = query.userId;
@@ -141,6 +195,13 @@ export function useCircularFeed(filters: Filters, saved = false) {
         owner,
         listPath(filters, page),
       );
+      if (
+        !mounted.current ||
+        pagingContext.current.path !== path ||
+        pagingContext.current.owner !== owner ||
+        pagingContext.current.base !== initial
+      )
+        return;
       setExtra({
         path,
         owner,
@@ -150,6 +211,13 @@ export function useCircularFeed(filters: Filters, saved = false) {
         more: result.has_more,
       });
     } catch (error) {
+      if (
+        !mounted.current ||
+        pagingContext.current.path !== path ||
+        pagingContext.current.owner !== owner ||
+        pagingContext.current.base !== initial
+      )
+        return;
       setExtra({
         path,
         owner,
@@ -161,20 +229,23 @@ export function useCircularFeed(filters: Filters, saved = false) {
       });
     } finally {
       lock.current = false;
-      setPaging(false);
+      if (mounted.current) setPaging(false);
     }
   }
+  const { items: uniqueItems, transformMs } = prepareCircularItems(
+    query.data?.items ?? [],
+    valid ? extra.items : [],
+    (item) => !saved || !isWithdrawn(query.userId, item.id),
+  );
   return {
     ...query,
-    items: Array.from(
-      new Map(visibleItems.map((item) => [item.id, item])).values(),
-    ),
+    transformMs,
+    items: uniqueItems,
     more,
     paging,
     pageError: valid ? extra.error : undefined,
     next,
     refresh: async () => {
-      setExtra(null);
       await query.refresh();
     },
   };

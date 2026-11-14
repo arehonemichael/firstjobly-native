@@ -616,7 +616,10 @@ function check(value, label) {
       .getByRole("switch", { name: "New government circulars" })
       .click();
     await page.waitForFunction(
-      () => document.querySelector("[role=switch]")?.checked === true,
+      (element) => element?.checked === true,
+      await page
+        .getByRole("switch", { name: "New government circulars" })
+        .elementHandle(),
     );
     check(state.enabled, "alert preference saved");
     await page.goto(base + "/saved");

@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import { useFocusEffect } from "expo-router";
-import { AppState } from "react-native";
+import { subscribeHomeResume } from "../lib/resume/events";
 import {
   getRecommendations,
   getCachedRecommendations,
@@ -54,7 +54,7 @@ export function useRecommendations(
       page:
         cached ??
         (s.owner === userId && s.filterKey === filterKey ? s.page : null),
-      loading: !cached,
+      loading: true,
       error: null,
       fallback: false,
       dismissed: s.owner === userId ? s.dismissed : null,
@@ -81,7 +81,9 @@ export function useRecommendations(
           ...s,
           owner: userId,
           filterKey,
-          page,
+          page:
+            page ??
+            (s.owner === userId && s.filterKey === filterKey ? s.page : null),
           loading: false,
           error: page
             ? "Personalization is unavailable. Showing latest opportunities."
@@ -94,13 +96,11 @@ export function useRecommendations(
     useCallback(() => {
       void refresh();
       const unsubscribe = subscribeRecommendations(() => void refresh());
-      const app = AppState.addEventListener("change", (value) => {
-        if (value === "active") void refresh();
-      });
+      const resume = subscribeHomeResume(() => void refresh());
       return () => {
         generation.current++;
         unsubscribe();
-        app.remove();
+        resume();
       };
     }, [refresh]),
   );

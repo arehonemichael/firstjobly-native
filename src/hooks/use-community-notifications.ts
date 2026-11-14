@@ -1,3 +1,4 @@
+import { prioritizeResumeDestination } from "../lib/resume/events";
 import { useEffect } from "react";
 import { Linking } from "react-native";
 import { router, useRootNavigationState, type Href } from "expo-router";
@@ -34,6 +35,7 @@ export function useCommunityNotifications() {
           consumed.add(id);
           if (consumed.size > 30)
             consumed.delete(consumed.values().next().value!);
+          prioritizeResumeDestination();
           signalUserInteraction();
           router.push(destination as Href);
           void notifications

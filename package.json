@@ -76,7 +76,8 @@
     "test:circular": "node --test scripts/test-circular.cjs",
     "test:ios": "node --test scripts/test-ios-build.cjs scripts/test-expo-go.cjs",
     "test:reminders": "node --test scripts/test-weekly-reminders.cjs",
-    "test:account-deletion": "node --test scripts/test-account-deletion.cjs"
+    "test:account-deletion": "node --test scripts/test-account-deletion.cjs",
+    "test:resume": "node --test scripts/test-resume.cjs scripts/test-resume-lifecycle.cjs scripts/test-circular-hooks.cjs"
   },
   "private": true
 }

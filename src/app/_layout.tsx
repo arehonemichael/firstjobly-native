@@ -1,3 +1,4 @@
+import { ResumeLifecycle } from "../components/resume-lifecycle";
 import { WeeklyRemindersLifecycle } from "../components/weekly-reminders";
 import { ExtraInterstitialLifecycle } from "../ads/ExtraInterstitialLifecycle";
 import "../global.css";
@@ -115,6 +116,10 @@ export default function RootLayout() {
             </Stack>
           </View>
         </View>
+        <ResumeLifecycle
+          ready={ready && !showLaunchSplash}
+          userId={auth.userId}
+        />
         <WeeklyRemindersLifecycle ready={ready && !showLaunchSplash} />
         <ExtraInterstitialLifecycle
           ready={ready && !showLaunchSplash}

@@ -1,0 +1,245 @@
+{
+  "conditions": "Expo web development, Chromium390x900, isolated signed-in responses120ms, one job, warm tab return; expiry tested separately with a fake clock; not live/device",
+  "samples": [
+    {
+      "shellMs": 134,
+      "usableMs": 318,
+      "cachedVisible": true,
+      "returnMs": 406,
+      "listRequests": 1,
+      "timings": [
+        {
+          "payloadBytes": 404,
+          "records": 1,
+          "network": {
+            "startTime": 1794646496713.2249,
+            "domainLookupStart": -1,
+            "domainLookupEnd": -1,
+            "connectStart": -1,
+            "secureConnectionStart": -1,
+            "connectEnd": -1,
+            "requestStart": -1,
+            "responseStart": 121.951,
+            "responseEnd": 138.344
+          },
+          "receivedToUsableMs": 69
+        }
+      ],
+      "traces": [
+        {
+          "url": "https://firstjobly.co.za/api/app/circular-batches/latest",
+          "method": "GET",
+          "attempt": 1,
+          "authorization": true,
+          "xFjToken": true,
+          "tokenLength": 113,
+          "status": 200,
+          "headersMs": 133,
+          "bodyMs": 0,
+          "parseMs": 0,
+          "requestMs": 133,
+          "payloadBytes": 248,
+          "bodyPreview": "{\"batch\":{\"id\":\"batch-41\",\"title\":\"Public Service Vacancy Circular 41 of 2026\",\"circular_number\":41,\"circular_year\":2026,\"issue_date\":\"2026-11-13\",\"job_count\":20,\"earliest_closing_date\":\"2099-01-01\",\"pdf_download_url\":null,\"official_pdf_url\":null}}",
+          "batchJobCount": 20
+        },
+        {
+          "url": "https://firstjobly.co.za/api/app/circular-jobs?page=1&page_size=20",
+          "method": "GET",
+          "attempt": 1,
+          "authorization": true,
+          "xFjToken": true,
+          "tokenLength": 113,
+          "status": 200,
+          "headersMs": 139,
+          "bodyMs": 1,
+          "parseMs": 0,
+          "requestMs": 140,
+          "payloadBytes": 404,
+          "bodyPreview": "{\"items\":[{\"id\":\"circular-1\",\"batch_id\":\"batch-41\",\"post_title\":\"ADMINISTRATION CLERK\",\"department\":\"Fixture department\",\"centre\":\"Pretoria\",\"province\":\"Gauteng\",\"salary_text\":\"R216 417 per annum\",\"closing_date\":\"2099-01-01\",\"closes_in_days\":100,\"is_closing_soon\":false,\"is_expired\":false,\"saved\":fal",
+          "total": 1,
+          "itemCount": 1,
+          "page": 1,
+          "hasMore": false
+        }
+      ],
+      "renderTraces": [
+        {
+          "source": "government-jobs",
+          "items": 1,
+          "transformMs": 0.10000000009313226,
+          "receivedToFrameMs": 13.300000000279397
+        },
+        {
+          "source": "government-jobs",
+          "items": 1,
+          "transformMs": 0,
+          "receivedToFrameMs": 149.8000000002794
+        },
+        {
+          "source": "government-jobs",
+          "items": 1,
+          "transformMs": 0
+        }
+      ],
+      "latestRequests": 1
+    },
+    {
+      "shellMs": 121,
+      "usableMs": 304,
+      "cachedVisible": true,
+      "returnMs": 382,
+      "listRequests": 1,
+      "timings": [
+        {
+          "payloadBytes": 404,
+          "records": 1,
+          "network": {
+            "startTime": 1794646500120.2742,
+            "domainLookupStart": -1,
+            "domainLookupEnd": -1,
+            "connectStart": -1,
+            "secureConnectionStart": -1,
+            "connectEnd": -1,
+            "requestStart": -1,
+            "responseStart": 121.32,
+            "responseEnd": 136.259
+          },
+          "receivedToUsableMs": 68
+        }
+      ],
+      "traces": [
+        {
+          "url": "https://firstjobly.co.za/api/app/circular-batches/latest",
+          "method": "GET",
+          "attempt": 1,
+          "authorization": true,
+          "xFjToken": true,
+          "tokenLength": 113,
+          "status": 200,
+          "headersMs": 131,
+          "bodyMs": 0,
+          "parseMs": 0,
+          "requestMs": 131,
+          "payloadBytes": 248,
+          "bodyPreview": "{\"batch\":{\"id\":\"batch-41\",\"title\":\"Public Service Vacancy Circular 41 of 2026\",\"circular_number\":41,\"circular_year\":2026,\"issue_date\":\"2026-11-13\",\"job_count\":20,\"earliest_closing_date\":\"2099-01-01\",\"pdf_download_url\":null,\"official_pdf_url\":null}}",
+          "batchJobCount": 20
+        },
+        {
+          "url": "https://firstjobly.co.za/api/app/circular-jobs?page=1&page_size=20",
+          "method": "GET",
+          "attempt": 1,
+          "authorization": true,
+          "xFjToken": true,
+          "tokenLength": 113,
+          "status": 200,
+          "headersMs": 137,
+          "bodyMs": 0,
+          "parseMs": 1,
+          "requestMs": 138,
+          "payloadBytes": 404,
+          "bodyPreview": "{\"items\":[{\"id\":\"circular-1\",\"batch_id\":\"batch-41\",\"post_title\":\"ADMINISTRATION CLERK\",\"department\":\"Fixture department\",\"centre\":\"Pretoria\",\"province\":\"Gauteng\",\"salary_text\":\"R216 417 per annum\",\"closing_date\":\"2099-01-01\",\"closes_in_days\":100,\"is_closing_soon\":false,\"is_expired\":false,\"saved\":fal",
+          "total": 1,
+          "itemCount": 1,
+          "page": 1,
+          "hasMore": false
+        }
+      ],
+      "renderTraces": [
+        {
+          "source": "government-jobs",
+          "items": 1,
+          "transformMs": 0,
+          "receivedToFrameMs": 23.600000000093132
+        },
+        {
+          "source": "government-jobs",
+          "items": 1,
+          "transformMs": 0
+        }
+      ],
+      "latestRequests": 1
+    },
+    {
+      "shellMs": 127,
+      "usableMs": 315,
+      "cachedVisible": true,
+      "returnMs": 385,
+      "listRequests": 1,
+      "timings": [
+        {
+          "payloadBytes": 404,
+          "records": 1,
+          "network": {
+            "startTime": 1794646503581.143,
+            "domainLookupStart": -1,
+            "domainLookupEnd": -1,
+            "connectStart": -1,
+            "secureConnectionStart": -1,
+            "connectEnd": -1,
+            "requestStart": -1,
+            "responseStart": 122.082,
+            "responseEnd": 138.567
+          },
+          "receivedToUsableMs": 72
+        }
+      ],
+      "traces": [
+        {
+          "url": "https://firstjobly.co.za/api/app/circular-batches/latest",
+          "method": "GET",
+          "attempt": 1,
+          "authorization": true,
+          "xFjToken": true,
+          "tokenLength": 113,
+          "status": 200,
+          "headersMs": 143,
+          "bodyMs": 2,
+          "parseMs": 0,
+          "requestMs": 145,
+          "payloadBytes": 248,
+          "bodyPreview": "{\"batch\":{\"id\":\"batch-41\",\"title\":\"Public Service Vacancy Circular 41 of 2026\",\"circular_number\":41,\"circular_year\":2026,\"issue_date\":\"2026-11-13\",\"job_count\":20,\"earliest_closing_date\":\"2099-01-01\",\"pdf_download_url\":null,\"official_pdf_url\":null}}",
+          "batchJobCount": 20
+        },
+        {
+          "url": "https://firstjobly.co.za/api/app/circular-jobs?page=1&page_size=20",
+          "method": "GET",
+          "attempt": 1,
+          "authorization": true,
+          "xFjToken": true,
+          "tokenLength": 113,
+          "status": 200,
+          "headersMs": 139,
+          "bodyMs": 1,
+          "parseMs": 0,
+          "requestMs": 140,
+          "payloadBytes": 404,
+          "bodyPreview": "{\"items\":[{\"id\":\"circular-1\",\"batch_id\":\"batch-41\",\"post_title\":\"ADMINISTRATION CLERK\",\"department\":\"Fixture department\",\"centre\":\"Pretoria\",\"province\":\"Gauteng\",\"salary_text\":\"R216 417 per annum\",\"closing_date\":\"2099-01-01\",\"closes_in_days\":100,\"is_closing_soon\":false,\"is_expired\":false,\"saved\":fal",
+          "total": 1,
+          "itemCount": 1,
+          "page": 1,
+          "hasMore": false
+        }
+      ],
+      "renderTraces": [
+        {
+          "source": "government-jobs",
+          "items": 1,
+          "transformMs": 0,
+          "receivedToFrameMs": 12
+        },
+        {
+          "source": "government-jobs",
+          "items": 1,
+          "transformMs": 0.10000000009313226,
+          "receivedToFrameMs": 179
+        },
+        {
+          "source": "government-jobs",
+          "items": 1,
+          "transformMs": 0
+        }
+      ],
+      "latestRequests": 1
+    }
+  ]
+}
