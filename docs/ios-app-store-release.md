@@ -1,14 +1,14 @@
 # Production iOS build and public App Review
 
-Release preparation branch: `release/ios-app-store`, based on `feat/weekly-device-reminders`. Includes the iOS configuration, owner-supplied ad IDs, correctly typed rewarded interstitial and guest/member weekly device reminders. Main is unchanged.
+Release preparation branch: `fix/gov-job-card-ads-release`, based on `feat/email-attachments-z83-capitals`. Includes the latest email/PDF/Z83 improvements, account deletion by emailed code, Gov Jobs whole-card taps and shared ad policy, iOS configuration, owner-supplied ad IDs and guest/member weekly device reminders. Main is unchanged.
 
 ## Prepared
 
-- App version **1.0.1**, iOS build **4** (avoids reusing the earlier build numbers), bundle ID `com.first.firstjobly`.
+- App version **1.0.1**, iOS build **7** (avoids reusing the earlier build numbers), bundle ID `com.first.firstjobly`.
 - `ios-production`: App Store distribution and the owner's real iOS App ID/unit IDs, with `EXPO_PUBLIC_ADS_TEST_MODE=false` explicitly set. The inherited TestFlight test profile overrides it back to true. Android configuration is unchanged.
 - A production build/upload does not publish the app publicly. App Store Connect metadata and Apple review are separate steps. No signing, upload or review submission was performed in this workspace.
 
-## Current public-review gap
+## App Store review
 
 The app provides in-app account deletion using the published member endpoints; see [account-self-deletion.md](account-self-deletion.md) and the final [email-code contract](account-deletion-email-code-contract.md). The current mobile flow sends a code to the account email, accepts it inside the app and requires an explicit final deletion tap. It does not require Google reauthentication. Before public submission, complete owner-authorized disposable-account success/partial-failure and native-device checks, including a Google-only member. No real deletion was performed in this workspace. Do not apply the archived SQL migration again or expose privileged backend keys in the app.
 
@@ -20,11 +20,14 @@ Save uncommitted local work before switching. The Apple/Expo session is on the o
 
 ```powershell
 git fetch origin
-git switch release/ios-app-store
+git switch fix/gov-job-card-ads-release
+git pull --ff-only
 npm ci
 npm run typecheck
 npm run test:ios
 npm run test:reminders
+npm run test:circular
+npm run test:ads
 npx eas-cli@latest env:list --environment production
 ```
 
@@ -44,4 +47,12 @@ npx eas-cli@latest submit --platform ios --profile production --id BUILD_ID
 
 The upload becomes available in App Store Connect/TestFlight after Apple processes it. Check the actual release binary on iPhone/iPad, including permissions/reminders while signed out, sign-in/restore, jobs/Apply, CV/Z83/Files, Community, consent/ads and the added account-deletion flow. Do not click live ads. Use official test builds for ad interaction tests.
 
-Once the account-deletion gap is fixed and all review metadata/testing is complete, select the uploaded build under the iOS version and submit for App Review. Apple approval is required before public App Store release. If build 4 has already been uploaded, increase the iOS build number before the next build/upload.
+For this first public release, create the iOS version in App Store Connect and complete its required listing, privacy and review fields. Once Apple processes the uploaded build, select that build and submit for App Review on the website. Apple approval is required before public release. The website does not accept a direct IPA file upload: EAS Submit on Windows, Transporter on macOS, or Xcode uploads the binary first. If build 7 has already been uploaded, increase the iOS build number before another upload.
+
+For a single build-and-upload command on the owner's authenticated PC (the current EAS CLI confirms this flag), use:
+
+```powershell
+npx eas-cli@latest build --platform ios --profile ios-production --auto-submit-with-profile production
+```
+
+This uploads the exact successful build rather than selecting an unrelated latest preview. On a first submission EAS may ask for the App Store Connect listing or its numeric Apple ID. It does not submit the App Store listing for review or make the app public; finish those steps on https://appstoreconnect.apple.com.

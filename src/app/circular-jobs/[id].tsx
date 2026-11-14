@@ -1,3 +1,4 @@
+import { NativeAdBlock } from "../../ads/NativeAdBlock";
 import { useEffect, useRef, useState } from "react";
 import { ScrollView, View, Linking } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
@@ -311,6 +312,7 @@ export default function CircularDetail() {
             </Pressable>
           )}
         </View>
+        <NativeAdBlock variant="detail" />
         <View style={cs.card}>
           <Text style={cs.heading}>From the official circular</Text>
           <Text style={cs.muted}>

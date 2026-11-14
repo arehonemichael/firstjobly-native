@@ -73,7 +73,7 @@
     "benchmark:recommendations": "node scripts/benchmark-recommendations.cjs",
     "test:community": "node --test scripts/test-community.cjs",
     "test:hot-jobs": "node --test scripts/test-hot-jobs.cjs",
-    "test:circular": "node --test scripts/test-circular.cjs",
+    "test:circular": "node --test scripts/test-circular.cjs scripts/test-gov-card.cjs",
     "test:ios": "node --test scripts/test-ios-build.cjs scripts/test-expo-go.cjs",
     "test:reminders": "node --test scripts/test-weekly-reminders.cjs",
     "test:account-deletion": "node --test scripts/test-account-deletion.cjs scripts/test-deletion-email-code.cjs",

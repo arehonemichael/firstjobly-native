@@ -1,3 +1,5 @@
+import { NativeAdBlock } from "../../ads/NativeAdBlock";
+import { shouldInsertNative } from "../../ads/config";
 import { traceCircularRender } from "../../lib/circular/client";
 import { useExtraBoundary } from "../../ads/useExtraBoundary";
 import { useEffect, useRef, useState } from "react";
@@ -212,7 +214,7 @@ export function CircularFeed({ saved = false }: { saved?: boolean }) {
           )}
         </View>
       }
-      renderItem={({ item }) => (
+      renderItem={({ item, index }) => (
         <View style={{ marginTop: 12 }}>
           <CircularCard
             job={item}
@@ -222,6 +224,7 @@ export function CircularFeed({ saved = false }: { saved?: boolean }) {
               void saver.save(item).catch(setSaveError);
             }}
           />
+          {shouldInsertNative(index) && <NativeAdBlock variant="feed" />}
         </View>
       )}
       ListEmptyComponent={
