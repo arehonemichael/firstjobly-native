@@ -1,3 +1,4 @@
+import { rememberGeneratedFile } from "../lib/account/owned-files";
 import {
   AppText as Text,
   AppTextInput as TextInput,
@@ -44,6 +45,10 @@ const STORAGE_KEY = "firstjobly.cv.draft.v1";
 const TEMPLATE_KEY = "firstjobly.cv.template.v1";
 
 export default function CvMakerScreen() {
+  const { userId } = useAuth();
+  return <CvMakerForm key={userId || "guest"} />;
+}
+function CvMakerForm() {
   const { beforeDownload, canOfferAd, completeDownload } =
     useRewardedDownload();
   const downloadLock = useRef(false);
@@ -224,8 +229,12 @@ export default function CvMakerScreen() {
         base64: false,
       });
 
+      await rememberGeneratedFile(userId, result.uri);
       const fileName = `${fileBase(data)}.pdf`;
-      await savePdfToDownloads(result.uri, fileName, { shareOnIos: true });
+      await savePdfToDownloads(result.uri, fileName, {
+        shareOnIos: true,
+        ownerId: userId,
+      });
       completeDownload();
 
       Alert.alert(

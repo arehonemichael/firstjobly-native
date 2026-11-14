@@ -140,6 +140,10 @@ function pdfPorts(os, available = true) {
     ts = require("typescript");
   const calls = [];
   const deps = {
+    "./account/owned-files": {
+      rememberGeneratedFile: async () => {},
+      assertGeneratedOwnerActive: () => {},
+    },
     "react-native": { Platform: { OS: os } },
     "expo-sharing": {
       isAvailableAsync: async () => available,

@@ -1497,6 +1497,8 @@ function downloadPorts(kind, before = async () => true) {
     lock = { current: false };
   const deps = {
     Platform: { OS: "android" },
+    userId: "fixture-user",
+    rememberGeneratedFile: async () => {},
     downloadLock: lock,
     circularMode: false,
     data: {

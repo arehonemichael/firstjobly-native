@@ -1,3 +1,4 @@
+import { withAuthMutation } from "../../lib/auth-mutation";
 import { invalidateRecommendations } from "../../lib/recommendations/api";
 import {
   AppText as Text,
@@ -102,6 +103,10 @@ function has(value: unknown) {
 }
 
 export default function ProfileScreen() {
+  const { userId } = useAuth();
+  return <ProfileForm key={userId || "guest"} />;
+}
+function ProfileForm() {
   const { section } = useLocalSearchParams<{ section?: string }>();
   const scrollRef = useRef<ScrollView>(null);
   const anchors = useRef<Record<string, number>>({});
@@ -539,13 +544,19 @@ export default function ProfileScreen() {
                 text: "Sign out",
                 style: "destructive",
                 onPress: async () => {
-                  await supabase.auth.signOut();
+                  await withAuthMutation(() => supabase.auth.signOut());
                 },
               },
             ]);
           }}
         >
           <Text style={styles.signOutText}>Sign out</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.signOut}
+          onPress={() => router.push("/account-delete")}
+        >
+          <Text style={styles.signOutText}>Delete my account</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>

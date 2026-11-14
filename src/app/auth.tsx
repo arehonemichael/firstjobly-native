@@ -1,3 +1,4 @@
+import { withAuthMutation } from "../lib/auth-mutation";
 import { BrandWordmark } from "../components/brand-wordmark";
 import { Colors, Fonts, Radius, Space } from "../constants/theme";
 import {
@@ -59,10 +60,12 @@ export default function AuthScreen() {
     try {
       setBusy(true);
 
-      const { error } = await supabase.auth.signInWithPassword({
-        email: cleanEmail,
-        password,
-      });
+      const { error } = await withAuthMutation(() =>
+        supabase.auth.signInWithPassword({
+          email: cleanEmail,
+          password,
+        }),
+      );
 
       if (error) {
         Alert.alert("Could not sign in", error.message);
@@ -97,10 +100,12 @@ export default function AuthScreen() {
     try {
       setBusy(true);
 
-      const { data, error } = await supabase.auth.signUp({
-        email: cleanEmail,
-        password,
-      });
+      const { data, error } = await withAuthMutation(() =>
+        supabase.auth.signUp({
+          email: cleanEmail,
+          password,
+        }),
+      );
 
       if (error) {
         Alert.alert("Could not create account", error.message);

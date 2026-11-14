@@ -1,3 +1,4 @@
+import { rememberGeneratedFile } from "../lib/account/owned-files";
 import {
   AppText as Text,
   AppTextInput as TextInput,
@@ -260,9 +261,10 @@ function Z83Form() {
         Paths.cache,
         circularMode
           ? `fj-circular-${circularApplication}.pdf`
-          : `Z83_${safeName}.pdf`,
+          : `Z83_${userId || "guest"}_${Date.now()}_${safeName}.pdf`,
       );
       file.write(bytes);
+      await rememberGeneratedFile(userId, file.uri);
 
       const fileName = `Z83_${safeName}.pdf`;
       if (circularMode) {
@@ -279,7 +281,10 @@ function Z83Form() {
         router.back();
         return;
       }
-      await savePdfToDownloads(file.uri, fileName, { shareOnIos: true });
+      await savePdfToDownloads(file.uri, fileName, {
+        shareOnIos: true,
+        ownerId: userId,
+      });
       completeDownload();
 
       Alert.alert(
