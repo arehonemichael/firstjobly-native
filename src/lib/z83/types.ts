@@ -1,18 +1,7 @@
 export type YesNo = "" | "yes" | "no";
-export type Race =
-  | ""
-  | "african"
-  | "white"
-  | "coloured"
-  | "indian"
-  | "other";
+export type Race = "" | "african" | "white" | "coloured" | "indian" | "other";
 export type Gender = "" | "female" | "male";
-export type CorrespondenceMethod =
-  | ""
-  | "post"
-  | "email"
-  | "fax"
-  | "telephone";
+export type CorrespondenceMethod = "" | "post" | "email" | "fax" | "telephone";
 export type SignMode = "digital" | "print";
 
 export type Z83Language = { name: string; speak: string; write: string };
@@ -125,20 +114,14 @@ export const emptyReference = (): Z83Reference => ({
   phone: "",
 });
 
-function today() {
-  const d = new Date();
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
-}
-
 export const emptyZ83 = (): Z83Data => ({
   position: "",
   department: "",
   reference: "",
   availability: "",
   surnameAndNames: "",
-  preferredLanguage: "English",
-  method: "email",
+  preferredLanguage: "",
+  method: "",
   contactDetails: "",
   languages: [emptyLanguage(), emptyLanguage()],
   qualifications: [emptyQualification(), emptyQualification()],
@@ -148,7 +131,7 @@ export const emptyZ83 = (): Z83Data => ({
   prevPublicServiceDetail: "",
   references: [emptyReference(), emptyReference()],
   initials: "",
-  declarationDate: today(),
+  declarationDate: "",
   signMode: "digital",
 
   dateOfBirth: "",
@@ -199,12 +182,9 @@ export function missingRequired(data: Z83Data) {
     missing.push("Surname and full names (Section B)");
   if (!data.idNumber.trim() && !data.passportNumber.trim())
     missing.push("ID number or passport number (Section B)");
-  if (!data.saCitizen)
-    missing.push("South African citizenship (Section B)");
-  if (!data.contactDetails.trim())
-    missing.push("Contact details (Section C)");
+  if (!data.saCitizen) missing.push("South African citizenship (Section B)");
+  if (!data.contactDetails.trim()) missing.push("Contact details (Section C)");
   if (!data.declarationDate.trim()) missing.push("Declaration date");
-  if (data.signMode === "digital" && !data.signature)
-    missing.push("Signature");
+  if (data.signMode === "digital" && !data.signature) missing.push("Signature");
   return missing;
 }

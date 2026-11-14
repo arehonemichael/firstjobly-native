@@ -1,3 +1,4 @@
+import { savedZ83 } from "../z83/saved";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { supabase } from "../supabase";
 import { withAuthMutation } from "../auth-mutation";
@@ -41,17 +42,29 @@ export const finishAccountDeletion = (owner: string, stopReminders: boolean) =>
         return data.session?.user.id ?? null;
       },
       async clearOwned(id) {
+        let secureCleanupFailed = false;
+        try {
+          await savedZ83.clear(id);
+        } catch {
+          secureCleanupFailed = true;
+        }
         // The key includes the owner; never remove another user's rows/drafts.
         await draftStorage.remove(`fj-community-draft:${id}`);
         const keys = (await AsyncStorage.getAllKeys()).filter(
           (key) =>
             (key.startsWith("firstjobly:recommendations:") &&
               key.endsWith(`:${id}`)) ||
-            key === `fj-circular-seen:${id}`,
+            key === `fj-circular-seen:${id}` ||
+            key === `firstjobly.cv.draft.v1:${id}` ||
+            key === `firstjobly.cv.template.v1:${id}`,
         );
         if (keys.length) await AsyncStorage.multiRemove(keys);
         await clearGeneratedFiles(id);
         invalidateRecommendations();
+        if (secureCleanupFailed)
+          throw Error(
+            "Could not clear remembered Z83 details. Retry local cleanup.",
+          );
       },
       async clearDeviceDrafts() {
         await AsyncStorage.multiRemove([

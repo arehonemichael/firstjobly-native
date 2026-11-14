@@ -52,6 +52,7 @@ export type Application = {
   z83: string | null;
   cv: string | null;
   cvName: string | null;
+  supporting?: { uri: string; name: string }[];
 };
 export function createApplications(cleanup: (uri: string) => void) {
   const items = new Map<string, Application>();
@@ -107,11 +108,28 @@ export function createApplications(cleanup: (uri: string) => void) {
       emit();
       return true;
     },
+    setSupporting(
+      owner: string,
+      key: string,
+      files: { uri: string; name: string }[],
+    ) {
+      const item = this.get(owner, key);
+      if (!item) {
+        for (const file of files) cleanup(file.uri);
+        return false;
+      }
+      for (const old of item.supporting ?? [])
+        if (!files.some((file) => file.uri === old.uri)) cleanup(old.uri);
+      items.set(key, { ...item, supporting: files });
+      emit();
+      return true;
+    },
     remove(key: string) {
       const item = items.get(key);
       if (item) {
         if (item.z83) cleanup(item.z83);
         if (item.cv) cleanup(item.cv);
+        for (const file of item.supporting ?? []) cleanup(file.uri);
         items.delete(key);
         emit();
       }

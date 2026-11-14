@@ -432,6 +432,9 @@ function applyPorts(method = "email") {
       setConfirm: (v) => events.push(["confirm", v]),
       setSent: (v) => events.push(["sent", v]),
       query: { userId: "alice" },
+      message: "Please find my Z83 and CV attached.",
+      setManualEmail: () => {},
+      setHandoffNote: () => {},
       compose: async (...args) => events.push(["compose", ...args]),
       openURL: async (url) => events.push(["open", url]),
       circularAPI: {
@@ -445,16 +448,13 @@ function applyPorts(method = "email") {
 test("actual email handoff attaches both PDFs and asks for confirmation, never records sent automatically", async () => {
   const f = applyPorts();
   await screenAction("perform", f.deps)();
-  assert.deepEqual(
-    f.events.find((e) => e[0] === "compose"),
-    [
-      "compose",
-      "recruitment@example.test",
-      "REF — Clerk",
-      "cache:z83",
-      "cache:cv",
-    ],
-  );
+  assert.deepEqual(f.events.find((e) => e[0] === "compose")?.slice(0, 5), [
+    "compose",
+    "recruitment@example.test",
+    "REF — Clerk",
+    "cache:z83",
+    "cache:cv",
+  ]);
   assert.deepEqual(
     f.events.find((e) => e[0] === "confirm"),
     ["confirm", true],
@@ -529,6 +529,8 @@ test("application snapshots change identity and notify subscribers when files be
 function nativeIO({ viewerFails = false, downloadStatus = 200 } = {}) {
   const events = [];
   const io = load("src/lib/circular/io.ts", {
+    "../document-export": { assertPdf: async () => {} },
+    "./email-contract": load("src/lib/circular/email-contract.ts"),
     "react-native": { Platform: { OS: "android" }, Linking: {} },
     "expo-file-system/legacy": {
       cacheDirectory: "file:///cache/",

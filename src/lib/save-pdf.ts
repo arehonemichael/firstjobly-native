@@ -1,12 +1,10 @@
-import {
-  rememberGeneratedFile,
-  assertGeneratedOwnerActive,
-} from "./account/owned-files";
+import { assertGeneratedOwnerActive } from "./account/owned-files";
 import { Platform } from "react-native";
 import * as Sharing from "expo-sharing";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as FileSystem from "expo-file-system/legacy";
 
+let exportSerial = 0;
 const DOWNLOADS_URI_KEY = "firstjobly.downloads.directory.v1";
 
 function fileBase(name: string) {
@@ -25,44 +23,53 @@ function fileBase(name: string) {
  * directory picker already pointed at Download; after the user grants access,
  * FirstJobly remembers that folder and future taps save there directly.
  *
- * iOS has no Android-style public Downloads directory. We keep the generated
- * PDF in the app's Documents directory and return that path.
+ * iOS uses the system share sheet: choose Save to Files. Completion is only
+ * a handoff, not evidence the user saved. Temporary export copies are removed
+ * after the sheet closes; the caller retains its original document.
  */
 export async function savePdfToDownloads(
   sourceUri: string,
   fileName: string,
-  options: { shareOnIos?: boolean; ownerId?: string | null } = {},
+  options: {
+    shareOnIos?: boolean;
+    ownerId?: string | null;
+    isCurrent?: () => Promise<boolean>;
+  } = {},
 ): Promise<string> {
   assertGeneratedOwnerActive(options.ownerId);
+  if (options.isCurrent && !(await options.isCurrent()))
+    throw Error("Your account changed. Reopen the document.");
   const cleanName = fileName.toLowerCase().endsWith(".pdf")
     ? fileName
     : `${fileName}.pdf`;
 
-  if (Platform.OS !== "android") {
-    if (!FileSystem.documentDirectory) {
-      throw new Error("Documents directory is unavailable");
-    }
-    const folder = options.ownerId
-      ? `${FileSystem.documentDirectory}firstjobly-generated/${encodeURIComponent(options.ownerId)}/`
-      : FileSystem.documentDirectory;
-    if (options.ownerId)
+  if (Platform.OS === "ios") {
+    if (!(await Sharing.isAvailableAsync()) || !FileSystem.cacheDirectory)
+      throw new Error(
+        "Save to Files is unavailable on this device. Your original PDF has not been changed.",
+      );
+    const folder = `${FileSystem.cacheDirectory}firstjobly-export-${Date.now()}-${++exportSerial}/`;
+    const destination = folder + fileBase(cleanName) + ".pdf";
+    try {
       await FileSystem.makeDirectoryAsync(folder, { intermediates: true });
-    const destination = `${folder}${cleanName}`;
-    await FileSystem.copyAsync({ from: sourceUri, to: destination });
-    await rememberGeneratedFile(options.ownerId ?? null, destination);
-    if (Platform.OS === "ios" && options.shareOnIos) {
-      if (!(await Sharing.isAvailableAsync()))
-        throw new Error(
-          "PDF saved in FirstJobly, but sharing is unavailable on this device.",
-        );
+      await FileSystem.copyAsync({ from: sourceUri, to: destination });
+      assertGeneratedOwnerActive(options.ownerId);
+      if (options.isCurrent && !(await options.isCurrent()))
+        throw Error("Your account changed. Reopen the document.");
       await Sharing.shareAsync(destination, {
         mimeType: "application/pdf",
         UTI: "com.adobe.pdf",
-        dialogTitle: "Save PDF",
+        dialogTitle: "Save to Files",
       });
+      return sourceUri;
+    } finally {
+      await FileSystem.deleteAsync(folder, { idempotent: true }).catch(
+        () => undefined,
+      );
     }
-    return destination;
   }
+  if (Platform.OS !== "android")
+    throw Error("Use the installed app to export this document.");
 
   let directoryUri = await AsyncStorage.getItem(DOWNLOADS_URI_KEY);
 
@@ -95,6 +102,8 @@ export async function savePdfToDownloads(
     );
 
     assertGeneratedOwnerActive(options.ownerId);
+    if (options.isCurrent && !(await options.isCurrent()))
+      throw Error("Your account changed. Reopen the document.");
     await FileSystem.writeAsStringAsync(targetUri, base64, {
       encoding: FileSystem.EncodingType.Base64,
     });

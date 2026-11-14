@@ -1,3 +1,13 @@
+import { safePrefill } from "../lib/circular/contract";
+import {
+  editZ83,
+  initialZ83,
+  reusableZ83,
+  z83FromProfile,
+} from "../lib/z83/reusable";
+import { savedZ83 } from "../lib/z83/saved";
+import { assertPdf } from "../lib/document-export";
+import { deleteTemporary } from "../lib/circular/io";
 import { rememberGeneratedFile } from "../lib/account/owned-files";
 import {
   AppText as Text,
@@ -13,11 +23,11 @@ import {
   ScrollView,
   StyleSheet,
   View,
+  Switch,
 } from "react-native";
 import { Icon as Ionicons } from "../components/ui/icon";
 import { router, useLocalSearchParams } from "expo-router";
 import { applications } from "../lib/circular/client";
-import { safePrefill } from "../lib/circular/contract";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import SignatureCanvas from "react-native-signature-canvas";
@@ -30,50 +40,19 @@ import { useRewardedDownload } from "../ads/useRewardedDownload";
 import { savePdfToDownloads } from "../lib/save-pdf";
 import {
   SA_LANGUAGES,
-  deriveInitials,
   emptyJob,
   emptyQualification,
   emptyReference,
   emptyZ83,
   missingRequired,
   type Z83Data,
-  type YesNo,
+  type YesNo as YesNoAnswer,
 } from "../lib/z83/types";
 
 import { useScreenBottomPadding } from "../hooks/use-screen-bottom-padding";
 
 const BASE_KEY = "firstjobly.z83.base.native.v1";
 const TEMPLATE_URL = "https://firstjobly.co.za/forms/z83-2021.pdf";
-
-const sensitiveKeys: (keyof Z83Data)[] = [
-  "dateOfBirth",
-  "idNumber",
-  "passportNumber",
-  "race",
-  "gender",
-  "disability",
-  "saCitizen",
-  "nationality",
-  "workPermit",
-  "criminalConviction",
-  "criminalDetail",
-  "pendingCriminal",
-  "pendingCriminalDetail",
-  "dismissedForMisconduct",
-  "dismissedDetail",
-  "pendingDisciplinary",
-  "pendingDisciplinaryDetail",
-  "resignedPendingDisciplinary",
-  "resignedDetail",
-  "dischargedIllHealth",
-  "businessWithState",
-  "relinquishBusiness",
-  "yearsPrivate",
-  "yearsPublic",
-  "registrationDate",
-  "registrationNumber",
-  "signature",
-];
 
 export default function Z83Screen() {
   const { userId } = useAuth();
@@ -95,138 +74,228 @@ function Z83Form() {
   }>();
   const circularMode = !!circularApplication;
   const application = applications.get(userId, circularApplication);
-  const [data, setData] = useState<Z83Data>(() =>
-    circularMode && application
-      ? { ...emptyZ83(), ...safePrefill(application.detail.z83_prefill) }
-      : emptyZ83(),
-  );
-  const [loaded, setLoaded] = useState(circularMode);
+  const [initialApplication] = useState(application);
+  const [data, setData] = useState<Z83Data>(emptyZ83);
+  const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [reviewed, setReviewed] = useState(false);
+  const [remembered, setRemembered] = useState(false);
+  const [loadNote, setLoadNote] = useState("");
   const [formScrollEnabled, setFormScrollEnabled] = useState(true);
-
+  const active = useRef(true);
+  const edits = useRef(0);
   useEffect(() => {
-    if (circularMode) return;
-    void AsyncStorage.getItem(BASE_KEY).then((raw) => {
-      if (raw) {
-        try {
-          const stored = JSON.parse(raw) as Partial<Z83Data>;
-          setData((current) => ({ ...current, ...stored }));
-        } catch {}
+    active.current = true;
+    let live = true;
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    const currentJob = initialApplication?.detail.job;
+    void (async () => {
+      // An old device-wide draft has no reliable owner. Never import its data.
+      await AsyncStorage.removeItem(BASE_KEY).catch(() => undefined);
+      let profile: Partial<Z83Data> = {},
+        saved: Partial<Z83Data> | null = null;
+      if (userId) {
+        const [profileResult, workResult, savedResult] = await Promise.race([
+          Promise.allSettled([
+            supabase
+              .from("profiles")
+              .select("*")
+              .eq("id", userId)
+              .maybeSingle(),
+            supabase
+              .from("work_experience")
+              .select("*")
+              .eq("user_id", userId)
+              .order("start_date", { ascending: false }),
+            Platform.OS === "web"
+              ? Promise.resolve(null)
+              : savedZ83.read(userId),
+          ]),
+          new Promise<never>((_resolve, reject) => {
+            timeout = setTimeout(
+              () => reject(Error("Profile loading timed out")),
+              8000,
+            );
+          }),
+        ]);
+        clearTimeout(timeout);
+        const p =
+          profileResult.status === "fulfilled" && !profileResult.value.error
+            ? profileResult.value.data
+            : null;
+        const w =
+          workResult.status === "fulfilled" && !workResult.value.error
+            ? (workResult.value.data ?? [])
+            : [];
+        profile = {
+          ...reusableZ83(
+            safePrefill(initialApplication?.detail.z83_prefill ?? {}),
+          ),
+          ...z83FromProfile(p, w),
+        };
+        if (savedResult.status === "fulfilled") saved = savedResult.value;
+        if (
+          live &&
+          (profileResult.status === "rejected" ||
+            workResult.status === "rejected" ||
+            (profileResult.status === "fulfilled" &&
+              profileResult.value.error) ||
+            (workResult.status === "fulfilled" && workResult.value.error) ||
+            savedResult.status === "rejected")
+        )
+          setLoadNote(
+            "Some saved/profile details could not load. You can still complete the form manually.",
+          );
       }
+      if (!live) return;
+      setData(
+        initialZ83(
+          profile,
+          saved,
+          currentJob
+            ? {
+                position: currentJob.post_title,
+                department: currentJob.department,
+                reference: currentJob.reference_number ?? "",
+              }
+            : {},
+        ),
+      );
+      setRemembered(!!saved);
       setLoaded(true);
+    })().catch(() => {
+      if (live) {
+        setData(
+          initialZ83(
+            {},
+            null,
+            currentJob
+              ? {
+                  position: currentJob.post_title,
+                  department: currentJob.department,
+                  reference: currentJob.reference_number ?? "",
+                }
+              : {},
+          ),
+        );
+        setLoaded(true);
+        setLoadNote("Details could not load. Complete this form manually.");
+      }
     });
-  }, [circularMode]);
-
-  useEffect(() => {
-    if (!loaded || circularMode) return;
-    const safe = { ...data } as Record<string, unknown>;
-    for (const key of sensitiveKeys) delete safe[key];
-    void AsyncStorage.setItem(BASE_KEY, JSON.stringify(safe));
-  }, [data, loaded, circularMode]);
-
-  const patch = (changes: Partial<Z83Data>) =>
-    setData((current) => ({ ...current, ...changes }));
-
+    return () => {
+      live = false;
+      active.current = false;
+      clearTimeout(timeout);
+    };
+  }, [initialApplication, userId]);
+  const patch = (changes: Partial<Z83Data>) => {
+    edits.current++;
+    setReviewed(false);
+    setData((current) => editZ83(current, changes));
+  };
   async function prefill() {
-    if (!userId) {
-      router.push({ pathname: "/auth", params: { returnTo: "/z83" } });
-      return;
-    }
+    if (!userId || busy) return;
+    const version = edits.current;
+    let timeout: ReturnType<typeof setTimeout> | undefined;
     setBusy(true);
-    const [profileRes, workRes] = await Promise.all([
-      supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
-      supabase
-        .from("work_experience")
-        .select("*")
-        .eq("user_id", userId)
-        .order("start_date", { ascending: false }),
-    ]);
-    setBusy(false);
-
-    if (profileRes.error || workRes.error) {
-      Alert.alert("Z83", "Could not load your FirstJobly profile.");
-      return;
+    try {
+      const [p, w] = await Promise.race([
+        Promise.all([
+          supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
+          supabase
+            .from("work_experience")
+            .select("*")
+            .eq("user_id", userId)
+            .order("start_date", { ascending: false }),
+        ]),
+        new Promise<never>((_resolve, reject) => {
+          timeout = setTimeout(
+            () =>
+              reject(
+                Error("Profile loading timed out. Your form is unchanged."),
+              ),
+            8000,
+          );
+        }),
+      ]);
+      if (p.error || w.error)
+        throw Error("Could not load your FirstJobly profile.");
+      if (!active.current) return;
+      if (edits.current !== version) {
+        Alert.alert(
+          "Z83",
+          "Profile details were not applied because you edited the form while they loaded.",
+        );
+        return;
+      }
+      patch(z83FromProfile(p.data, w.data ?? []));
+      Alert.alert(
+        "Z83",
+        "Profile details added. Review every field; job details and declaration were not changed.",
+      );
+    } catch (e) {
+      if (active.current)
+        Alert.alert(
+          "Z83",
+          e instanceof Error ? e.message : "Could not load profile details.",
+        );
+    } finally {
+      clearTimeout(timeout);
+      if (active.current) setBusy(false);
     }
-
-    const p = profileRes.data;
-    if (!p) return;
-
-    const surname = (p.last_name ?? "").toUpperCase();
-    const first = p.first_name ?? "";
-    const full =
-      surname && first ? `${surname}, ${first}` : (p.full_name ?? "");
-    const contact = [
-      p.email,
-      p.phone,
-      [p.address, p.city, p.province].filter(Boolean).join(", "),
-    ]
-      .filter(Boolean)
-      .join("\n");
-
-    patch({
-      surnameAndNames: full || data.surnameAndNames,
-      contactDetails: contact || data.contactDetails,
-      initials: deriveInitials(full) || data.initials,
-      qualifications:
-        p.institution || p.field_of_study || p.highest_qualification
-          ? [
-              {
-                ...emptyQualification(),
-                institution: p.institution ?? "",
-                qualification:
-                  p.field_of_study ?? p.highest_qualification ?? "",
-                year: p.year_completed ? String(p.year_completed) : "",
-              },
-              ...data.qualifications.slice(1),
-            ]
-          : data.qualifications,
-      jobs:
-        (workRes.data ?? []).length > 0
-          ? (workRes.data ?? []).slice(0, 3).map((w) => {
-              const from = w.start_date ? new Date(w.start_date) : null;
-              const to = w.end_date ? new Date(w.end_date) : null;
-              return {
-                ...emptyJob(),
-                employer: w.company ?? "",
-                post: w.job_title ?? "",
-                fromMonth: from
-                  ? String(from.getMonth() + 1).padStart(2, "0")
-                  : "",
-                fromYear: from ? String(from.getFullYear()).slice(-2) : "",
-                toMonth:
-                  w.currently_working || !to
-                    ? ""
-                    : String(to.getMonth() + 1).padStart(2, "0"),
-                toYear:
-                  w.currently_working || !to
-                    ? ""
-                    : String(to.getFullYear()).slice(-2),
-                reason: "",
-              };
-            })
-          : data.jobs,
-      languages:
-        (p.languages ?? []).length > 0
-          ? (p.languages ?? []).slice(0, 5).map((name: string) => ({
-              name,
-              speak: "",
-              write: "",
-            }))
-          : data.languages,
-    });
-
+  }
+  function remember() {
+    if (!userId || busy) return;
     Alert.alert(
-      "Z83",
-      "Profile details added. Check every field before downloading.",
+      "Remember reusable details?",
+      "This includes any identity, race, gender, disability and disclosure answers you entered. They will be kept in this account’s secure device storage. Job details, initials, signature and declaration date are never saved. Review and update these details before each application.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Remember",
+          onPress: () => {
+            setBusy(true);
+            void savedZ83
+              .save(userId, data, true)
+              .then(() => {
+                if (active.current) {
+                  setRemembered(true);
+                  setLoadNote(
+                    "Reusable details saved securely for this account. Changes need to be saved again.",
+                  );
+                }
+              })
+              .catch(() => {
+                if (active.current)
+                  Alert.alert(
+                    "Z83",
+                    "Could not remember these details securely. They remain in this form only.",
+                  );
+              })
+              .finally(() => {
+                if (active.current) setBusy(false);
+              });
+          },
+        },
+      ],
     );
   }
 
   async function download() {
     if (downloadLock.current) return;
+    if (!reviewed) {
+      Alert.alert(
+        "Review required",
+        "Review these details and the declaration for this application before creating the PDF.",
+      );
+      return;
+    }
+    const snapshot = JSON.parse(JSON.stringify(data)) as Z83Data;
+    let temporary: string | null = null;
     downloadLock.current = true;
     setBusy(true);
     try {
-      const missing = missingRequired(data);
+      const missing = missingRequired(snapshot);
       if (missing.length) {
         const proceed = await new Promise<boolean>((resolve) => {
           Alert.alert(
@@ -250,13 +319,9 @@ function Z83Form() {
       const response = await fetch(TEMPLATE_URL);
       if (!response.ok) throw new Error("Official Z83 template unavailable");
       const template = await response.arrayBuffer();
-      const bytes = await fillZ83(data, template);
+      const bytes = await fillZ83(snapshot, template);
 
-      const safeName =
-        data.surnameAndNames
-          .trim()
-          .replace(/[^A-Za-z0-9]+/g, "_")
-          .replace(/^_|_$/g, "") || "Application";
+      const safeName = "Application";
       const file = new File(
         Paths.cache,
         circularMode
@@ -264,9 +329,12 @@ function Z83Form() {
           : `Z83_${userId || "guest"}_${Date.now()}_${safeName}.pdf`,
       );
       file.write(bytes);
+      temporary = file.uri;
+      await assertPdf(file.uri);
       await rememberGeneratedFile(userId, file.uri);
 
-      const fileName = `Z83_${safeName}.pdf`;
+      const fileName =
+        Platform.OS === "ios" ? "Z83.pdf" : `Z83_${safeName}.pdf`;
       if (circularMode) {
         if (
           !userId ||
@@ -284,27 +352,37 @@ function Z83Form() {
       await savePdfToDownloads(file.uri, fileName, {
         shareOnIos: true,
         ownerId: userId,
+        isCurrent: async () =>
+          ((await supabase.auth.getSession()).data.session?.user.id ?? null) ===
+          userId,
       });
       completeDownload();
 
       Alert.alert(
         Platform.OS === "ios" ? "PDF ready" : "Downloaded",
         Platform.OS === "ios"
-          ? `${fileName} is ready. Choose Save to Files in the share sheet to keep a copy outside FirstJobly.`
+          ? "Export options closed. If you chose Save to Files, check Files for your copy. FirstJobly cannot confirm saving or cancellation."
           : `${fileName} has been saved to your Downloads folder.`,
       );
-    } catch (e) {
-      console.error("Z83 PDF failed:", e);
+    } catch {
       Alert.alert(
         "Z83",
         "Could not create the official PDF. Check your connection and try again.",
       );
     } finally {
+      if (temporary && !circularMode) await deleteTemporary(temporary);
       downloadLock.current = false;
       setBusy(false);
     }
   }
 
+  if (!loaded)
+    return (
+      <SafeAreaView style={s.page}>
+        <Header />
+        <ActivityIndicator color={Colors.primary} />
+      </SafeAreaView>
+    );
   if (circularMode && !application) {
     return (
       <SafeAreaView style={s.page}>
@@ -346,12 +424,14 @@ function Z83Form() {
           />
           <Text style={s.privacyText}>
             Your ID number, employment-equity answers, criminal/disciplinary
-            disclosures and signature are not saved to FirstJobly or persistent
-            device storage.
+            disclosures stay in this form unless you explicitly choose Remember
+            reusable details. Remembered details use secure storage for this
+            account only. Job details, initials, signature and declaration date
+            are never remembered.
           </Text>
         </View>
 
-        {isAuthenticated && !circularMode ? (
+        {isAuthenticated ? (
           <TouchableOpacity
             style={s.profileBtn}
             disabled={busy}
@@ -368,7 +448,7 @@ function Z83Form() {
 
         <Section
           title="A. The advertised post"
-          hint="Copy these straight from the advert."
+          hint="Copy these straight from the advert. Changing job details clears initials, signature and declaration date."
         >
           <Field
             label="Position you are applying for (as advertised)"
@@ -394,17 +474,12 @@ function Z83Form() {
 
         <Section
           title="B. Personal information"
-          hint="Sensitive answers stay in this app session only."
+          hint="Review each answer. Nothing is inferred. Remembering these details is optional."
         >
           <Field
             label="Surname and full names"
             value={data.surnameAndNames}
-            onChangeText={(surnameAndNames) =>
-              patch({
-                surnameAndNames,
-                initials: data.initials || deriveInitials(surnameAndNames),
-              })
-            }
+            onChangeText={(surnameAndNames) => patch({ surnameAndNames })}
           />
           <Field
             label="Date of birth (DD/MM/YYYY)"
@@ -437,6 +512,7 @@ function Z83Form() {
               ["coloured", "Coloured"],
               ["indian", "Indian"],
               ["other", "Other"],
+              ["", "Leave blank / prefer not to disclose"],
             ]}
             onChange={(race) => patch({ race: race as Z83Data["race"] })}
           />
@@ -446,6 +522,7 @@ function Z83Form() {
             options={[
               ["female", "Female"],
               ["male", "Male"],
+              ["", "Leave blank / prefer not to disclose"],
             ]}
             onChange={(gender) =>
               patch({ gender: gender as Z83Data["gender"] })
@@ -1031,6 +1108,74 @@ function Z83Form() {
           </View>
         ) : null}
 
+        {!!loadNote && <Text accessibilityLiveRegion="polite">{loadNote}</Text>}
+        {isAuthenticated && Platform.OS !== "web" && (
+          <>
+            <TouchableOpacity
+              accessibilityRole="button"
+              disabled={busy}
+              style={s.profileBtn}
+              onPress={remember}
+            >
+              <Text>
+                {remembered
+                  ? "Update remembered reusable details"
+                  : "Remember reusable details securely"}
+              </Text>
+            </TouchableOpacity>
+            {(remembered || !!loadNote) && (
+              <TouchableOpacity
+                accessibilityRole="button"
+                disabled={busy}
+                style={s.profileBtn}
+                onPress={() => {
+                  if (!userId) return;
+                  setBusy(true);
+                  void savedZ83
+                    .clear(userId)
+                    .then(() => {
+                      if (active.current) {
+                        setRemembered(false);
+                        setLoadNote(
+                          "Remembered details removed. This form is unchanged.",
+                        );
+                      }
+                    })
+                    .catch(() =>
+                      Alert.alert(
+                        "Z83",
+                        "Could not remove remembered details. Please try again.",
+                      ),
+                    )
+                    .finally(() => {
+                      if (active.current) setBusy(false);
+                    });
+                }}
+              >
+                <Text>Forget remembered details</Text>
+              </TouchableOpacity>
+            )}
+          </>
+        )}
+        <View
+          style={{
+            flexDirection: "row",
+            gap: 12,
+            alignItems: "center",
+            marginVertical: 16,
+          }}
+        >
+          <Switch
+            accessibilityLabel="I reviewed this Z83 for this application"
+            value={reviewed}
+            onValueChange={setReviewed}
+            disabled={busy}
+            trackColor={{ true: Colors.primary, false: Colors.border }}
+          />
+          <Text style={{ flex: 1 }}>
+            I reviewed these answers and the declaration for this application.
+          </Text>
+        </View>
         <TouchableOpacity
           style={s.primary}
           disabled={busy}
@@ -1046,9 +1191,13 @@ function Z83Form() {
                 color={Colors.surface}
               />
               <Text style={s.primaryText}>
-                {canOfferAd
-                  ? "Watch ad & download Z83"
-                  : "Download completed official Z83"}
+                {Platform.OS === "ios" && !circularMode
+                  ? canOfferAd
+                    ? "Watch ad & save Z83 to Files"
+                    : "Save Z83 to Files"
+                  : canOfferAd
+                    ? "Watch ad & download Z83"
+                    : "Download completed official Z83"}
               </Text>
             </>
           )}
@@ -1070,7 +1219,22 @@ function Z83Form() {
                 text: "Clear",
                 style: "destructive",
                 onPress: async () => {
-                  setData(emptyZ83());
+                  edits.current++;
+                  setData(
+                    initialZ83(
+                      {},
+                      null,
+                      application
+                        ? {
+                            position: application.detail.job.post_title,
+                            department: application.detail.job.department,
+                            reference:
+                              application.detail.job.reference_number ?? "",
+                          }
+                        : {},
+                    ),
+                  );
+                  setReviewed(false);
                   if (!circularMode) await AsyncStorage.removeItem(BASE_KEY);
                 },
               },
@@ -1162,8 +1326,8 @@ function YesNo({
   onChange,
 }: {
   label: string;
-  value: YesNo;
-  onChange: (value: YesNo) => void;
+  value: YesNoAnswer;
+  onChange: (value: YesNoAnswer) => void;
 }) {
   return (
     <View style={s.yesNo}>

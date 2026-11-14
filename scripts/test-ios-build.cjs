@@ -156,6 +156,9 @@ function pdfPorts(os, available = true) {
     },
     "expo-file-system/legacy": {
       documentDirectory: "file:///documents/",
+      cacheDirectory: "file:///cache/",
+      makeDirectoryAsync: async () => {},
+      deleteAsync: async () => {},
       copyAsync: async (options) => calls.push({ kind: "copy", ...options }),
       EncodingType: { Base64: "base64" },
       readAsStringAsync: async () => "fixture",
@@ -189,7 +192,7 @@ test("iOS CV/Z83 export offers PDF Save to Files after creating the local copy",
   const f = pdfPorts("ios");
   assert.equal(
     await f.save("file:///cache/generated.pdf", "CV.pdf", { shareOnIos: true }),
-    "file:///documents/CV.pdf",
+    "file:///cache/generated.pdf",
   );
   assert.deepEqual(
     f.calls.map((c) => c.kind),
@@ -197,23 +200,23 @@ test("iOS CV/Z83 export offers PDF Save to Files after creating the local copy",
   );
   assert.equal(f.calls[1].options.UTI, "com.adobe.pdf");
 });
-test("iOS circular PDF save leaves presentation to its existing caller (no duplicate sheet)", async () => {
+test("iOS circular PDF export itself presents one Save to Files sheet", async () => {
   const f = pdfPorts("ios");
   await f.save("file:///cache/generated.pdf", "Circular.pdf");
   assert.deepEqual(
     f.calls.map((c) => c.kind),
-    ["copy"],
+    ["copy", "share"],
   );
 });
 test("iOS unavailable sharing reports the saved-copy state without inventing a successful Files export", async () => {
   const f = pdfPorts("ios", false);
   await assert.rejects(
     f.save("file:///cache/generated.pdf", "CV.pdf", { shareOnIos: true }),
-    /PDF saved in FirstJobly, but sharing is unavailable/,
+    /Save to Files is unavailable/,
   );
   assert.deepEqual(
     f.calls.map((c) => c.kind),
-    ["copy"],
+    [],
   );
 });
 test("Android PDF export retains SAF and never opens an iOS share sheet", async () => {
