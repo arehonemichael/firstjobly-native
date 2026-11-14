@@ -1,3 +1,4 @@
+import { z83Text } from "../lib/z83/format";
 import { safePrefill } from "../lib/circular/contract";
 import {
   editZ83,
@@ -1311,6 +1312,11 @@ function Field({
       <TextInput
         accessibilityLabel={label}
         {...props}
+        autoCapitalize="characters"
+        value={
+          typeof props.value === "string" ? z83Text(props.value) : props.value
+        }
+        onChangeText={(value) => props.onChangeText?.(z83Text(value))}
         multiline={multiline}
         placeholderTextColor={Colors.mutedSubtle}
         style={[s.input, multiline && s.multiline]}

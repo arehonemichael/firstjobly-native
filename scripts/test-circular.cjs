@@ -529,6 +529,7 @@ test("application snapshots change identity and notify subscribers when files be
 function nativeIO({ viewerFails = false, downloadStatus = 200 } = {}) {
   const events = [];
   const io = load("src/lib/circular/io.ts", {
+    "./mail-share": { mailShare: null },
     "../document-export": { assertPdf: async () => {} },
     "./email-contract": load("src/lib/circular/email-contract.ts"),
     "react-native": { Platform: { OS: "android" }, Linking: {} },

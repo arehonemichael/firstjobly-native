@@ -1,3 +1,4 @@
+import { z83Name } from "./format";
 import { emptyZ83, type Z83Data } from "./types";
 // Explicit allowlist: no job identity, initials, signature, date or declaration.
 export const REUSABLE_FIELDS = [
@@ -69,6 +70,8 @@ export function reusableZ83(input: unknown): Partial<Z83Data> {
           ),
         );
   }
+  if (typeof result.surnameAndNames === "string")
+    result.surnameAndNames = z83Name(result.surnameAndNames);
   return result as Partial<Z83Data>;
 }
 const text = (value: unknown) => (typeof value === "string" ? value : "");
@@ -83,11 +86,11 @@ export function z83FromProfile(
     first = text(p.first_name);
   const full =
     surname && first
-      ? `${surname}, ${first}`
+      ? `${surname} ${first}`
       : [surname, first].filter(Boolean).join(" ") || text(p.full_name);
   const dob = text(p.date_of_birth).match(/^(\d{4})-(\d{2})-(\d{2})$/);
   const result: Partial<Z83Data> = {};
-  if (full) result.surnameAndNames = full;
+  if (full) result.surnameAndNames = z83Name(full);
   if (dob) result.dateOfBirth = `${dob[3]}/${dob[2]}/${dob[1]}`;
   const contact = [
     text(p.email),
@@ -161,6 +164,10 @@ export function editZ83(current: Z83Data, changes: Partial<Z83Data>): Z83Data {
   return {
     ...current,
     ...changes,
+    surnameAndNames: (changes.surnameAndNames ?? current.surnameAndNames)
+      .replace(/,/g, " ")
+      .replace(/\s+/g, " ")
+      .toUpperCase(),
     ...(changed ? { initials: "", signature: "", declarationDate: "" } : {}),
   };
 }

@@ -1,3 +1,4 @@
+import { SavedApplicationDocuments } from "../../components/circular/saved-application-documents";
 import { useAuth } from "../../hooks/use-auth";
 import type { EmailPaths } from "../../lib/circular/email-contract";
 import {
@@ -73,7 +74,11 @@ function CircularApplyForm() {
   const [confirm, setConfirm] = useState(false);
   const [sent, setSent] = useState(false);
   const [licence, setLicence] = useState(false);
-  const [message, setMessage] = useState("Please find my Z83 and CV attached.");
+  const [message, setMessage] = useState(() =>
+    session
+      ? `Please find my application documents attached for ${titleCase(session.detail.job.post_title)}. Thank you for your consideration.`
+      : "Please find my application documents attached. Thank you for your consideration.",
+  );
   const [manualEmail, setManualEmail] = useState(false);
   const [paths, setPaths] = useState<EmailPaths>({
     composer: false,
@@ -512,6 +517,12 @@ function CircularApplyForm() {
                 }
               />
             </View>
+            <SavedApplicationDocuments
+              key={`${query.userId}:${session.key}`}
+              owner={query.userId}
+              application={session.key}
+              onError={setError}
+            />
             <View style={cs.card}>
               <Text style={cs.heading}>
                 3. Apply by {methodLabels[session.method].toLowerCase()}
@@ -552,10 +563,11 @@ function CircularApplyForm() {
                     onPress={() => void copy(message).catch(setError)}
                   />
                   <Text style={cs.muted}>
-                    Apple Mail’s composer and Android email intents can include
-                    your selected documents. Other email apps may need you to
-                    attach saved documents manually. Always review recipient,
-                    subject and attachments.
+                    Choose a compatible email app to receive your Z83, CV and
+                    all selected supporting PDFs together, with the subject and
+                    message. Some iOS apps require you to paste the recipient or
+                    subject. Copy the address above and review every field
+                    before sending.
                   </Text>
                   <Button
                     label="Other email apps / manual attachments"
@@ -675,8 +687,8 @@ function CircularApplyForm() {
                   busy
                     ? "Opening…"
                     : session.method === "email"
-                      ? Platform.OS === "ios" && !paths.composer
-                        ? "Choose an email app"
+                      ? Platform.OS === "ios"
+                        ? "Choose email app — attach all PDFs"
                         : "Open email with attachments"
                       : session.method === "online"
                         ? "Open application site"
