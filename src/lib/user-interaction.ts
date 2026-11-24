@@ -20,3 +20,8 @@ export function signalUserInteraction() {
     }
   }
 }
+
+/** A scroll gesture cancels startup ads without counting every scroll as an extra-ad action. */
+export function signalStartupGesture() {
+  observer?.();
+}

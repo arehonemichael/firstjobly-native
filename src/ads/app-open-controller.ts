@@ -14,7 +14,7 @@ type Storage = {
   getItem(key: string): Promise<string | null>;
   setItem(key: string, value: string): Promise<void>;
 };
-type Context = { eligible: boolean; consent: boolean };
+type Context = { eligible: boolean; consent: boolean; canPreload?: boolean };
 type Options = {
   createAd: () => Ad;
   storage: Storage;
@@ -25,6 +25,7 @@ type Options = {
   enabled?: () => boolean;
   coldStartEnabled?: () => boolean;
   coldStartWindowMs?: number;
+  loadTimeoutMs?: number;
   lock?: typeof fullscreenLock;
   schedule?: (action: () => void) => () => void;
 };
@@ -38,6 +39,7 @@ export function createAppOpenController({
   enabled = () => ADS_CONFIG.appOpen.enabled,
   coldStartEnabled = () => ADS_CONFIG.appOpen.coldStartEnabled,
   coldStartWindowMs = ADS_CONFIG.appOpen.coldStartWindowMs,
+  loadTimeoutMs = ADS_CONFIG.appOpen.loadTimeoutMs,
   lock = fullscreenLock,
   schedule = (action) => {
     const timer = setTimeout(action, 75);
@@ -64,6 +66,38 @@ export function createAppOpenController({
     coldUntil = 0,
     storageReady = false;
   let coldTimer: ReturnType<typeof setTimeout> | null = null;
+  let loadTimer: ReturnType<typeof setTimeout> | null = null;
+  let retryTimer: ReturnType<typeof setTimeout> | null = null;
+  let retries = 0;
+  const clearLoad = () => {
+    if (loadTimer !== null) clearTimeout(loadTimer);
+    loadTimer = null;
+  };
+  const clearRetry = () => {
+    if (retryTimer !== null) clearTimeout(retryTimer);
+    retryTimer = null;
+  };
+  function retryLoad() {
+    if (
+      disposed ||
+      !active ||
+      !context.consent ||
+      context.canPreload === false ||
+      retryTimer !== null
+    )
+      return;
+    const delay = [5000, 15000, 45000][retries++];
+    if (delay === undefined) return;
+    diag.record("load.retry", {
+      format: "app-open",
+      attempt: retries,
+      delayMs: delay,
+    });
+    retryTimer = setTimeout(() => {
+      retryTimer = null;
+      preload();
+    }, delay);
+  }
   function endCold(reason?: string) {
     if (reason && coldAvailable)
       diag.record("skip", {
@@ -108,6 +142,7 @@ export function createAppOpenController({
     spent = true;
   };
   const clearAd = () => {
+    clearLoad();
     cancel();
     listeners.forEach((f) => f());
     listeners = [];
@@ -116,17 +151,32 @@ export function createAppOpenController({
     loadedAt = null;
   };
   const preload = () => {
-    if (disposed || !enabled() || !context.consent || ad || showing) return;
+    if (
+      disposed ||
+      !active ||
+      !enabled() ||
+      !context.consent ||
+      context.canPreload === false ||
+      ad ||
+      showing ||
+      retryTimer !== null
+    )
+      return;
     try {
       diag.record("request", { format: "app-open" });
-      ad = createAd();
+      const inventory = createAd();
+      ad = inventory;
       listeners = [
         ad.addAdEventListener("loaded", () => {
+          if (ad !== inventory) return;
+          clearLoad();
+          retries = 0;
           diag.record("loaded", { format: "app-open", loaded: true });
           loadedAt = now();
           maybeCold();
         }),
         ad.addAdEventListener("closed", () => {
+          if (ad !== inventory) return;
           diag.record("closed", { format: "app-open" });
           showing = false;
           release();
@@ -134,6 +184,7 @@ export function createAppOpenController({
           preload();
         }),
         ad.addAdEventListener("error", (error) => {
+          if (ad !== inventory) return;
           diag.error(
             "app-open",
             showing ? "presentation.failed" : "load.failed",
@@ -146,6 +197,7 @@ export function createAppOpenController({
           // Avoid a synchronous no-fill loop. Later foreground/context changes
           // can retry a failed preload; a failed presentation preloads once.
           if (wasShowing) preload();
+          else retryLoad();
         }),
       ];
       try {
@@ -157,12 +209,19 @@ export function createAppOpenController({
       } catch {
         /* Optional observation cannot break a valid load. */
       }
-      ad.load();
+      loadTimer = setTimeout(() => {
+        if (ad !== inventory) return;
+        diag.record("load.timeout", { format: "app-open" });
+        clearAd();
+        retryLoad();
+      }, loadTimeoutMs);
+      inventory.load();
     } catch (error) {
       diag.error("app-open", "load.failed", error);
       clearAd();
       showing = false;
       release();
+      retryLoad();
     }
   };
   const initialize = async () => {
@@ -190,6 +249,7 @@ export function createAppOpenController({
     if (disposed) return;
     active = next === "active";
     if (!active) {
+      clearRetry();
       endCold("left-startup");
       cancel();
     }
@@ -198,6 +258,7 @@ export function createAppOpenController({
       return;
     }
     if (!active || backgroundAt === null) return;
+    retries = 0;
     const away = now() - backgroundAt;
     backgroundAt = null;
     spent = false;
@@ -367,12 +428,17 @@ export function createAppOpenController({
     setContext(next: Context, preloadNow = true) {
       context = next;
       if (!next.eligible || !next.consent) cancel();
+      if (!next.consent || next.canPreload === false) {
+        clearRetry();
+        retries = 0;
+      }
       if (!next.consent && !showing) clearAd();
       if (preloadNow) preload();
       maybeCold();
     },
     dispose() {
       disposed = true;
+      clearRetry();
       endCold();
       release();
       clearAd();

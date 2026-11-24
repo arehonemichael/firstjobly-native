@@ -69,7 +69,7 @@
     "test:recommendations": "node --test scripts/personalization/test-*.cjs",
     "test:startup": "node --test scripts/test-startup.cjs",
     "test:expo-go": "node --test scripts/test-expo-go.cjs",
-    "test:ads": "node --test scripts/test-ads.cjs",
+    "test:ads": "node --test scripts/test-ads.cjs scripts/test-ad-readiness.cjs",
     "benchmark:recommendations": "node scripts/benchmark-recommendations.cjs",
     "test:community": "node --test scripts/test-community.cjs",
     "test:hot-jobs": "node --test scripts/test-hot-jobs.cjs",

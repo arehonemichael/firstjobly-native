@@ -1,6 +1,7 @@
+import { AdScrollView as ScrollView } from "../../ads/AdScrollView";
 import { NativeAdBlock } from "../../ads/NativeAdBlock";
 import { useEffect, useRef, useState } from "react";
-import { ScrollView, View, Linking } from "react-native";
+import { View, Linking } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import {
   CheckSquare,

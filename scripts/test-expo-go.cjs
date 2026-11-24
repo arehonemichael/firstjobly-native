@@ -1,12 +1,16 @@
 /* global __dirname */
 // Evaluate the actual platform modules with a native SDK that would throw in
 // Expo Go. This catches eager imports before route components can export.
-const { test } = require("node:test"),
+const { test, afterEach } = require("node:test"),
   assert = require("node:assert/strict");
 const fs = require("node:fs"),
   path = require("node:path"),
   ts = require("typescript");
 const root = path.resolve(__dirname, "..");
+const fixtureCleanups = [];
+afterEach(() => {
+  for (const cleanup of fixtureCleanups.splice(0)) cleanup();
+});
 function app(os, environment, dev = true, forceTest = false, iosEnv = {}) {
   const cache = new Map(),
     calls = {
@@ -37,7 +41,7 @@ function app(os, environment, dev = true, forceTest = false, iosEnv = {}) {
   let renderState = null;
   const react = {
     useSyncExternalStore: (_subscribe, getSnapshot) => getSnapshot(),
-    useCallback: (f) => f,
+    useCallback: (f, deps) => react.useMemo(() => f, deps),
     useMemo: (factory, deps) => {
       if (!renderState) return factory();
       const i = renderState.cursor++;
@@ -211,7 +215,11 @@ function app(os, environment, dev = true, forceTest = false, iosEnv = {}) {
       hide: () => calls.hide++,
       hideAsync: async () => calls.hide++,
     },
-    "expo-router": { Stack, usePathname: () => "/" },
+    "expo-router": {
+      Stack,
+      usePathname: () => "/",
+      useFocusEffect: (fn) => react.useEffect(fn, [fn]),
+    },
     "expo-status-bar": { StatusBar: "StatusBar" },
     "@expo-google-fonts/plus-jakarta-sans": { useFonts: () => [true, null] },
     "react-native-safe-area-context": { SafeAreaView: "SafeAreaView" },
@@ -224,6 +232,9 @@ function app(os, environment, dev = true, forceTest = false, iosEnv = {}) {
   function load(file) {
     const full = path.resolve(root, file);
     if (cache.has(full)) return cache.get(full).exports;
+    // Inline request/recovery tests assume the separate, tested viewport gate admits this slot.
+    if (full.endsWith("/src/ads/AdVisibility.tsx"))
+      return { AdVisibility: "AdVisibility" };
     if (full.endsWith("/src/ads/privacy.ts"))
       return {
         getRequestOptions: () => ({
@@ -308,6 +319,14 @@ function app(os, environment, dev = true, forceTest = false, iosEnv = {}) {
     );
     return module.exports;
   }
+  fixtureCleanups.push(() => {
+    consentState.canRequestAds = false;
+    for (const module of cache.values()) {
+      module.exports.disposeAdvertisingRuntime?.();
+      module.exports.interstitialManager?._test.reset();
+      module.exports.rewardedManager?._test.reset();
+    }
+  });
   return {
     load,
     calls,
@@ -588,7 +607,7 @@ test("native feed reserves loading space, times out, retries once and destroys b
     return new Promise((resolve) => pending.push(resolve));
   };
   const component = a.load("src/ads/NativeAdBlock.tsx");
-  const root = component.NativeAdBlock({ variant: "feed" });
+  const root = component.NativeAdBlock({ variant: "feed" }).props.children;
   const view = a.renderer(root.type, root.props);
   assert.equal(view.render().props.style.minHeight, 260);
   assert.equal(pending.length, 1);
@@ -659,7 +678,11 @@ test("rewarded download hook uses the official test unit, needs completion and c
     hook = a.load("src/ads/useRewardedDownload.ts"),
     view = a.renderer(hook.useRewardedDownload);
   let control = view.render();
-  assert.equal(control.canOfferAd, true);
+  assert.equal(
+    control.canOfferAd,
+    false,
+    "loading inventory is not advertised as ready",
+  );
   assert.equal(a.calls.rewardedUnits[0].unit, "test-rewarded");
   assert.equal(
     a.calls.rewardedUnits[0].options.requestNonPersonalizedAdsOnly,
@@ -667,6 +690,7 @@ test("rewarded download hook uses the official test unit, needs completion and c
   );
   const ad = a.calls.rewardedAds[0];
   ad.emit("rewarded_loaded");
+  control = view.render();
   const pending = control.beforeDownload();
   ad.emit("opened");
   ad.emit("rewarded_earned_reward");
@@ -677,6 +701,9 @@ test("rewarded download hook uses the official test unit, needs completion and c
   assert.equal(await control.beforeDownload(), true);
   assert.equal(a.calls.rewardedShows, 1);
   control.completeDownload();
+  control = view.render();
+  assert.equal(control.canOfferAd, false);
+  a.calls.rewardedAds.at(-1).emit("rewarded_loaded");
   control = view.render();
   assert.equal(control.canOfferAd, true);
   view.dispose();
@@ -690,9 +717,10 @@ test("leaving the download screen during an ad cannot start a late download", as
   const a = app("android", "bare"),
     hook = a.load("src/ads/useRewardedDownload.ts"),
     view = a.renderer(hook.useRewardedDownload);
-  const control = view.render(),
+  let control = view.render(),
     ad = a.calls.rewardedAds[0];
   ad.emit("rewarded_loaded");
+  control = view.render();
   const pending = control.beforeDownload();
   view.dispose();
   ad.emit("rewarded_earned_reward");
@@ -709,9 +737,10 @@ test("closing an opt-in rewarded ad early returns false and shows a plain cancel
   const a = app("android", "bare"),
     hook = a.load("src/ads/useRewardedDownload.ts"),
     view = a.renderer(hook.useRewardedDownload);
-  const control = view.render(),
+  let control = view.render(),
     ad = a.calls.rewardedAds[0];
   ad.emit("rewarded_loaded");
+  control = view.render();
   const pending = control.beforeDownload();
   ad.emit("opened");
   ad.emit("closed");
@@ -808,9 +837,10 @@ for (const accept of [false, true])
     const a = app("ios", "standalone", false, true, env);
     const hook = a.load("src/ads/useRewardedDownload.ts");
     const view = a.renderer(hook.useRewardedDownload);
-    const control = view.render();
+    let control = view.render();
     const ad = a.calls.rewardedAds[0];
     ad.emit("rewarded_loaded");
+    control = view.render();
     const pending = control.beforeDownload();
     const intro = a.calls.alerts.at(-1);
     assert.equal(intro[0], "Download your PDF");
@@ -840,4 +870,44 @@ test("iOS rewarded interstitial closed before earning grants no credit", async (
   assert.equal(await pending, "cancelled");
   assert.equal(manager.getCredit(), false);
   manager._test.reset();
+});
+
+test("a free-labelled download tap stays free when a rewarded ad finishes loading later", async () => {
+  const a = app("android", "bare");
+  const view = a.renderer(
+    a.load("src/ads/useRewardedDownload.ts").useRewardedDownload,
+  );
+  const loading = view.render();
+  assert.equal(loading.canOfferAd, false);
+  assert.equal(await loading.beforeDownload(), true);
+  assert.equal(a.calls.rewardedShows, 0);
+  const ad = a.calls.rewardedAds[0];
+  ad.emit("rewarded_loaded");
+  assert.equal(a.calls.rewardedShows, 0, "a load callback cannot start an ad");
+  const ready = view.render();
+  assert.equal(ready.canOfferAd, true);
+  const pending = ready.beforeDownload();
+  ad.emit("opened");
+  ad.emit("rewarded_earned_reward");
+  ad.emit("closed");
+  assert.equal(await pending, true);
+  view.dispose();
+});
+test("leaving an unused rewarded tool destroys its placement inventory and re-entry prepares a fresh one", () => {
+  const a = app("android", "bare");
+  const hook = a.load("src/ads/useRewardedDownload.ts").useRewardedDownload;
+  const first = a.renderer(hook);
+  first.render();
+  const old = a.calls.rewardedAds[0];
+  old.emit("rewarded_loaded");
+  assert.equal(first.render().canOfferAd, true);
+  first.dispose();
+  const manager = a.load("src/ads/rewarded-manager.ts").rewardedManager;
+  assert.equal(manager.isReady(), false);
+  manager.prepare();
+  assert.equal(a.calls.rewardedAds.length, 1);
+  const second = a.renderer(hook);
+  second.render();
+  assert.equal(a.calls.rewardedAds.length, 2);
+  second.dispose();
 });

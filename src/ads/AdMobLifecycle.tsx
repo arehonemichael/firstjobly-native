@@ -16,6 +16,7 @@ let runtime: ReturnType<typeof createAppOpenController> | null = null;
 let subscription: { remove(): void } | null = null;
 let privacySubscription: (() => void) | null = null;
 let links: { remove(): void } | null = null;
+let consentGuardTimer: ReturnType<typeof setTimeout> | null = null;
 let route = {
   ready: false,
   home: false,
@@ -25,6 +26,8 @@ let route = {
 const canPresentConsent = () =>
   route.ready && route.home && AppState.currentState === "active";
 function syncContext(preload = true) {
+  if (consentGuardTimer !== null) clearTimeout(consentGuardTimer);
+  consentGuardTimer = null;
   const consent = adsPrivacy.getSnapshot();
   const consentUiBlocked =
     consent.presenting || Date.now() - consent.lastUiAt <= 1000;
@@ -50,7 +53,28 @@ function syncContext(preload = true) {
     },
     true,
   );
-  runtime?.setContext({ eligible, consent: consent.canRequestAds }, preload);
+  runtime?.setContext(
+    {
+      eligible,
+      consent: consent.canRequestAds,
+      canPreload: route.ready && route.onboarded,
+    },
+    preload,
+  );
+  if (
+    runtime &&
+    !consent.presenting &&
+    consentUiBlocked &&
+    canPresentConsent()
+  ) {
+    consentGuardTimer = setTimeout(
+      () => {
+        consentGuardTimer = null;
+        syncContext();
+      },
+      Math.max(1, 1001 - (Date.now() - consent.lastUiAt)),
+    );
+  }
 }
 function ensureRuntime() {
   if (runtime || !mobileAdsSDK) return;
@@ -107,6 +131,8 @@ export function markAdInteraction() {
   runtime?.markInteraction();
 }
 export function disposeAdvertisingRuntime() {
+  if (consentGuardTimer !== null) clearTimeout(consentGuardTimer);
+  consentGuardTimer = null;
   privacySubscription?.();
   privacySubscription = null;
   setInteractionObserver(null);

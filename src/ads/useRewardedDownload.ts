@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
+import { useFocusEffect } from "expo-router";
+import { useCallback, useRef, useSyncExternalStore } from "react";
 import { Alert } from "react-native";
 import { ADS_CONFIG, USE_REWARDED_INTERSTITIAL } from "./config";
 import { mobileAdsSDK } from "./sdk";
@@ -9,29 +10,43 @@ import { adDiagnostics as diag } from "./diagnostics";
 /** Call only from the disclosed download action, after validating the form. */
 export function useRewardedDownload() {
   const consent = useAdsConsent();
-  const alive = useRef(true),
+  const alive = useRef(false),
     pending = useRef(false);
   const credit = useSyncExternalStore(
     rewardedManager.subscribeCredit,
     rewardedManager.getCredit,
     rewardedManager.getCredit,
   );
-  const canOfferAd =
+  const ready = useSyncExternalStore(
+    rewardedManager.subscribeReadiness,
+    rewardedManager.isReady,
+    () => false,
+  );
+  const canPrepare =
     !credit &&
     !!mobileAdsSDK &&
     ADS_CONFIG.rewarded.enabled &&
     consent.canRequestAds;
-  useEffect(() => {
-    alive.current = true;
-    if (canOfferAd) rewardedManager.prepare();
-    return () => {
-      alive.current = false;
-    };
-  }, [canOfferAd]);
+  const canOfferAd = canPrepare && ready;
+  useFocusEffect(
+    useCallback(() => {
+      alive.current = true;
+      const release = canPrepare
+        ? rewardedManager.retainPlacement()
+        : undefined;
+      return () => {
+        alive.current = false;
+        release?.();
+      };
+    }, [canPrepare]),
+  );
   const beforeDownload = useCallback(async () => {
     if (!alive.current || pending.current) return false;
     pending.current = true;
     try {
+      // Never make a free-labelled tap turn into a surprise late-loading ad.
+      // Credit is consumed only after the existing PDF action succeeds.
+      if (!canOfferAd) return true;
       if (USE_REWARDED_INTERSTITIAL && canOfferAd) {
         const accepted = await new Promise<boolean>((resolve) => {
           Alert.alert(

@@ -1,3 +1,4 @@
+import { AdVisibility } from "./AdVisibility";
 import { adDiagnostics as diag } from "./diagnostics";
 import { useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
@@ -42,18 +43,20 @@ export function AdBanner({
   if (!mobileAdsSDK || !ADS_CONFIG.banner.enabled) return null;
   return (
     <>
-      {consent.canRequestAds && (
-        <View
-          onLayout={(e) => setWidth(Math.floor(e.nativeEvent.layout.width))}
-        >
-          {width > 0 && (
-            <AuthorizedBanner
-              key={`${width}:${consent.personalized}`}
-              width={width}
-              placement={placement}
-            />
-          )}
-        </View>
+      {consent.canRequestAds && !consent.presenting && (
+        <AdVisibility reserveHeight={140}>
+          <View
+            onLayout={(e) => setWidth(Math.floor(e.nativeEvent.layout.width))}
+          >
+            {width > 0 && (
+              <AuthorizedBanner
+                key={`${width}:${consent.personalized}`}
+                width={width}
+                placement={placement}
+              />
+            )}
+          </View>
+        </AdVisibility>
       )}
       {(consent.privacyRequired || consent.failed) && (
         <Pressable onPress={() => void adsPrivacy.openPrivacy(() => true)}>
