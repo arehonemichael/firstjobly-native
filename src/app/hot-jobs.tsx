@@ -1,4 +1,5 @@
-import { ActivityIndicator, FlatList, StyleSheet, View } from "react-native";
+import { AdFlatList as FlatList } from "../ads/AdScrollView";
+import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { router, Stack } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {

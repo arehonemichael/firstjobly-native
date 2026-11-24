@@ -1,3 +1,4 @@
+import { AdFlatList as FlatList } from "../../ads/AdScrollView";
 import { useExtraBoundary } from "../../ads/useExtraBoundary";
 import { JobCard } from "../../components/ui/job-card";
 import {
@@ -10,7 +11,6 @@ import { Fonts, Colors } from "../../constants/theme";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  FlatList,
   Modal,
   Platform,
   ScrollView,

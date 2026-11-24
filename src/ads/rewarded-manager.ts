@@ -43,6 +43,14 @@ export function createRewardedManager(
   let finish: ((outcome: Outcome) => void) | null = null;
   let credit = false;
   const creditListeners = new Set<() => void>();
+  const readyListeners = new Set<() => void>();
+  const placements = new Set<symbol>();
+  let managedPlacements = false;
+  function setLoaded(value: boolean) {
+    if (loaded === value) return;
+    loaded = value;
+    readyListeners.forEach((fn) => fn());
+  }
   function setCredit(value: boolean) {
     if (credit === value) return;
     credit = value;
@@ -62,7 +70,7 @@ export function createRewardedManager(
     listeners = [];
     const old = ad;
     ad = null;
-    loaded = false;
+    setLoaded(false);
     opened = false;
     earned = false;
     try {
@@ -98,7 +106,8 @@ export function createRewardedManager(
       finish ||
       retryTimer !== null ||
       resetting ||
-      credit
+      credit ||
+      (managedPlacements && !placements.size)
     )
       return;
     if (exhausted) {
@@ -113,7 +122,7 @@ export function createRewardedManager(
           if (ad !== inventory) return;
           if (loadTimer !== null) clearTimeout(loadTimer);
           loadTimer = null;
-          loaded = true;
+          setLoaded(true);
           retry = 0;
           diag.record("loaded", { format: "rewarded", loaded: true });
         }),
@@ -226,6 +235,26 @@ export function createRewardedManager(
   return {
     prepare,
     request,
+    isReady: () => loaded,
+    subscribeReadiness(listener: () => void) {
+      readyListeners.add(listener);
+      return () => {
+        readyListeners.delete(listener);
+      };
+    },
+    retainPlacement() {
+      managedPlacements = true;
+      const key = Symbol("download-placement");
+      placements.add(key);
+      prepare();
+      return () => {
+        placements.delete(key);
+        if (placements.size) return;
+        if (retryTimer !== null) clearTimeout(retryTimer);
+        retryTimer = null;
+        if (!finish) discard();
+      };
+    },
     revoke,
     getCredit: () => credit,
     subscribeCredit(listener: () => void) {

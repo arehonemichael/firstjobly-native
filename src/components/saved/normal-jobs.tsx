@@ -1,3 +1,4 @@
+import { AdFlatList as FlatList } from "../../ads/AdScrollView";
 import { AdBanner } from "../../ads/AdBanner";
 import { JobMetadata } from "../../components/ui/job-metadata";
 import {
@@ -8,7 +9,6 @@ import { Fonts, Colors } from "../../constants/theme";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  FlatList,
   Image,
   StyleSheet,
   View,

@@ -1,9 +1,10 @@
+import { AdFlatList as FlatList } from "../../ads/AdScrollView";
 import { NativeAdBlock } from "../../ads/NativeAdBlock";
 import { shouldInsertNative } from "../../ads/config";
 import { traceCircularRender } from "../../lib/circular/client";
 import { useExtraBoundary } from "../../ads/useExtraBoundary";
 import { useEffect, useRef, useState } from "react";
-import { FlatList, View, ScrollView } from "react-native";
+import { View, ScrollView } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import {
   AppText as Text,

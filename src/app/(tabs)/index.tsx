@@ -1,3 +1,4 @@
+import { AdScrollView as ScrollView } from "../../ads/AdScrollView";
 import { WeeklyReminderCard } from "../../components/weekly-reminders";
 import { governmentHomeDestination } from "../../lib/circular/contract";
 import { LatestCircularCard } from "../../components/circular/latest-card";
@@ -20,7 +21,6 @@ import { Fragment, useState } from "react";
 import { Image } from "expo-image";
 import {
   ActivityIndicator,
-  ScrollView,
   StyleSheet,
   View,
   useWindowDimensions,

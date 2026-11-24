@@ -406,8 +406,10 @@ test("ready interstitials are eligible on job taps 1, 3 and 6 outside the shared
       const ad = f.ads.find((a) => a.shows && !a.removed);
       ad.emit("opened");
       ad.emit("closed");
-      t.mock.timers.tick(ADS_CONFIG.fullscreenMinGapMs);
+      // Ready inventory loads before the cooldown passes. Silent 60-second
+      // loads now correctly time out and are covered by readiness tests.
       f.ads[f.ads.length - 1].emit("loaded");
+      t.mock.timers.tick(ADS_CONFIG.fullscreenMinGapMs);
     }
   }
   assert.deepEqual(shownAt, [1, 3, 6]);

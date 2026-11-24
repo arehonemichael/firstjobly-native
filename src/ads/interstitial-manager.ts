@@ -40,10 +40,13 @@ export function createInterstitialManager(
   let retryExhausted = false;
   let finish: (() => void) | null = null;
   let listeners: (() => void)[] = [];
+  let loadTimer: ReturnType<typeof setTimeout> | null = null;
   const owner = "interstitial";
   let activeOwner = owner;
   let additionalOpened: (() => void) | null = null;
   function discard() {
+    if (loadTimer !== null) clearTimeout(loadTimer);
+    loadTimer = null;
     listeners.forEach((remove) => {
       try {
         remove();
@@ -107,6 +110,8 @@ export function createInterstitialManager(
         inventory.addAdEventListener(port.events.LOADED, () => {
           if (ad !== inventory) return;
           diag.record("loaded", { format: "interstitial", loaded: true });
+          if (loadTimer !== null) clearTimeout(loadTimer);
+          loadTimer = null;
           loaded = true;
           retry = 0;
         }),
@@ -138,6 +143,11 @@ export function createInterstitialManager(
           } else loadFailure(error);
         }),
       ];
+      loadTimer = setTimeout(() => {
+        if (ad !== inventory) return;
+        diag.record("load.timeout", { format: "interstitial" });
+        loadFailure();
+      }, policy.loadTimeoutMs);
       inventory.load();
     } catch (error) {
       loadFailure(error);

@@ -1,3 +1,4 @@
+import { AdScrollView as ScrollView } from "../../ads/AdScrollView";
 import { recordApplyClick } from "../../lib/hot-jobs/clicks";
 import { HotJobBadge } from "../../components/ui/hot-job-badge";
 import { recordRecommendationActivity } from "../../lib/recommendations/api";
@@ -14,7 +15,6 @@ import {
   Image,
   Linking,
   Modal,
-  ScrollView,
   StyleSheet,
   View,
 } from "react-native";

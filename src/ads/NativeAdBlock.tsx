@@ -1,3 +1,4 @@
+import { AdVisibility } from "./AdVisibility";
 import { adDiagnostics as diag } from "./diagnostics";
 import { AppText as Text } from "../components/ui/primitives";
 import { Colors } from "../constants/theme";
@@ -25,7 +26,11 @@ export function NativeAdBlock(props: NativeAdBlockProps) {
     diag.record("placement", {
       format: "native",
       placement: props.variant || "detail",
-      eligible: enabled && consent.canRequestAds && !!mobileAdsSDK,
+      eligible:
+        enabled &&
+        consent.canRequestAds &&
+        !consent.presenting &&
+        !!mobileAdsSDK,
       reason: !mobileAdsSDK
         ? "unsupported"
         : !enabled
@@ -34,12 +39,17 @@ export function NativeAdBlock(props: NativeAdBlockProps) {
             ? "consent"
             : "ready",
     });
-  }, [enabled, consent.canRequestAds, props.variant]);
-  return enabled && consent.canRequestAds && mobileAdsSDK ? (
-    <AuthorizedNativeAd
-      key={`${props.variant || "detail"}:${consent.personalized}`}
-      {...props}
-    />
+  }, [enabled, consent.canRequestAds, consent.presenting, props.variant]);
+  return enabled &&
+    consent.canRequestAds &&
+    !consent.presenting &&
+    mobileAdsSDK ? (
+    <AdVisibility reserveHeight={props.variant === "feed" ? 260 : 300}>
+      <AuthorizedNativeAd
+        key={`${props.variant || "detail"}:${consent.personalized}`}
+        {...props}
+      />
+    </AdVisibility>
   ) : null;
 }
 function AuthorizedNativeAd({ variant = "detail" }: NativeAdBlockProps) {
@@ -120,7 +130,7 @@ function AuthorizedNativeAd({ variant = "detail" }: NativeAdBlockProps) {
   }, [generation, recovery, variant]);
 
   if (!nativeAd || !mobileAdsSDK)
-    return compact && !failed ? (
+    return !failed ? (
       <View
         accessibilityLabel="Loading advertisement"
         style={{ minHeight: 260, marginVertical: 12 }}
