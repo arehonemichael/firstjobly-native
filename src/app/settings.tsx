@@ -1,3 +1,4 @@
+import { RateAppButton } from "../components/rate-app-button";
 import { View } from "react-native";
 import { router } from "expo-router";
 import { Button, PageShell, cs } from "../components/circular/shared";
@@ -20,6 +21,7 @@ export default function Settings() {
           secondary
           onPress={() => router.push("/notifications")}
         />
+        <RateAppButton />
         <Button
           label="Delete my account"
           secondary

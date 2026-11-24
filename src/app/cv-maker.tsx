@@ -1,3 +1,4 @@
+import { recordReviewSuccess } from "../lib/reviews/events";
 import { assertPdf } from "../lib/document-export";
 import { deleteTemporary } from "../lib/circular/io";
 import { rememberGeneratedFile } from "../lib/account/owned-files";
@@ -254,6 +255,7 @@ function CvMakerForm() {
           (!userId && !(await supabase.auth.getSession()).data.session),
       });
       completeDownload();
+      if (Platform.OS === "android") recordReviewSuccess("cv-export");
 
       Alert.alert(
         Platform.OS === "ios" ? "PDF ready" : "Downloaded",

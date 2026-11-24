@@ -1,3 +1,4 @@
+import { recordReviewSuccess } from "../lib/reviews/events";
 import { useCallback, useEffect, useSyncExternalStore } from "react";
 import { recordRecommendationActivity } from "../lib/recommendations/api";
 import { useAuth } from "./use-auth";
@@ -50,10 +51,13 @@ export function useSavedJobs() {
     if (userId) await saved.load(userId, true);
   }, [userId]);
   const toggleSave = useCallback(
-    async (job: string) =>
-      userId
-        ? saved.toggle(userId, job)
-        : { ok: false as const, reason: "not-signed-in" as const },
+    async (job: string) => {
+      if (!userId)
+        return { ok: false as const, reason: "not-signed-in" as const };
+      const result = await saved.toggle(userId, job);
+      if (result.ok && result.saved) recordReviewSuccess("saved:" + job);
+      return result;
+    },
     [userId],
   );
   return {
