@@ -1516,6 +1516,7 @@ function downloadPorts(kind, before = async () => true) {
       return before();
     },
     completeDownload: () => events.push("consume"),
+    recordReviewSuccess: () => {},
     setBusy: (value) => busy.push(value),
     savePdfToDownloads: async () => events.push("save"),
     Alert: { alert: (...args) => alerts.push(args) },

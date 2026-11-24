@@ -43,6 +43,10 @@ export function createFullscreenLock(
       emit();
     },
     isHeld: () => held !== null,
+    canAcquire: (requiredGapMs = gapMs) =>
+      held === null &&
+      (releasedAt === null ||
+        now() - releasedAt >= Math.max(gapMs, requiredGapMs)),
     _reset() {
       held = null;
       releasedAt = null;

@@ -1,3 +1,4 @@
+import { recordReviewSuccess } from "../lib/reviews/events";
 import { z83Text } from "../lib/z83/format";
 import { safePrefill } from "../lib/circular/contract";
 import {
@@ -358,6 +359,7 @@ function Z83Form() {
           userId,
       });
       completeDownload();
+      if (Platform.OS === "android") recordReviewSuccess("z83-export");
 
       Alert.alert(
         Platform.OS === "ios" ? "PDF ready" : "Downloaded",

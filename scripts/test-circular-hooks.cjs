@@ -38,6 +38,7 @@ function fixture() {
     isWithdrawn: () => false,
   };
   const mod = load("src/hooks/use-circular.ts", {
+    "../lib/reviews/events": { recordReviewSuccess: () => {} },
     react: h.react,
     "expo-router": { useFocusEffect: h.focusEffect },
     "@react-native-async-storage/async-storage": {},

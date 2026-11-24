@@ -1,3 +1,4 @@
+import { RateAppButton } from "../../components/rate-app-button";
 import { useCallback, useState } from "react";
 import { Modal, ScrollView, View } from "react-native";
 import { router, useFocusEffect, type Href } from "expo-router";
@@ -140,6 +141,7 @@ export default function MoreScreen() {
                   </Pressable>
                 ))}
               </View>
+              <RateAppButton />
               {!!error && <Text style={cs.body}>{error}</Text>}
             </ScrollView>
           </View>

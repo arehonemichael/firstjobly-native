@@ -1,3 +1,5 @@
+import { ReviewLifecycle } from "../components/review-lifecycle";
+import { recordReviewInteraction } from "../lib/reviews/events";
 import { ResumeLifecycle } from "../components/resume-lifecycle";
 import { WeeklyRemindersLifecycle } from "../components/weekly-reminders";
 import { ExtraInterstitialLifecycle } from "../ads/ExtraInterstitialLifecycle";
@@ -77,7 +79,10 @@ export default function RootLayout() {
       <View
         style={stylesPage}
         onLayout={onLayout}
-        onTouchStart={markAdInteraction}
+        onTouchStart={() => {
+          markAdInteraction();
+          recordReviewInteraction();
+        }}
       >
         <View
           testID="application-shell"
@@ -121,6 +126,11 @@ export default function RootLayout() {
           userId={auth.userId}
         />
         <WeeklyRemindersLifecycle ready={ready && !showLaunchSplash} />
+        <ReviewLifecycle
+          ready={ready && !showLaunchSplash}
+          pathname={pathname}
+          userId={auth.userId}
+        />
         <ExtraInterstitialLifecycle
           ready={ready && !showLaunchSplash}
           userId={auth.userId}

@@ -1,3 +1,4 @@
+import { recordReviewSuccess } from "../lib/reviews/events";
 import { prepareCircularItems } from "../lib/circular/list";
 import {
   useCallback,
@@ -264,6 +265,7 @@ export function useCircularSave() {
         "/circular-jobs/" + encodeURIComponent(job.id) + "/save",
         job.saved ? "DELETE" : "POST",
       );
+      if (!job.saved) recordReviewSuccess("gov-saved:" + job.id);
       circularChanged();
     } finally {
       lock.current = false;

@@ -256,6 +256,7 @@ function app(os, environment, dev = true, forceTest = false, iosEnv = {}) {
           subscribe: () => () => {},
         },
       };
+    if (full.endsWith("/src/components/review-lifecycle.tsx")) return { ReviewLifecycle: () => null };
     if (full.endsWith("/src/components/resume-lifecycle.tsx"))
       return { ResumeLifecycle: () => null };
     if (full.endsWith("/src/lib/community/store.ts")) return {};
